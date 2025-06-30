@@ -1,0 +1,41 @@
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
+aiofiles==23.2.1
+
+# AI and Machine Learning
+openai==1.3.7
+
+# LangChain dependencies (may not install on Python 3.13)
+langchain==0.1.0
+langchain-openai==0.0.2
+langchain-community==0.0.10
+
+# Vector database and embeddings
+faiss-cpu==1.7.4
+chromadb==0.4.18
+
+# NLP and text processing
+tiktoken==0.5.2
+Levenshtein==0.25.0
+
+# ML dependencies
+scikit-learn==1.3.2
+sentence-transformers==2.2.2
+numpy==1.24.3
+
+# Web scraping
+requests==2.31.0
+beautifulsoup4==4.12.2
+
+# Resume processing
+PyPDF2==3.0.1
+python-docx==1.1.0
+
+# PDF generation
+reportlab==4.0.7
+
+# Diff analysis
+difflib2==0.1.0 

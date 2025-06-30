@@ -1,0 +1,230 @@
+# ====================================
+# AI Resume Tailoring App - .gitignore
+# ====================================
+
+# ============ PYTHON/BACKEND ============
+# Virtual environments
+venv/
+env/
+ENV/
+backend/venv/
+backend/resume_env/
+backend/env/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# FastAPI/Uvicorn
+*.log
+uvicorn.log
+
+# ============ NODE.JS/FRONTEND ============
+# Dependencies
+frontend/node_modules/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Next.js
+frontend/.next/
+.next/
+out/
+.vercel
+
+# ============ ENVIRONMENT VARIABLES ============
+# Environment files (CRITICAL - contains API keys!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env*
+
+# ============ GENERATED/TEMPORARY FILES ============
+# Resume processing files
+backend/uploads/
+backend/outputs/
+backend/generated_resumes/
+Tailored Resume*.pdf
+tailored_resume*.pdf
+
+# AI/ML generated files
+backend/vector_stores/
+*.faiss
+*.pkl
+
+# Application logs & PIDs
+*.log
+.backend_pid
+.frontend_pid
+backend.log
+frontend.log
+
+# ============ OS & EDITOR FILES ============
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============ IDE & EDITOR FILES ============
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*~
+*.swp
+*.swo
+*swp
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ============ TESTING & COVERAGE ============
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# ============ PACKAGE MANAGERS ============
+# npm
+package-lock.json
+yarn.lock
+
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============ TEMPORARY & CACHE FILES ============
+# General cache
+.cache/
+.tmp/
+tmp/
+temp/
+
+# Python cache
+.pyc
+
+# Node cache
+.npm
+.eslintcache
+
+# ============ SECURITY & SECRETS ============
+# API Keys and secrets (double-check!)
+**/secrets/
+**/secret/
+**/*secret*
+**/*key*
+**/*token*
+config/secrets.yml
+config/master.key
+
+# ============ PROJECT SPECIFIC ============
+# Keep sample files but ignore actual user data
+# Example: keep "sample_resume.pdf" but ignore user uploads
+Original_Resume.pdf
+sample_*.pdf
+
+# Database files (if any)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# ============ DEPLOYMENT ============
+# Docker
+Dockerfile.prod
+docker-compose.prod.yml
+
+# Deployment configs
+.deployment/
+deploy/
+
+# CDN/Static assets (if externally hosted)
+static/
+media/ 

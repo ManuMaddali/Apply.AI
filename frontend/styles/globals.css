@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Diff highlighting */
+.diff-added {
+  background-color: #d4edda;
+  border-left: 4px solid #28a745;
+  padding-left: 8px;
+}
+
+.diff-removed {
+  background-color: #f8d7da;
+  border-left: 4px solid #dc3545;
+  padding-left: 8px;
+}
+
+.diff-modified {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  padding-left: 8px;
+}
