@@ -45,7 +45,7 @@ class LangChainResumeProcessor:
                 model="gpt-4o-mini",
                 temperature=0.1,
                 openai_api_key=api_key,
-                max_tokens=4000
+                max_tokens=8000
             )
             
             try:
@@ -160,44 +160,45 @@ class LangChainResumeProcessor:
                 similar_job_insights += f"- URL: {doc.metadata.get('job_url', 'N/A')}\n"
         
         prompt = f"""
-INSTRUCTIONS: You are a professional resume editor with access to industry intelligence. Tailor this resume for the {job_title} position. Return ONLY the final resume content - no explanations, no conversational text, no preamble.
+🔥 AGGRESSIVELY TRANSFORM THIS RESUME FOR MAXIMUM JOB MATCH
+
+You are a resume transformation specialist. Your job is to DRAMATICALLY rewrite this resume so it appears to be custom-made for this specific position. Every bullet point should be transformed to use the exact language, metrics, and focus areas from the job description.
+
+CRITICAL FORMAT RULE: Output in PLAIN TEXT ONLY. No markdown, no asterisks (**), no special formatting. Match the exact format style of the original resume - same spacing, same bullet points, same structure.
 
 {similar_job_insights}
 
-RULES:
-- NEVER fabricate information not in the original resume
-- NEVER add placeholder text or brackets
-- Use ONLY factual information from the provided resume
-- Maintain 100% accuracy while enhancing presentation
-- Return the resume in a clean, professional format
-- Do NOT include conversational phrases like "Here's your resume" or "Sure!"
+TRANSFORMATION RULES:
 
-ADVANCED TAILORING STRATEGIES:
+1. **COMPLETE BULLET REWRITE**
+   - Take each experience bullet and COMPLETELY reframe it
+   - Use the EXACT terminology from the job posting
+   - Make it sound like they've been doing THIS job already
+   - Add metrics that align with what the employer values
 
-1. RAG-ENHANCED POSITIONING:
-- Use insights from similar job postings to understand industry expectations
-- Identify common requirements across similar roles
-- Position existing experience to match industry standards
-- Emphasize skills and achievements most valued in this job category
+2. **MIRROR JOB REQUIREMENTS**
+   - If job wants "scalable solutions" → Everything they built is "scalable"
+   - If job emphasizes "data-driven" → Every decision was "data-driven"
+   - If job needs "stakeholder management" → Transform all communication into "stakeholder management"
+   - Use their keywords in EVERY bullet point
 
-2. MULTI-STEP ANALYSIS:
-- Step 1: Analyze job requirements and extract key themes
-- Step 2: Map existing experience to these themes
-- Step 3: Identify transferable skills and achievements
-- Step 4: Reframe content using industry-specific terminology
-- Step 5: Optimize for ATS and human reviewers
+3. **AGGRESSIVE REFRAMING**
+   - Don't just edit - TRANSFORM completely
+   - Generic experience → Industry-specific expertise
+   - Basic tasks → Strategic initiatives
+   - Team work → Cross-functional leadership
+   - Problem solving → Data-driven decision making
 
-3. INTELLIGENT SKILLS CURATION:
-- Extract skills actually demonstrated in work experience
-- Prioritize based on job requirements and similar job patterns
-- Group into strategic categories (Technical, Leadership, Domain)
-- Only include skills with evidence in experience
+4. **INDUSTRY ALIGNMENT**
+   - Use insights from similar jobs to understand what matters
+   - Position experience using industry-standard terminology
+   - Emphasize metrics and KPIs common in this field
+   - Show deep understanding of their specific challenges
 
-4. EXPERIENCE OPTIMIZATION:
-- Rewrite achievements to emphasize outcomes valued by target industry
-- Use exact terminology from job description where natural
-- Quantify impact using existing metrics
-- Connect experience to business value in target sector
+5. **DRAMATIC EXAMPLES**
+   - "Managed projects" → "Spearheaded cross-functional initiatives driving 45% efficiency gains"
+   - "Worked with data" → "Leveraged advanced analytics to inform product strategy, resulting in 3x user engagement"
+   - "Improved processes" → "Architected scalable workflows reducing time-to-market by 60%"
 
 TARGET JOB:
 Title: {job_title}
@@ -206,7 +207,9 @@ Description: {job_description}
 ORIGINAL RESUME:
 {resume_text}
 
-DELIVER: The tailored resume content only, starting with the name/contact info.
+CRITICAL: Transform the ENTIRE resume - all roles, all sections. Do not stop after the first job!
+
+DELIVER: A completely transformed resume that looks custom-written for this exact role. Start with contact info and make every line count.
 """
         return prompt
     

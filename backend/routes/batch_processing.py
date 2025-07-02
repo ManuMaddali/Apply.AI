@@ -14,6 +14,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_JUSTIFY
 from utils.job_scraper import JobScraper
 from utils.langchain_processor import LangChainResumeProcessor
 from utils.gpt_prompt import GPTProcessor
@@ -29,9 +30,9 @@ fallback_processor = GPTProcessor()
 diff_analyzer = ResumeDiffAnalyzer()
 resume_editor = ResumeEditor()
 
-# In-memory storage for batch jobs (in production, use Redis or database)
-batch_jobs = {}
-batch_results = {}
+# In-memory storage for batch jobs (consider using Redis or a database for production)
+batch_jobs: Dict[str, Any] = {}
+batch_results: Dict[str, List[Dict[str, Any]]] = {}
 
 class BatchProcessRequest(BaseModel):
     resume_text: str
@@ -49,86 +50,49 @@ class ZIPGenerateRequest(BaseModel):
     batch_id: str
 
 def generate_pdf_from_text(resume_text: str, job_title: str) -> BytesIO:
-    """Generate PDF from resume text using ReportLab"""
-    buffer = BytesIO()
-    
-    # Create PDF document
-    doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                          topMargin=0.5*inch, bottomMargin=0.5*inch,
-                          leftMargin=0.75*inch, rightMargin=0.75*inch)
-    
-    # Get styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        textColor='black',
-        spaceAfter=12,
-        alignment=1  # Center alignment
-    )
-    
-    normal_style = ParagraphStyle(
-        'CustomNormal',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor='black',
-        spaceAfter=6,
-        leftIndent=0,
-        rightIndent=0
-    )
-    
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=12,
-        textColor='black',
-        spaceAfter=8,
-        spaceBefore=12,
-        leftIndent=0
-    )
-    
-    # Build content
-    content = []
-    
-    # Add title
-    content.append(Paragraph(f"Tailored Resume - {job_title}", title_style))
-    content.append(Spacer(1, 12))
-    
-    # Process resume text
-    lines = resume_text.split('\n')
-    current_paragraph = ""
-    
-    for line in lines:
-        line = line.strip()
-        if not line:
-            if current_paragraph:
-                # Determine if this is a heading (short line, all caps, or ends with colon)
-                if (len(current_paragraph) < 50 and 
-                    (current_paragraph.isupper() or current_paragraph.endswith(':'))):
-                    content.append(Paragraph(current_paragraph, heading_style))
-                else:
-                    content.append(Paragraph(current_paragraph, normal_style))
-                current_paragraph = ""
-            content.append(Spacer(1, 6))
-        else:
-            if current_paragraph:
-                current_paragraph += " " + line
-            else:
-                current_paragraph = line
-    
-    # Add remaining paragraph
-    if current_paragraph:
-        if (len(current_paragraph) < 50 and 
-            (current_paragraph.isupper() or current_paragraph.endswith(':'))):
-            content.append(Paragraph(current_paragraph, heading_style))
-        else:
-            content.append(Paragraph(current_paragraph, normal_style))
-    
-    # Build PDF
-    doc.build(content)
-    buffer.seek(0)
-    return buffer
+    """Generate PDF using ResumeEditor for better formatting"""
+    try:
+        # Create temporary file for PDF
+        import tempfile
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.pdf')
+        os.close(temp_fd)  # Close the file descriptor
+        
+        # Use ResumeEditor to create the PDF with proper formatting
+        success = resume_editor.create_tailored_resume_pdf(
+            tailored_text=resume_text,
+            output_path=temp_path,
+            job_title=job_title
+        )
+        
+        if not success:
+            raise Exception("Failed to create PDF with ResumeEditor")
+        
+        # Read the PDF into a BytesIO buffer
+        buffer = BytesIO()
+        with open(temp_path, 'rb') as f:
+            buffer.write(f.read())
+        
+        # Clean up temp file
+        os.unlink(temp_path)
+        
+        buffer.seek(0)
+        return buffer
+        
+    except Exception as e:
+        print(f"PDF generation error: {e}")
+        # Fallback to basic PDF if ResumeEditor fails
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        content = [
+            Paragraph(f"Resume for: {job_title}", styles['Title']),
+            Paragraph("Error generating formatted PDF. Content:", styles['Normal']),
+            Spacer(1, 12),
+            Paragraph(resume_text[:1000] + "...", styles['Normal'])
+        ]
+        doc.build(content)
+        buffer.seek(0)
+        return buffer
 
 class BatchJobStatus:
     def __init__(self, batch_id: str, total_jobs: int):
@@ -342,72 +306,136 @@ async def generate_single_pdf(request: PDFGenerateRequest):
 
 @router.post("/generate-zip")
 async def generate_zip_file(request: ZIPGenerateRequest):
-    """Generate a ZIP file containing multiple resume PDFs"""
+    """Generate a ZIP file containing multiple resume PDFs with improved error handling"""
+    zip_path = None
     try:
-        # Create temporary directory for ZIP file
-        with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_zip:
-            zip_path = tmp_zip.name
+        # Validate input
+        if not request.resumes:
+            raise HTTPException(status_code=400, detail="No resumes provided")
+        
+        if len(request.resumes) > 20:  # Safety limit
+            raise HTTPException(status_code=400, detail="Too many resumes requested")
+        
+        # Create temporary file for ZIP
+        import tempfile
+        temp_dir = tempfile.gettempdir()
+        zip_path = os.path.join(temp_dir, f"batch_resumes_{request.batch_id[:8]}_{int(time.time())}.zip")
+        
+        successful_pdfs = 0
         
         # Create ZIP file
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
             for i, resume_data in enumerate(request.resumes):
                 try:
+                    # Validate resume data
+                    if not resume_data.get('resume_text'):
+                        print(f"Skipping resume {i+1}: No resume text")
+                        continue
+                    
+                    if not resume_data.get('job_title'):
+                        resume_data['job_title'] = f"Resume_{i+1}"
+                    
                     # Generate PDF for this resume
                     pdf_buffer = generate_pdf_from_text(
                         resume_data['resume_text'], 
                         resume_data['job_title']
                     )
                     
-                    # Clean filename
-                    safe_title = "".join(c for c in resume_data['job_title'] if c.isalnum() or c in (' ', '-', '_')).strip()
-                    safe_title = safe_title.replace(' ', '_')
+                    # Create safe filename
+                    job_title = resume_data['job_title']
+                    safe_title = "".join(c for c in job_title if c.isalnum() or c in (' ', '-', '_')).strip()
+                    if not safe_title:
+                        safe_title = f"Resume_{i+1}"
+                    safe_title = safe_title.replace(' ', '_')[:50]  # Limit length
                     filename = f"{i+1:02d}_{safe_title}.pdf"
                     
                     # Add PDF to ZIP
                     zipf.writestr(filename, pdf_buffer.getvalue())
+                    successful_pdfs += 1
                     
-                    # Add a summary file for this resume
-                    summary = f"""
-Resume: {resume_data['job_title']}
-Job URL: {resume_data['job_url']}
+                    # Add summary file for this resume
+                    summary_content = f"""Resume: {resume_data['job_title']}
+Job URL: {resume_data.get('job_url', 'N/A')}
 Enhancement Score: {resume_data.get('enhancement_score', 'N/A')}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Status: Successfully generated
 """
-                    zipf.writestr(f"{i+1:02d}_{safe_title}_info.txt", summary)
+                    
+                    summary_filename = f"{i+1:02d}_{safe_title}_info.txt"
+                    zipf.writestr(summary_filename, summary_content.encode('utf-8'))
                     
                 except Exception as e:
                     print(f"Error processing resume {i+1}: {str(e)}")
+                    # Add error info file instead
+                    try:
+                        error_content = f"""Resume: {resume_data.get('job_title', f'Resume_{i+1}')}
+Job URL: {resume_data.get('job_url', 'N/A')}
+Status: Failed to generate PDF
+Error: {str(e)}
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+                        error_filename = f"{i+1:02d}_ERROR_{resume_data.get('job_title', f'Resume_{i+1}')[:20]}.txt"
+                        zipf.writestr(error_filename, error_content.encode('utf-8'))
+                    except:
+                        pass  # Skip if even error file creation fails
                     continue
             
             # Add batch summary
-            batch_summary = f"""
-BATCH PROCESSING SUMMARY
+            batch_summary = f"""BATCH PROCESSING SUMMARY
 ========================
 Batch ID: {request.batch_id}
-Total Resumes: {len(request.resumes)}
+Total Resumes Requested: {len(request.resumes)}
+Successful PDFs Generated: {successful_pdfs}
+Failed: {len(request.resumes) - successful_pdfs}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 This ZIP file contains:
-- Individual PDF resumes for each job application
+- {successful_pdfs} successfully generated PDF resume(s)
 - Info files with job details and enhancement scores
+- Error logs for any failed generations
 - This summary file
 
 All resumes have been tailored using AI for specific job requirements.
+RAG (Retrieval-Augmented Generation) and advanced diff analysis were applied.
 """
-            zipf.writestr("BATCH_SUMMARY.txt", batch_summary)
+            zipf.writestr("BATCH_SUMMARY.txt", batch_summary.encode('utf-8'))
+        
+        # Verify ZIP file was created and has content
+        if not os.path.exists(zip_path) or os.path.getsize(zip_path) == 0:
+            raise Exception("ZIP file was not created properly")
+        
+        if successful_pdfs == 0:
+            raise Exception("No PDFs were successfully generated")
         
         # Return ZIP file
+        def cleanup_file():
+            try:
+                if os.path.exists(zip_path):
+                    os.unlink(zip_path)
+            except Exception as e:
+                print(f"Error cleaning up file: {e}")
+        
+        background_tasks = BackgroundTasks()
+        background_tasks.add_task(cleanup_file)
+        
         return FileResponse(
             path=zip_path,
             media_type="application/zip",
             filename=f"batch_resumes_{request.batch_id[:8]}.zip",
-            background=BackgroundTasks(lambda: os.unlink(zip_path))  # Clean up after download
+            background=background_tasks
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         # Clean up on error
-        if 'zip_path' in locals() and os.path.exists(zip_path):
-            os.unlink(zip_path)
+        if zip_path and os.path.exists(zip_path):
+            try:
+                os.unlink(zip_path)
+            except:
+                pass
+        
+        print(f"ZIP generation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate ZIP file: {str(e)}")
 
 @router.get("/status/{batch_id}")

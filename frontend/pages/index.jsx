@@ -5,56 +5,271 @@ import { useRouter } from 'next/router'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
+// Enhanced Modal component for side-by-side resume comparison
+const ResumeModal = ({ isOpen, onClose, resume, jobTitle, originalResume }) => {
+  if (!isOpen) return null;
+
+  // Check if content was actually enhanced
+  const wasEnhanced = (original, tailored) => {
+    if (!original || !tailored) return false;
+    const cleanOriginal = original.replace(/\s+/g, ' ').trim();
+    const cleanTailored = tailored.replace(/\s+/g, ' ').trim();
+    return cleanOriginal !== cleanTailored;
+  };
+
+  // Enhanced highlighting - highlight new sections and transformed content
+  const highlightNewContent = (original, tailored) => {
+    if (!original || !tailored) return tailored;
+
+    // Normalize text for comparison
+    const normalizeText = (text) => {
+      return text
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s]/g, ' ')
+        .trim();
+    };
+
+    // Check if a line exists in original (with some flexibility)
+    const lineExistsInOriginal = (line, originalLines) => {
+      const normalizedLine = normalizeText(line);
+      
+      // Check for exact or near matches
+      return originalLines.some(origLine => {
+        const normalizedOrig = normalizeText(origLine);
+        
+        // Exact match
+        if (normalizedOrig === normalizedLine) return true;
+        
+        // Very similar (for headers, titles, company names)
+        const lineWords = normalizedLine.split(' ').filter(w => w.length > 2);
+        const origWords = normalizedOrig.split(' ').filter(w => w.length > 2);
+        
+        // If it's a short line (like headers), check if most words match
+        if (lineWords.length <= 5) {
+          const matchingWords = lineWords.filter(w => origWords.includes(w));
+          return matchingWords.length >= lineWords.length * 0.7;
+        }
+        
+        return false;
+      });
+    };
+
+    // Split text into sections and lines for better comparison
+    const getTextStructure = (text) => {
+      const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+      const normalized = normalizeText(text);
+      const words = new Set(normalized.split(/\s+/).filter(w => w.length > 2));
+      
+      // Identify sections
+      const sections = {};
+      let currentSection = 'header';
+      
+      lines.forEach(line => {
+        const lineLower = line.toLowerCase();
+        if (lineLower.includes('summary') || lineLower.includes('objective')) {
+          currentSection = 'summary';
+        } else if (lineLower.includes('experience') || lineLower.includes('employment')) {
+          currentSection = 'experience';
+        } else if (lineLower.includes('skills')) {
+          currentSection = 'skills';
+        } else if (lineLower.includes('education')) {
+          currentSection = 'education';
+        }
+        
+        if (!sections[currentSection]) sections[currentSection] = [];
+        sections[currentSection].push(line);
+      });
+      
+      return { lines, normalized, words, sections };
+    };
+
+    const originalStructure = getTextStructure(original);
+    const tailoredStructure = getTextStructure(tailored);
+
+    // Process tailored text line by line
+    let result = '';
+    const tailoredLines = tailored.split('\n');
+    
+    tailoredLines.forEach((line, index) => {
+      if (!line.trim()) {
+        result += '\n';
+        return;
+      }
+      
+      let shouldHighlight = false;
+      const lineLower = line.toLowerCase();
+      const normalizedLine = normalizeText(line);
+      
+      // Skip highlighting if this line exists in original (headers, job titles, etc.)
+      if (lineExistsInOriginal(line, originalStructure.lines)) {
+        result += line + '\n';
+        return;
+      }
+      
+      // 1. Check if this is professional summary content (and original didn't have one)
+      if ((!originalStructure.sections.summary || originalStructure.sections.summary.length === 0) &&
+          index < 15 && // Near the top
+          line.length > 40 && // Substantial content
+          !line.includes(':') && // Not a header
+          !line.match(/^[A-Z\s]+$/) && // Not all caps
+          !line.includes('•') && // Not a bullet
+          !lineExistsInOriginal(line, originalStructure.lines)) {
+        shouldHighlight = true;
+      }
+      
+      // 2. Check if this is a significantly transformed bullet point
+      if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+        // Calculate similarity with original bullets
+        let maxSimilarity = 0;
+        const lineWords = new Set(normalizedLine.split(/\s+/).filter(w => w.length > 2));
+        
+        originalStructure.lines.forEach(origLine => {
+          if (origLine.startsWith('•') || origLine.startsWith('-') || origLine.startsWith('*')) {
+            const origWords = new Set(normalizeText(origLine).split(/\s+/).filter(w => w.length > 2));
+            const intersection = new Set([...lineWords].filter(x => origWords.has(x)));
+            const similarity = intersection.size / Math.max(lineWords.size, origWords.size);
+            maxSimilarity = Math.max(maxSimilarity, similarity);
+          }
+        });
+        
+        // If less than 30% similar to any original bullet, it's significantly transformed
+        if (maxSimilarity < 0.3) {
+          shouldHighlight = true;
+        }
+      }
+      
+      // Apply highlighting
+      if (shouldHighlight) {
+        result += `<span class="bg-green-100 px-1 rounded border border-green-300">${line}</span>\n`;
+      } else {
+        result += line + '\n';
+      }
+    });
+    
+    // Remove trailing newline
+    return result.trimEnd();
+  };
+
+  const isEnhanced = wasEnhanced(originalResume, resume);
+  const highlightedResume = isEnhanced ? highlightNewContent(originalResume, resume) : resume;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gray-50">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">📄 {jobTitle}</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              {isEnhanced ? (
+                <span className="text-green-600 font-medium">✨ Resume enhanced with AI tailoring</span>
+              ) : (
+                <span>Resume preview</span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl font-bold p-2 hover:bg-gray-100 rounded"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Side-by-side comparison */}
+        {originalResume ? (
+          <div className="flex-1 flex overflow-hidden">
+            
+            {/* Original Resume - Left Side */}
+            <div className="w-1/2 border-r border-gray-200 flex flex-col">
+              <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+                <h3 className="font-medium text-gray-900">📝 Original Resume</h3>
+                <p className="text-xs text-gray-600">Exactly as you uploaded it</p>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 bg-white">
+                <pre className="text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words">
+{originalResume}
+                </pre>
+              </div>
+            </div>
+
+            {/* Tailored Resume - Right Side */}
+            <div className="w-1/2 flex flex-col">
+              <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
+                <h3 className="font-medium text-gray-900">✨ AI-Enhanced Resume</h3>
+                <p className="text-xs text-gray-600">Tailored for this specific job</p>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 bg-white">
+                <div 
+                  className="text-sm text-gray-800 font-mono leading-relaxed whitespace-pre-wrap break-words"
+                  dangerouslySetInnerHTML={{ __html: highlightedResume }}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Single view when no original resume
+          <div className="flex-1 overflow-y-auto p-6">
+            <pre className="text-sm text-gray-800 font-mono leading-relaxed bg-gray-50 p-4 rounded whitespace-pre-wrap break-words">
+{resume}
+            </pre>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
+          <div className="text-sm text-gray-600">
+            {isEnhanced ? (
+              <div className="flex items-center space-x-4">
+                <span className="flex items-center">
+                  <div className="w-3 h-3 bg-green-100 border border-green-300 mr-2 rounded"></div>
+                  New content highlighted
+                </span>
+              </div>
+            ) : (
+              <span className="text-gray-500">Content appears identical</span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
   const router = useRouter()
   const [file, setFile] = useState(null)
-  const [jobUrl, setJobUrl] = useState('')
-  const [jobTitle, setJobTitle] = useState('')
-  const [jobDescription, setJobDescription] = useState('')
-  const [tailoredResume, setTailoredResume] = useState('')
+  const [jobUrls, setJobUrls] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [originalResume, setOriginalResume] = useState('')
-  const [useRag, setUseRag] = useState(true)
-  const [compareVersions, setCompareVersions] = useState(true)
-  const [ragInsights, setRagInsights] = useState(null)
-  const [diffAnalysis, setDiffAnalysis] = useState(null)
-  const [sessionId, setSessionId] = useState('')
-  const [sessions, setSessions] = useState([])
-  const [showDiffDetails, setShowDiffDetails] = useState(false)
-  const [ragStatus, setRagStatus] = useState(null)
+  const [batchJobId, setBatchJobId] = useState('')
+  const [batchStatus, setBatchStatus] = useState(null)
+  const [results, setResults] = useState([])
+  const [outputFormat, setOutputFormat] = useState('text')
+  const [pollingInterval, setPollingInterval] = useState(null)
+  const [selectedResume, setSelectedResume] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [originalResumeText, setOriginalResumeText] = useState('')
   
   const fileInputRef = useRef(null)
 
-  // Check RAG status on component mount
-  const checkRagStatus = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/resumes/rag-status`)
-      const data = await response.json()
-      setRagStatus(data)
-    } catch (error) {
-      console.error('Error checking RAG status:', error)
-    }
-  }
-
-  // Load session history
-  const loadSessions = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/resumes/sessions`)
-      const data = await response.json()
-      if (data.success) {
-        setSessions(Object.entries(data.sessions))
-      }
-    } catch (error) {
-      console.error('Error loading sessions:', error)
-    }
-  }
-
+  // Clean up polling on component unmount
   useEffect(() => {
-    checkRagStatus()
-    loadSessions()
-  }, [])
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   const handleFileUpload = (event) => {
     const selectedFile = event.target.files[0]
@@ -70,54 +285,46 @@ export default function Home() {
     }
   }
 
-  const scrapeJobDescription = async () => {
-    if (!jobUrl) {
-      setError('Please enter a job URL')
-      return
+  const validateJobUrls = (urls) => {
+    const lines = urls.trim().split('\n').filter(line => line.trim());
+    if (lines.length === 0) {
+      return { valid: false, message: 'Please enter at least one job URL' };
     }
-
-    setLoading(true)
-    setError('')
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/jobs/scrape`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_url: jobUrl })
-      })
-
-      const data = await response.json()
-      
-      if (data.success) {
-        setJobDescription(data.job_description)
-        setJobTitle(data.job_title || 'Product Manager')
-        setSuccess('Job description scraped successfully!')
-        setTimeout(() => setSuccess(''), 3000)
-      } else {
-        setError(data.detail || 'Failed to scrape job description')
+    if (lines.length > 10) {
+      return { valid: false, message: 'Maximum 10 job URLs allowed' };
+    }
+    
+    const invalidUrls = lines.filter(line => {
+      try {
+        new URL(line.trim());
+        return false;
+      } catch {
+        return true;
       }
-    } catch (error) {
-      setError('Network error occurred')
-    } finally {
-      setLoading(false)
+    });
+    
+    if (invalidUrls.length > 0) {
+      return { valid: false, message: `Invalid URLs found: ${invalidUrls.slice(0, 3).join(', ')}${invalidUrls.length > 3 ? '...' : ''}` };
     }
+    
+    return { valid: true, urls: lines.map(line => line.trim()) };
   }
 
-  const uploadAndTailorResume = async () => {
+  const startBatchProcessing = async () => {
     if (!file) {
       setError('Please upload a resume file')
       return
     }
-    if (!jobDescription) {
-      setError('Please scrape a job description first')
+
+    const validation = validateJobUrls(jobUrls)
+    if (!validation.valid) {
+      setError(validation.message)
       return
     }
 
     setLoading(true)
     setError('')
-    setTailoredResume('')
-    setDiffAnalysis(null)
-    setRagInsights(null)
+    setResults([])
 
     try {
       // First upload the resume
@@ -135,37 +342,37 @@ export default function Home() {
         throw new Error(uploadData.detail || 'Failed to upload resume')
       }
 
-      setOriginalResume(uploadData.resume_text)
+      setOriginalResumeText(uploadData.resume_text)
 
-      // Then tailor the resume with LangChain
-      const tailorResponse = await fetch(`${API_BASE_URL}/resumes/tailor`, {
+      // Start batch processing with RAG and diff analysis enabled by default
+      const batchResponse = await fetch(`${API_BASE_URL}/batch/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           resume_text: uploadData.resume_text,
-          job_description: jobDescription,
-          job_title: jobTitle || 'Product Manager',
-          job_url: jobUrl,
-          use_rag: useRag,
-          compare_versions: compareVersions
+          job_urls: validation.urls,
+          use_rag: true, // Always enabled
+          compare_versions: true, // Always enabled
+          output_format: outputFormat
         })
       })
 
-      const tailorData = await tailorResponse.json()
+      const batchData = await batchResponse.json()
 
-      if (tailorData.success) {
-        setTailoredResume(tailorData.tailored_resume)
-        setSessionId(tailorData.session_id)
-        setRagInsights(tailorData.rag_insights)
-        setDiffAnalysis(tailorData.diff_analysis)
-        setSuccess(`✅ Resume tailored successfully using ${tailorData.processing_mode} mode!`)
+      if (batchData.success) {
+        setBatchJobId(batchData.batch_job_id)
+        setBatchStatus({
+          state: 'processing',
+          total: validation.urls.length,
+          completed: 0,
+          failed: 0,
+          current_job: 'Starting batch processing with RAG and diff analysis...'
+        })
+        setSuccess(`✅ Batch processing started! Processing ${validation.urls.length} job URLs with AI enhancement...`)
         
-        // Reload sessions
-        loadSessions()
-        
-        setTimeout(() => setSuccess(''), 5000)
+        startStatusPolling(batchData.batch_job_id)
       } else {
-        throw new Error(tailorData.detail || 'Failed to tailor resume')
+        throw new Error(batchData.detail || 'Failed to start batch processing')
       }
 
     } catch (error) {
@@ -175,378 +382,432 @@ export default function Home() {
     }
   }
 
-  const loadSession = async (sessionId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/resumes/session/${sessionId}`)
-      const data = await response.json()
-      
-      if (data.success) {
-        const session = data.session_data
-        setOriginalResume(session.original_resume)
-        setTailoredResume(session.tailored_resume)
-        setJobDescription(session.job_description)
-        setJobTitle(session.job_title)
-        setSessionId(sessionId)
+  const startStatusPolling = (jobId) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/batch/status/${jobId}`);
+        const data = await response.json();
         
-        // Perform diff analysis for loaded session
-        if (compareVersions) {
-          const diffResponse = await fetch(`${API_BASE_URL}/resumes/analyze-diff`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              original_resume: session.original_resume,
-              tailored_resume: session.tailored_resume,
-              job_title: session.job_title
-            })
-          })
+        if (data.success) {
+          setBatchStatus(data.status);
           
-          const diffData = await diffResponse.json()
-          if (diffData.success) {
-            setDiffAnalysis(diffData.diff_analysis)
+          if (data.status.state === 'completed' || data.status.state === 'failed') {
+            clearInterval(interval);
+            setPollingInterval(null);
+            
+            if (data.status.state === 'completed') {
+              loadBatchResults(jobId);
+              setSuccess('✅ Batch processing completed with RAG enhancement and diff analysis!');
+            } else {
+              setError('❌ Batch processing failed. Please try again.');
+            }
           }
         }
-        
-        setSuccess('Session loaded successfully!')
-        setTimeout(() => setSuccess(''), 3000)
+      } catch (error) {
+        console.error('Error polling status:', error);
+      }
+    }, 1500);
+    
+    setPollingInterval(interval);
+  }
+
+  const loadBatchResults = async (jobId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/batch/results/${jobId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setResults(data.results);
       }
     } catch (error) {
-      setError('Failed to load session')
+      console.error('Error loading results:', error);
+    }
+  }
+
+  const viewFullResume = (result) => {
+    setSelectedResume(result);
+    setModalOpen(true);
+  }
+
+  const downloadIndividualResumePDF = async (result) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/batch/generate-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resume_text: result.tailored_resume,
+          job_title: result.job_title,
+          filename: `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_tailored_resume.pdf`
+        })
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_tailored_resume.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Failed to generate PDF');
+      }
+    } catch (error) {
+      setError('Failed to download PDF. Please try again.');
+      console.error('Error downloading PDF:', error);
+    }
+  }
+
+  const downloadIndividualResumeText = (result) => {
+    try {
+      // Create text file with exact formatting
+      const textContent = result.tailored_resume;
+      const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_tailored_resume.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setError('Failed to download text file. Please try again.');
+      console.error('Error downloading text:', error);
+    }
+  }
+
+  const downloadAllResumesZIP = async () => {
+    const successfulResults = results.filter(r => r.status === 'success' && r.tailored_resume);
+    
+    if (successfulResults.length === 0) {
+      setError('No successful results to download');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(''); // Clear any previous errors
+      
+      const response = await fetch(`${API_BASE_URL}/batch/generate-zip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resumes: successfulResults.map(result => ({
+            resume_text: result.tailored_resume,
+            job_title: result.job_title,
+            job_url: result.job_url,
+            enhancement_score: result.enhancement_score
+          })),
+          batch_id: batchJobId
+        })
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        
+        // Check if blob has content
+        if (blob.size === 0) {
+          throw new Error('Generated ZIP file is empty');
+        }
+        
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `batch_tailored_resumes_${new Date().toISOString().split('T')[0]}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        setSuccess(`📦 Downloaded ZIP with ${successfulResults.length} tailored resume PDFs!`);
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        // Try to get detailed error message from response
+        let errorMessage = 'Failed to generate ZIP file';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error('ZIP download error:', error);
+      setError(`Failed to download ZIP file: ${error.message}. Please try downloading individual PDFs instead.`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const getStatusColor = (state) => {
+    switch (state) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🚀 AI Resume Tailoring App
+            🚀 AI Resume Tailoring Tool
           </h1>
-          <p className="text-lg text-gray-600">
-            LangChain-Powered RAG System with Smart Diff Analysis
+          <p className="text-lg text-gray-600 mb-2">
+            Batch Processing with Smart RAG Enhancement & Advanced Diff Analysis
           </p>
-          {ragStatus && (
-            <div className={`inline-block mt-2 px-3 py-1 rounded-full text-sm ${
-              ragStatus.rag_available 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-yellow-100 text-yellow-800'
-            }`}>
-              {ragStatus.rag_available ? '🟢 RAG System Active' : '🟡 RAG System Initializing'}
-            </div>
-          )}
+          <div className="inline-flex items-center space-x-4 mt-3 p-3 bg-white rounded-lg shadow-sm">
+            <span className="flex items-center text-sm text-green-700 bg-green-100 px-2 py-1 rounded">
+              🔍 <span className="ml-1 font-medium">RAG Enabled</span>
+            </span>
+            <span className="flex items-center text-sm text-blue-700 bg-blue-100 px-2 py-1 rounded">
+              📊 <span className="ml-1 font-medium">Diff Analysis</span>
+            </span>
+            <span className="flex items-center text-sm text-purple-700 bg-purple-100 px-2 py-1 rounded">
+              ⚡ <span className="ml-1 font-medium">Batch Mode</span>
+            </span>
+          </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* Left Panel - Upload & Settings */}
+          {/* Left Panel - Input */}
           <div className="space-y-6">
             
-            {/* File Upload */}
+            {/* Resume Upload */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">📄 Upload Resume</h2>
               
               <div className="space-y-4">
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.docx"
-                    onChange={handleFileUpload}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx"
+                  onChange={handleFileUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
                 
                 {file && (
-                  <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
-                    ✅ {file.name} ready for upload
+                  <div className="text-sm text-green-600 bg-green-50 p-3 rounded flex items-center">
+                    <span className="mr-2">✅</span>
+                    <div>
+                      <div className="font-medium">{file.name}</div>
+                      <div className="text-xs">Ready for batch processing with AI enhancement</div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* AI Settings */}
+            {/* Job URLs Input */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">🤖 AI Settings</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">🔗 Job URLs (Max 10)</h2>
               
               <div className="space-y-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="useRag"
-                    checked={useRag}
-                    onChange={(e) => setUseRag(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="useRag" className="ml-2 text-sm text-gray-700">
-                    🔍 Enable RAG (Retrieval-Augmented Generation)
-                  </label>
-                </div>
+                <textarea
+                  value={jobUrls}
+                  onChange={(e) => setJobUrls(e.target.value)}
+                  placeholder="Paste job URLs here, one per line:
+https://linkedin.com/jobs/view/123456789
+https://jobs.company.com/role/product-manager
+https://careers.startup.com/positions/senior-dev
+..."
+                  rows={8}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
                 
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="compareVersions"
-                    checked={compareVersions}
-                    onChange={(e) => setCompareVersions(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="compareVersions" className="ml-2 text-sm text-gray-700">
-                    📊 Enable Diff Analysis
-                  </label>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">
+                    {jobUrls.trim().split('\n').filter(line => line.trim()).length}/10 URLs
+                  </span>
+                  <span className="text-blue-600 font-medium">
+                    RAG + Diff Analysis included automatically
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Session History */}
+            {/* Advanced Settings */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">📝 Session History</h2>
-                <button
-                  onClick={loadSessions}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  Refresh
-                </button>
-              </div>
-              
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {sessions.length > 0 ? (
-                  sessions.map(([id, session]) => (
-                    <div 
-                      key={id}
-                      onClick={() => loadSession(id)}
-                      className="p-2 bg-gray-50 rounded cursor-pointer hover:bg-blue-50 transition-colors"
-                    >
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {session.job_title}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(session.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-gray-500 text-center py-4">
-                    No sessions yet
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Middle Panel - Job Input */}
-          <div className="space-y-6">
-            
-            {/* Job URL Scraping */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">🌐 Job URL Scraping</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">⚙️ Output Settings</h2>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Job URL
+                    Download Format
                   </label>
-                  <input
-                    type="url"
-                    value={jobUrl}
-                    onChange={(e) => setJobUrl(e.target.value)}
-                    placeholder="https://linkedin.com/jobs/view/..."
+                  <select
+                    value={outputFormat}
+                    onChange={(e) => setOutputFormat(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="text">PDF Downloads (Recommended)</option>
+                    <option value="files">Advanced PDF/DOCX Files</option>
+                  </select>
                 </div>
                 
-                <button
-                  onClick={scrapeJobDescription}
-                  disabled={loading || !jobUrl}
-                  className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                >
-                  {loading ? '🔄 Scraping...' : '🔍 Scrape Job Description'}
-                </button>
+                <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded">
+                  <div className="font-medium mb-1">✨ Automatic Features:</div>
+                  <ul className="space-y-1">
+                    <li>• RAG (Retrieval-Augmented Generation) enhancement</li>
+                    <li>• Advanced diff analysis with keyword highlighting</li>
+                    <li>• Smart content optimization for each job</li>
+                    <li>• Enhancement scoring and analytics</li>
+                  </ul>
+                </div>
               </div>
             </div>
 
-            {/* Scraped Job Info */}
-            {jobDescription && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">✅ Job Details</h2>
-                
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Job Title
-                    </label>
-                    <div className="text-sm bg-gray-50 p-2 rounded">
-                      {jobTitle}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Job Description (Preview)
-                    </label>
-                    <div className="text-sm bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">
-                      {jobDescription.substring(0, 300)}...
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Generate Button */}
+            {/* Start Processing Button */}
             <button
-              onClick={uploadAndTailorResume}
-              disabled={loading || !file || !jobDescription}
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
+              onClick={startBatchProcessing}
+              disabled={loading || !file || !jobUrls.trim()}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-md hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold text-lg shadow-lg"
             >
-              {loading ? '🔄 Processing...' : '✨ Tailor Resume with AI'}
+              {loading ? '🔄 Starting AI Processing...' : '🚀 Start Batch AI Tailoring'}
             </button>
-
-            {/* Batch Mode Tile */}
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg shadow-lg p-6 border border-purple-200">
-              <div className="text-center">
-                <div className="text-2xl mb-2">⚡</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Batch Mode</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Process multiple jobs at once. Upload resume + paste up to 10 job links for automated tailoring.
-                </p>
-                <button
-                  onClick={() => router.push('/batch')}
-                  className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors font-medium"
-                >
-                  🚀 Launch Batch Mode
-                </button>
-              </div>
-            </div>
           </div>
 
-          {/* Right Panel - RAG Insights & Analytics */}
+          {/* Right Panel - Status & Results */}
           <div className="space-y-6">
             
-            {/* RAG Insights */}
-            {ragInsights && (
+            {/* Batch Status */}
+            {batchStatus && (
               <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">🧠 RAG Insights</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">📊 Processing Status</h2>
                 
-                <div className="space-y-3">
-                  <div className="text-sm">
-                    <span className="font-medium">Similar Jobs Found:</span> {ragInsights.similar_jobs_found}
-                  </div>
-                  
-                  <div className="text-sm">
-                    <span className="font-medium">Processing Steps:</span>
-                    <ul className="list-disc list-inside ml-2 mt-1">
-                      {ragInsights.processing_steps.map((step, index) => (
-                        <li key={index} className="text-gray-600">{step}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {ragInsights.insights && ragInsights.insights.length > 0 && (
-                    <div className="text-sm">
-                      <span className="font-medium">Industry Insights:</span>
-                      <div className="space-y-1 mt-1">
-                        {ragInsights.insights.map((insight, index) => (
-                          <div key={index} className="text-xs bg-blue-50 p-2 rounded">
-                            {insight.job_title} - {insight.job_url}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Diff Analysis Summary */}
-            {diffAnalysis && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">📊 Diff Analysis</h2>
-                  <button
-                    onClick={() => setShowDiffDetails(!showDiffDetails)}
-                    className="text-blue-600 hover:text-blue-800 text-sm"
-                  >
-                    {showDiffDetails ? 'Hide Details' : 'Show Details'}
-                  </button>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-green-50 rounded">
-                    <span className="text-sm font-medium">Enhancement Score</span>
-                    <span className="text-lg font-bold text-green-600">
-                      {diffAnalysis.enhancement_score.overall_score}/100
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Current State:</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(batchStatus.state)}`}>
+                      {batchStatus.state.toUpperCase()}
                     </span>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="text-center p-2 bg-blue-50 rounded">
-                      <div className="font-medium">{diffAnalysis.summary.sections_modified}</div>
-                      <div className="text-gray-600">Sections Modified</div>
-                    </div>
-                    <div className="text-center p-2 bg-purple-50 rounded">
-                      <div className="font-medium">{diffAnalysis.content_changes.words_added}</div>
-                      <div className="text-gray-600">Words Added</div>
-                    </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Progress:</span>
+                    <span className="text-sm font-bold">{batchStatus.completed}/{batchStatus.total} jobs</span>
                   </div>
                   
-                  <div className="text-sm">
-                    <span className="font-medium">Assessment:</span>
-                    <div className="text-gray-600 mt-1">
-                      {diffAnalysis.enhancement_score.assessment}
+                  {batchStatus.total > 0 && (
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${(batchStatus.completed / batchStatus.total) * 100}%` }}
+                      ></div>
                     </div>
+                  )}
+                  
+                  {batchStatus.current_job && (
+                    <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <span className="font-medium">Currently:</span> {batchStatus.current_job}
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-gray-500 text-center">
+                    Batch ID: {batchJobId}
                   </div>
                 </div>
+              </div>
+            )}
 
-                {showDiffDetails && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h3 className="font-medium mb-3">Section Changes:</h3>
-                    <div className="space-y-2 text-sm">
-                      {Object.entries(diffAnalysis.section_changes).map(([section, change]) => (
-                        <div key={section} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <span className="font-medium">{section.toUpperCase()}</span>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            change.change_type === 'modified' ? 'bg-yellow-100 text-yellow-800' :
-                            change.change_type === 'enhanced' ? 'bg-green-100 text-green-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {change.change_type}
-                          </span>
+            {/* Results */}
+            {results.length > 0 && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">📋 Results ({results.length})</h2>
+                  <button
+                    onClick={downloadAllResumesZIP}
+                    disabled={loading}
+                    className={`text-sm font-medium flex items-center gap-2 shadow-md px-4 py-2 rounded-md transition-colors ${
+                      loading 
+                        ? 'bg-gray-400 text-white cursor-not-allowed' 
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    {loading ? '🔄 Generating ZIP...' : '📦 Download All (ZIP)'}
+                  </button>
+                </div>
+                
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {results.map((result, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate">{result.job_title}</h3>
+                          <p className="text-xs text-gray-500 truncate">{result.job_url}</p>
                         </div>
-                      ))}
+                        <span className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 ${
+                          result.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {result.status}
+                        </span>
+                      </div>
+                      
+                      {result.status === 'success' && result.tailored_resume && (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                            <span>
+                              Enhancement Score: <span className="font-bold text-green-600">{result.enhancement_score || 'N/A'}</span>
+                            </span>
+                            <span className="text-blue-600">✨ RAG + Diff Applied</span>
+                          </div>
+                          <div className="text-sm bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">
+                            {result.tailored_resume.substring(0, 200)}...
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              onClick={() => viewFullResume(result)}
+                              className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 flex items-center gap-1 font-medium"
+                            >
+                              👁️ View with Highlights
+                            </button>
+                            <button
+                              onClick={() => downloadIndividualResumePDF(result)}
+                              className="text-xs bg-green-50 text-green-600 px-3 py-1 rounded hover:bg-green-100 flex items-center gap-1 font-medium"
+                            >
+                              📄 Download PDF
+                            </button>
+                            <button
+                              onClick={() => downloadIndividualResumeText(result)}
+                              className="text-xs bg-purple-50 text-purple-600 px-3 py-1 rounded hover:bg-purple-100 flex items-center gap-1 font-medium"
+                            >
+                              📄 Download Text
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {result.status === 'failed' && (
+                        <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
+                          Error: {result.error}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Results Section */}
-        {(originalResume || tailoredResume) && (
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">📋 Resume Comparison</h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {originalResume && (
-                <ResumeCard
-                  title="📄 Original Resume"
-                  content={originalResume}
-                  cardClass="bg-gray-50 border-gray-200"
-                />
-              )}
-              
-              {tailoredResume && (
-                <ResumeCard
-                  title="✨ Tailored Resume"
-                  content={tailoredResume}
-                  cardClass="bg-blue-50 border-blue-200"
-                />
-              )}
-            </div>
-          </div>
-        )}
+        {/* Resume View Modal with Enhanced Diff Highlighting */}
+        <ResumeModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          resume={selectedResume?.tailored_resume}
+          jobTitle={selectedResume?.job_title}
+          originalResume={originalResumeText}
+        />
 
         {/* Status Messages */}
         {error && (

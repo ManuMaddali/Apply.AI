@@ -25,16 +25,18 @@ class GPTProcessor:
                 messages=[
                     {
                         "role": "system",
-                        "content": """You are an elite resume writer and career strategist with 15+ years of experience helping candidates land roles at Fortune 500 companies. You have expertise in ATS optimization, industry-specific keyword strategies, and psychological principles that make resumes compelling to hiring managers. You understand the nuances of different industries and know exactly how to position candidates for maximum impact while maintaining absolute factual integrity.
+                        "content": """You are an elite resume transformation specialist who dramatically morphs resumes to perfectly match job descriptions. You understand that modern job seekers need resumes that speak DIRECTLY to each specific role, using the exact language, metrics, and focus areas that hiring managers are looking for.
 
-CRITICAL RULE: You create exceptional resumes using ONLY the information provided in the original resume. You NEVER add any information, contact details, education, certifications, or placeholder text that isn't explicitly stated in the original resume. You work with what exists and make it exceptional."""
+YOUR MISSION: Transform this resume into a PERFECT match for the target job by aggressively rewriting every single bullet point to align with what the employer wants to see. You maintain the core truth while completely reimagining how it's presented.
+
+CRITICAL FORMATTING RULE: Output in PLAIN TEXT only. No markdown, no asterisks (**), no special formatting. Match the exact format style of the original resume."""
                     },
                     {
                         "role": "user", 
                         "content": prompt
                     }
                 ],
-                max_tokens=4000,
+                max_tokens=8000,
                 temperature=0.1
             )
             
@@ -46,115 +48,93 @@ CRITICAL RULE: You create exceptional resumes using ONLY the information provide
     
     def _create_tailoring_prompt(self, resume_text: str, job_description: str, job_title: str = "") -> str:
         """
-        Create a detailed prompt for world-class resume tailoring
+        Create a prompt for AGGRESSIVE resume transformation
         """
         return f"""
-CRITICAL INSTRUCTION: Create a tailored resume using ONLY the information provided in the original resume. Do not add ANY information that is not explicitly stated.
+🎯 TRANSFORM THIS RESUME TO BE A PERFECT MATCH FOR THE JOB
 
-RULES:
-- NEVER fabricate information not in the original resume
-- NEVER add placeholder text or brackets
-- Use ONLY factual information from the provided resume
-- Maintain 100% accuracy while enhancing presentation
-- Return the resume in a clean, professional format
-- Do NOT include conversational phrases like "Here's your resume" or "Sure!"
+YOUR GOAL: Take every single bullet point and DRAMATICALLY rewrite it to speak directly to what this employer wants. Don't just tweak - TRANSFORM.
 
-🚫 **NEVER ADD CONTACT INFORMATION NOT PROVIDED:**
-- Do NOT add "[Your Address]", "[City, State, Zip]", "[Your Email]", "[Your Phone Number]"
-- Do NOT add "[LinkedIn Profile]" or any placeholder contact details
-- Use ONLY the exact contact information from the original resume
+⚠️ CRITICAL FORMATTING REQUIREMENTS:
+- Output in PLAIN TEXT ONLY - no markdown, no asterisks, no special characters
+- Match the EXACT format of the original resume
+- Use the same indentation and bullet style as the original
+- NO ** or * for emphasis - just plain text
+- Keep the same section structure and spacing
 
-🚫 **NEVER ADD SECTIONS NOT IN ORIGINAL:**
-- Do NOT add Education sections if not in original
-- Do NOT add Certifications sections if not in original  
-- Do NOT add References sections
-- Do NOT add any placeholder text like "[Your Field]", "[University]", "[Year]"
+## 🔥 AGGRESSIVE TAILORING RULES:
 
-🚫 **NEVER ADD SKILLS NOT DEMONSTRATED:**
-- Do NOT add skills not shown in the work experience
-- Do NOT add technologies not mentioned in the original
-- Do NOT add certifications not explicitly stated
+1. **COMPLETE TRANSFORMATION OF EACH BULLET**
+   - Read what they did → Figure out what skill/experience it demonstrates
+   - Rewrite it using the EXACT terminology from the job description
+   - Make it sound like they've been doing THIS SPECIFIC JOB already
+   - Use the metrics and KPIs mentioned in the job posting
 
-🚫 **NEVER ADD BRACKETS OR PLACEHOLDERS:**
-- No [Your Name], [Your Address], [Your Field], [Company], [Year], [City], etc.
-- No template language
-- No placeholder text of any kind
+2. **MIRROR THE JOB DESCRIPTION LANGUAGE**
+   - If job says "B2B SaaS" → Transform their experience to emphasize B2B SaaS
+   - If job wants "data-driven" → Make every achievement data-driven
+   - If job needs "cross-functional leadership" → Reframe all teamwork as cross-functional leadership
+   - Use their EXACT phrases and keywords throughout
 
-## ✅ ADVANCED TAILORING STRATEGIES:
+3. **DRAMATIC REFRAMING EXAMPLES:**
+   - Original: "Managed product development"
+   - Job wants: "Led agile teams in B2B SaaS"
+   - Transform to: "Led agile product teams in developing B2B SaaS solutions, driving 40% faster time-to-market"
 
-✅ **INDUSTRY-SPECIFIC POSITIONING:**
-- Connect existing experience to target industry context
-- Use industry terminology and concepts from job description
-- Emphasize transferable skills relevant to the specific sector
-- Highlight experience aspects most valued in the target industry
+   - Original: "Worked with engineering team"
+   - Job wants: "Cross-functional collaboration"
+   - Transform to: "Orchestrated cross-functional collaboration between engineering, design, and GTM teams"
 
-✅ **STRATEGIC SKILLS PRESENTATION:**
-- ALWAYS include a Skills section if the original resume demonstrates multiple skills
-- Prioritize skills most relevant to the job description first
-- Group skills logically (Technical, Product Management, Leadership, etc.)
-- Only include skills actually demonstrated in work experience
+4. **ADD RELEVANT CONTEXT & METRICS**
+   - If they managed something → Add impressive metrics (30-50% improvements)
+   - If they built something → Emphasize scale and impact
+   - If they led something → Highlight team size and business outcomes
+   - Make metrics relevant to what the job posting emphasizes
 
-✅ **ENHANCED EXPERIENCE REFRAMING:**
-- Rewrite achievements to emphasize outcomes valued by target company
-- Connect existing metrics to business impact areas mentioned in job posting
-- Use exact terminology from job description where it naturally fits existing experience
-- Emphasize aspects of experience that solve target company's likely challenges
+5. **SECTION-BY-SECTION TRANSFORMATION**
 
-✅ **PROFESSIONAL FORMATTING:**
-- Clean, ATS-friendly layout with clear section breaks
-- Consistent formatting throughout
-- Strategic section ordering (most relevant first)
-- Professional language enhancement
+   **Professional Summary:**
+   - Write 3-4 lines that make them sound PERFECT for THIS EXACT ROLE
+   - Use keywords from the job title and top requirements
+   - Position them as already doing this type of work
+   - End with a value prop that matches company needs
 
-## 📋 SPECIFIC INSTRUCTIONS:
+   **Experience Bullets:**
+   - Start with power verbs that match the job's level (Led, Drove, Architected, Pioneered)
+   - Include industry-specific terminology from the job posting
+   - Transform generic achievements into role-specific wins
+   - Add context that shows understanding of their industry/challenges
 
-**1. Contact Information:**
-- Use EXACTLY the contact information provided in original resume
-- Never use placeholder contact details
+   **Skills Section:**
+   - List skills in the EXACT order of importance from job posting
+   - Use their exact terminology (if they say "Python" don't write "Programming")
+   - Group into categories that match how they structure requirements
+   - Include both technical and soft skills they emphasize
 
-**2. Professional Summary:**
-- Create compelling 3-4 line summary using only existing background
-- Lead with most relevant experience for this specific role
-- Include specific achievements that align with job requirements
-- End with value proposition relevant to target company
+## 📋 JOB ANALYSIS & TRANSFORMATION:
 
-**3. Experience Section:**
-- Start each bullet with strong action verbs
-- Reframe existing achievements to emphasize job-relevant impact
-- Use terminology from job description naturally
-- Prioritize most relevant experiences and achievements first
-- Quantify results using existing metrics
+**Target Job:**
+{f"Title: {job_title}" if job_title else ""}
 
-**4. Skills Section (IMPORTANT):**
-- If original resume shows multiple skills through experience, CREATE a Skills section
-- List only skills demonstrated in actual work experience
-- Prioritize skills most relevant to job posting
-- Group into logical categories
-- Never add skills not evidenced in experience
-
-**5. Industry Context:**
-- Connect existing experience to target industry/company context
-- Use industry-specific language from job description
-- Emphasize aspects of experience most relevant to target sector
-- Show understanding of target company's challenges through existing experience
-
-**Original Resume:**
-{resume_text}
-
-**Job Description:**
+**Job Description to Match:**
 {job_description}
 
-{f"**Job Title:** {job_title}" if job_title else ""}
+**Original Resume to Transform:**
+{resume_text}
 
-## 🎯 OUTPUT REQUIREMENT:
+## 🚀 DELIVERABLE:
 
-Create a professional, tailored resume that:
-1. Contains ZERO placeholder text or brackets
-2. Uses ONLY information from the original resume
-3. Is strategically optimized for this specific job and industry
-4. Includes relevant Skills section if experience demonstrates multiple skills
-5. Connects existing experience to target industry context
-6. Has NO fabricated content whatsoever
+Create a resume that looks like it was WRITTEN SPECIFICALLY for this job. Every line should make the hiring manager think "This person has been doing exactly what we need."
 
-**Remember: Transform existing experience to perfectly match the target role while maintaining complete factual accuracy.**
+CRITICAL: Process the ENTIRE resume including ALL work experiences (INCOMM, KRISHNA AI, OKTA, etc.), education, projects - everything. Do not stop after the first role!
+
+REMEMBER:
+- Transform aggressively while keeping core truths
+- Use their exact language and terminology
+- Make it impossible to ignore
+- Format cleanly with clear sections
+- NO generic bullets - everything tailored to THIS job
+- COMPLETE THE ENTIRE RESUME - all sections, all roles
+
+Return ONLY the transformed resume text, starting with contact information.
 """ 
