@@ -39,6 +39,17 @@ class BatchProcessRequest(BaseModel):
     job_urls: List[str]
     use_rag: Optional[bool] = True
     output_format: Optional[str] = "text"  # "text" or "files"
+    optional_sections: Optional[Dict[str, Any]] = {
+        "includeSummary": False,
+        "includeSkills": False,
+        "includeEducation": False,
+        "educationDetails": {
+            "degree": "",
+            "institution": "",
+            "year": "",
+            "gpa": ""
+        }
+    }
 
 class PDFGenerateRequest(BaseModel):
     resume_text: str
@@ -95,7 +106,7 @@ def generate_pdf_from_text(resume_text: str, job_title: str) -> BytesIO:
         return buffer
 
 class BatchJobStatus:
-    def __init__(self, batch_id: str, total_jobs: int):
+    def __init__(self, batch_id: str, total_jobs: int, optional_sections: Dict[str, Any] = None):
         self.batch_id = batch_id
         self.state = "pending"  # pending, processing, completed, failed
         self.total = total_jobs
@@ -105,8 +116,19 @@ class BatchJobStatus:
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
         self.results = []
+        self.optional_sections = optional_sections or {
+            "includeSummary": False,
+            "includeSkills": False,
+            "includeEducation": False,
+            "educationDetails": {
+                "degree": "",
+                "institution": "",
+                "year": "",
+                "gpa": ""
+            }
+        }
 
-async def process_single_job(resume_text: str, job_url: str, use_rag: bool, batch_id: str, job_index: int) -> Dict[str, Any]:
+async def process_single_job(resume_text: str, job_url: str, use_rag: bool, optional_sections: Dict[str, Any], batch_id: str, job_index: int) -> Dict[str, Any]:
     """Process a single job and return the result"""
     try:
         # Update current job in status
@@ -135,7 +157,8 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, batc
             rag_result = langchain_processor.tailor_resume_with_rag(
                 resume_text=resume_text,
                 job_description=job_description,
-                job_title=job_title
+                job_title=job_title,
+                optional_sections=optional_sections
             )
             
             if rag_result:
@@ -144,12 +167,12 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, batc
             else:
                 # Fallback to standard processing
                 tailored_resume = fallback_processor.tailor_resume(
-                    resume_text, job_description, job_title
+                    resume_text, job_description, job_title, optional_sections
                 )
                 similar_jobs_found = 0
         else:
             tailored_resume = fallback_processor.tailor_resume(
-                resume_text, job_description, job_title
+                resume_text, job_description, job_title, optional_sections
             )
             similar_jobs_found = 0
 
@@ -203,7 +226,7 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, batc
             "tailored_resume": None
         }
 
-async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str], use_rag: bool, output_format: str):
+async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str], use_rag: bool, output_format: str, optional_sections: Dict[str, Any]):
     """Background task to process all jobs in a batch"""
     try:
         batch_jobs[batch_id].state = "processing"
@@ -213,7 +236,7 @@ async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str
         
         # Process jobs sequentially (could be made parallel for better performance)
         for i, job_url in enumerate(job_urls):
-            result = await process_single_job(resume_text, job_url, use_rag, batch_id, i)
+            result = await process_single_job(resume_text, job_url, use_rag, optional_sections, batch_id, i)
             results.append(result)
             
             # Update progress
@@ -255,7 +278,7 @@ async def start_batch_processing(request: BatchProcessRequest, background_tasks:
         batch_id = str(uuid.uuid4())
         
         # Initialize batch status
-        batch_status = BatchJobStatus(batch_id, len(request.job_urls))
+        batch_status = BatchJobStatus(batch_id, len(request.job_urls), request.optional_sections)
         batch_jobs[batch_id] = batch_status
         
         # Start background processing
@@ -265,7 +288,8 @@ async def start_batch_processing(request: BatchProcessRequest, background_tasks:
             request.resume_text,
             request.job_urls,
             request.use_rag,
-            request.output_format
+            request.output_format,
+            request.optional_sections
         )
         
         return JSONResponse({

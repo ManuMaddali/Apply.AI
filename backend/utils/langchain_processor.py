@@ -213,84 +213,172 @@ DELIVER: A completely transformed resume that looks custom-written for this exac
 """
         return prompt
     
-    def tailor_resume_with_rag(self, resume_text: str, job_description: str, job_title: str) -> Optional[Dict[str, Any]]:
-        """Enhanced resume tailoring with RAG capabilities"""
-        if not self.langchain_available:
-            print("⚠️ LangChain not available - using fallback mode")
-            return None
-            
+    def tailor_resume_with_rag(self, resume_text: str, job_description: str, job_title: str = "Product Manager", optional_sections: dict = None) -> Optional[Dict[str, Any]]:
+        """Tailor resume using RAG with similar job descriptions"""
         try:
-            # Retrieve similar jobs for context
-            similar_jobs = self.retrieve_similar_jobs(job_description, k=3)
+            if not self.job_vectorstore:
+                print("No job vectorstore available. Loading...")
+                self.load_job_vectorstore()
             
-            # Create enhanced prompt with RAG context
-            prompt = self.create_enhanced_tailoring_prompt(
-                resume_text, job_description, job_title, similar_jobs
+            if not self.job_vectorstore:
+                print("Warning: No job vectorstore available for RAG")
+                return None
+            
+            # Search for similar job descriptions
+            similar_jobs = self.job_vectorstore.similarity_search(
+                job_description,
+                k=min(3, self.job_vectorstore.index.ntotal) if hasattr(self.job_vectorstore, 'index') else 3
             )
             
-            # Create a custom prompt template for system instructions
-            system_template = """You are a professional resume editor with access to industry intelligence. Return ONLY the tailored resume content without any conversational text, explanations, or preamble. Do not include phrases like 'Here's a resume' or 'Sure!' - just provide the clean, professional resume text.
+            similar_jobs_context = ""
+            if similar_jobs:
+                for i, doc in enumerate(similar_jobs, 1):
+                    similar_jobs_context += f"\n=== Similar Job {i} ===\n"
+                    similar_jobs_context += f"Title: {doc.metadata.get('job_title', 'Unknown')}\n"
+                    similar_jobs_context += f"Description: {doc.page_content[:500]}...\n"
+            
+            # Handle optional sections
+            optional_sections = optional_sections or {}
+            include_summary = optional_sections.get("includeSummary", False)
+            include_skills = optional_sections.get("includeSkills", False)
+            include_education = optional_sections.get("includeEducation", False)
+            education_details = optional_sections.get("educationDetails", {})
+            
+            # Build optional sections instructions
+            optional_instructions = ""
+            
+            if include_summary:
+                optional_instructions += """
+PROFESSIONAL SUMMARY (REQUIRED):
+Add a compelling 3-4 line professional summary at the top that positions the candidate as perfect for THIS role:
+- Use keywords from the job description and similar jobs
+- Highlight years of experience in relevant areas
+- Position them as already doing this type of work
+- End with a value proposition that matches company needs
 
-{input}"""
+"""
             
-            prompt_template = PromptTemplate(
-                input_variables=["input"],
-                template=system_template
+            if include_education:
+                education_info = ""
+                if education_details.get("degree"):
+                    education_info += f"Degree: {education_details['degree']}\n"
+                if education_details.get("institution"):
+                    education_info += f"Institution: {education_details['institution']}\n"
+                if education_details.get("year"):
+                    education_info += f"Graduation Year: {education_details['year']}\n"
+                if education_details.get("gpa"):
+                    education_info += f"GPA: {education_details['gpa']}\n"
+                
+                optional_instructions += f"""
+EDUCATION SECTION (REQUIRED):
+Add an education section with the following information:
+{education_info if education_info else "Use relevant educational background that supports the role"}
+
+"""
+            
+            if include_skills:
+                optional_instructions += """
+SKILLS SECTION (REQUIRED):
+Add a skills section that includes:
+- Technical skills mentioned in the job posting and similar jobs (in order of importance)
+- Programming languages, tools, platforms from the job descriptions
+- Soft skills that the role emphasizes
+- Industry-specific competencies
+- Group skills logically (Technical, Leadership, Domain Expertise, etc.)
+
+"""
+            
+            # Create enhanced prompt using similar jobs
+            rag_prompt = PromptTemplate(
+                input_variables=["resume_text", "job_description", "job_title", "similar_jobs", "optional_instructions"],
+                template="""You are an elite resume transformation specialist with access to a database of similar job postings. Use this knowledge to create an exceptionally tailored resume with PROFESSIONAL FORMATTING.
+
+CRITICAL FORMATTING RULE: Output in CLEAN, WELL-SPACED format with proper structure and spacing.
+
+FORMATTING REQUIREMENTS:
+- Use proper line breaks and spacing between sections
+- Each bullet point should be on its own line with proper indentation
+- Add blank lines between major sections for readability
+- Use consistent formatting throughout
+- NO markdown syntax (**bold**, *italic*) - use plain text only
+- Maintain professional resume structure
+
+FORMATTING EXAMPLE:
+Name
+Professional Title
+City, State | Email | Phone
+
+[BLANK LINE]
+
+PROFESSIONAL EXPERIENCE
+
+[BLANK LINE]
+
+Company Name | Location
+Job Title | Start Date - End Date
+• First achievement bullet point with proper spacing
+• Second achievement bullet point with clear formatting
+• Third achievement showing impact and metrics
+
+[BLANK LINE]
+
+Next Company Name | Location
+Job Title | Start Date - End Date
+• Achievement one with professional formatting
+• Achievement two with clear structure
+
+TARGET JOB:
+Title: {job_title}
+Description: {job_description}
+
+{optional_instructions}
+
+SIMILAR JOBS CONTEXT (use these insights):
+{similar_jobs}
+
+TRANSFORMATION RULES:
+1. Transform EVERY bullet point to directly address the requirements from the target job and patterns from similar jobs
+2. Use the exact terminology and keywords from the job description
+3. Emphasize skills and experiences that appear consistently across similar roles
+4. Transform generic achievements into role-specific wins with relevant metrics
+5. Make every line show direct relevance to what employers in this space are looking for
+6. COMPLETE the entire resume - process ALL work experiences and sections
+7. RESPECT the optional section preferences (only add what was requested)
+8. ENSURE EXCELLENT VISUAL FORMATTING with proper spacing
+
+FORMATTING STRUCTURE:
+- Header: Name, title, contact info with proper spacing
+- Professional Summary (if requested): 3-4 impactful lines with spacing
+- Experience: Company | Location, Job Title | Dates, bullet points with consistent indentation
+- Skills (if requested): Clear categories with proper spacing
+- Education (if requested): Institution | Location, Degree | Year
+- Blank lines between all major sections
+
+ORIGINAL RESUME:
+{resume_text}
+
+Transform this resume to be a perfect match for the target job with PROFESSIONAL FORMATTING. Return ONLY the transformed resume text in clean, well-spaced format, starting with contact information."""
             )
             
-            # Create conversation chain with memory and custom prompt
-            conversation = ConversationChain(
-                llm=self.llm,
-                memory=self.memory,
-                prompt=prompt_template,
-                verbose=False
-            )
+            # Create chain and run
+            chain = rag_prompt | self.llm | StrOutputParser()
             
-            # Generate tailored resume
-            tailored_resume = conversation.predict(input=prompt)
-            
-            # Clean up any remaining conversational elements
-            tailored_resume = tailored_resume.strip()
-            # Remove common conversational starters
-            conversational_starters = [
-                "Sure! Here's", "Here's a", "Here is a", "I've created", 
-                "Here's your", "Below is", "I'll help you", "Let me provide"
-            ]
-            for starter in conversational_starters:
-                if tailored_resume.startswith(starter):
-                    # Find the end of the sentence and remove it
-                    first_sentence_end = tailored_resume.find('.')
-                    if first_sentence_end != -1:
-                        tailored_resume = tailored_resume[first_sentence_end + 1:].strip()
-                    break
-            
-            # Store in session memory
-            session_id = str(uuid.uuid4())
-            self.resume_history[session_id] = {
-                "original_resume": resume_text,
-                "tailored_resume": tailored_resume,
+            tailored_resume = chain.invoke({
+                "resume_text": resume_text,
                 "job_description": job_description,
                 "job_title": job_title,
-                "similar_jobs_used": len(similar_jobs),
-                "created_at": datetime.now().isoformat()
-            }
+                "similar_jobs": similar_jobs_context,
+                "optional_instructions": optional_instructions
+            })
             
             return {
-                "session_id": session_id,
                 "tailored_resume": tailored_resume,
                 "similar_jobs_found": len(similar_jobs),
-                "rag_insights": [doc.metadata for doc in similar_jobs],
-                "processing_steps": [
-                    "Retrieved similar job postings",
-                    "Analyzed industry patterns", 
-                    "Enhanced prompt with RAG context",
-                    "Generated tailored resume",
-                    "Stored session history"
-                ]
+                "rag_context": similar_jobs_context
             }
             
         except Exception as e:
-            print(f"Error in RAG-enhanced tailoring: {str(e)}")
+            print(f"Error in RAG resume tailoring: {str(e)}")
             return None
     
     def get_session_history(self, session_id: str) -> Optional[Dict[str, Any]]:

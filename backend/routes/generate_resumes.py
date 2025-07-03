@@ -32,6 +32,17 @@ class ResumeRequest(BaseModel):
     job_url: Optional[str] = ""
     use_rag: Optional[bool] = True  # Enable RAG by default
     compare_versions: Optional[bool] = True  # Enable diff analysis
+    optional_sections: Optional[Dict[str, Any]] = {
+        "includeSummary": False,
+        "includeSkills": False,
+        "includeEducation": False,
+        "educationDetails": {
+            "degree": "",
+            "institution": "",
+            "year": "",
+            "gpa": ""
+        }
+    }
 
 class DiffAnalysisRequest(BaseModel):
     original_resume: str
@@ -86,7 +97,8 @@ async def generate_tailored_resumes(request: GenerateRequest):
                 tailored_resume_text = gpt_processor.tailor_resume(
                     original_resume_text, 
                     job["job_description"], 
-                    job_title
+                    job_title,
+                    {"includeSummary": False, "includeSkills": False, "includeEducation": False, "educationDetails": {}}  # Default to no optional sections
                 )
                 
                 if not tailored_resume_text:
@@ -217,7 +229,8 @@ async def tailor_resume(request: ResumeRequest):
             result = langchain_processor.tailor_resume_with_rag(
                 resume_text=request.resume_text,
                 job_description=request.job_description,
-                job_title=request.job_title
+                job_title=request.job_title,
+                optional_sections=request.optional_sections
             )
             
             if not result:
@@ -226,7 +239,8 @@ async def tailor_resume(request: ResumeRequest):
                 tailored_resume = fallback_processor.tailor_resume(
                     request.resume_text, 
                     request.job_description, 
-                    request.job_title
+                    request.job_title,
+                    request.optional_sections
                 )
                 result = {
                     "session_id": "fallback",
@@ -240,7 +254,8 @@ async def tailor_resume(request: ResumeRequest):
             tailored_resume = fallback_processor.tailor_resume(
                 request.resume_text, 
                 request.job_description, 
-                request.job_title
+                request.job_title,
+                request.optional_sections
             )
             result = {
                 "session_id": "standard",

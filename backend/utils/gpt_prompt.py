@@ -15,10 +15,10 @@ class GPTProcessor:
         # Initialize OpenAI client
         self.client = openai.OpenAI(api_key=api_key)
     
-    def tailor_resume(self, resume_text: str, job_description: str, job_title: str = "Product Manager") -> Optional[str]:
+    def tailor_resume(self, resume_text: str, job_description: str, job_title: str = "Product Manager", optional_sections: dict = None) -> Optional[str]:
         """Tailor resume using direct OpenAI API call"""
         try:
-            prompt = self._create_tailoring_prompt(resume_text, job_description, job_title)
+            prompt = self._create_tailoring_prompt(resume_text, job_description, job_title, optional_sections)
             
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -46,21 +46,101 @@ CRITICAL FORMATTING RULE: Output in PLAIN TEXT only. No markdown, no asterisks (
             print(f"Error calling GPT: {str(e)}")
             return None
     
-    def _create_tailoring_prompt(self, resume_text: str, job_description: str, job_title: str = "") -> str:
+    def _create_tailoring_prompt(self, resume_text: str, job_description: str, job_title: str = "", optional_sections: dict = None) -> str:
         """
         Create a prompt for AGGRESSIVE resume transformation
         """
+        
+        # Handle optional sections
+        optional_sections = optional_sections or {}
+        include_summary = optional_sections.get("includeSummary", False)
+        include_skills = optional_sections.get("includeSkills", False)
+        include_education = optional_sections.get("includeEducation", False)
+        education_details = optional_sections.get("educationDetails", {})
+        
+        # Build optional sections instructions
+        optional_instructions = ""
+        
+        if include_summary:
+            optional_instructions += """
+## 📝 PROFESSIONAL SUMMARY (REQUIRED):
+Add a compelling 3-4 line professional summary at the top that positions the candidate as perfect for THIS role:
+- Use keywords from the job description
+- Highlight years of experience in relevant areas
+- Position them as already doing this type of work
+- End with a value proposition that matches company needs
+
+"""
+        
+        if include_education:
+            education_info = ""
+            if education_details.get("degree"):
+                education_info += f"Degree: {education_details['degree']}\n"
+            if education_details.get("institution"):
+                education_info += f"Institution: {education_details['institution']}\n"
+            if education_details.get("year"):
+                education_info += f"Graduation Year: {education_details['year']}\n"
+            if education_details.get("gpa"):
+                education_info += f"GPA: {education_details['gpa']}\n"
+            
+            optional_instructions += f"""
+## 🎓 EDUCATION SECTION (REQUIRED):
+Add an education section with the following information:
+{education_info if education_info else "Use relevant educational background that supports the role"}
+
+"""
+        
+        if include_skills:
+            optional_instructions += """
+## 🛠️ SKILLS SECTION (REQUIRED):
+Add a skills section that includes:
+- Technical skills mentioned in the job posting (in order of importance)
+- Programming languages, tools, platforms from the job description
+- Soft skills that the role emphasizes
+- Industry-specific competencies
+- Group skills logically (Technical, Leadership, Domain Expertise, etc.)
+
+"""
+        
         return f"""
 🎯 TRANSFORM THIS RESUME TO BE A PERFECT MATCH FOR THE JOB
 
 YOUR GOAL: Take every single bullet point and DRAMATICALLY rewrite it to speak directly to what this employer wants. Don't just tweak - TRANSFORM.
 
 ⚠️ CRITICAL FORMATTING REQUIREMENTS:
-- Output in PLAIN TEXT ONLY - no markdown, no asterisks, no special characters
-- Match the EXACT format of the original resume
-- Use the same indentation and bullet style as the original
-- NO ** or * for emphasis - just plain text
-- Keep the same section structure and spacing
+- Output in CLEAN, WELL-SPACED format
+- Use proper line breaks and spacing between sections
+- Each bullet point should be on its own line with proper indentation
+- Add blank lines between major sections for readability
+- Use consistent formatting throughout
+- NO markdown syntax (**bold**, *italic*) - use plain text only
+- Maintain professional resume structure
+
+FORMATTING EXAMPLE:
+Name
+Professional Title
+City, State | Email | Phone
+
+[BLANK LINE]
+
+PROFESSIONAL EXPERIENCE
+
+[BLANK LINE]
+
+Company Name | Location
+Job Title | Start Date - End Date
+• First achievement bullet point with proper spacing
+• Second achievement bullet point with clear formatting
+• Third achievement showing impact and metrics
+
+[BLANK LINE]
+
+Next Company Name | Location
+Job Title | Start Date - End Date
+• Achievement one with professional formatting
+• Achievement two with clear structure
+
+{optional_instructions}
 
 ## 🔥 AGGRESSIVE TAILORING RULES:
 
@@ -91,25 +171,34 @@ YOUR GOAL: Take every single bullet point and DRAMATICALLY rewrite it to speak d
    - If they led something → Highlight team size and business outcomes
    - Make metrics relevant to what the job posting emphasizes
 
-5. **SECTION-BY-SECTION TRANSFORMATION**
+5. **PROPER FORMATTING STRUCTURE:**
 
-   **Professional Summary:**
-   - Write 3-4 lines that make them sound PERFECT for THIS EXACT ROLE
-   - Use keywords from the job title and top requirements
-   - Position them as already doing this type of work
-   - End with a value prop that matches company needs
+   **Header Section:**
+   - Name (largest text)
+   - Professional title aligned with target role
+   - Contact information clearly formatted
+   - Proper spacing after header
 
-   **Experience Bullets:**
-   - Start with power verbs that match the job's level (Led, Drove, Architected, Pioneered)
-   - Include industry-specific terminology from the job posting
-   - Transform generic achievements into role-specific wins
-   - Add context that shows understanding of their industry/challenges
+   **Professional Summary (if requested):**
+   - 3-4 impactful lines
+   - Proper spacing before and after
 
-   **Skills Section:**
-   - List skills in the EXACT order of importance from job posting
-   - Use their exact terminology (if they say "Python" don't write "Programming")
-   - Group into categories that match how they structure requirements
-   - Include both technical and soft skills they emphasize
+   **Experience Section:**
+   - Company | Location format
+   - Job Title | Date range
+   - Bullet points with consistent indentation
+   - Blank line between different companies
+   - Start each bullet with strong action verbs
+
+   **Skills Section (if requested):**
+   - Clear categories
+   - Properly spaced skill groups
+   - Easy to scan format
+
+   **Education Section (if requested):**
+   - Institution | Location
+   - Degree | Graduation year
+   - Additional details if provided
 
 ## 📋 JOB ANALYSIS & TRANSFORMATION:
 
@@ -124,17 +213,28 @@ YOUR GOAL: Take every single bullet point and DRAMATICALLY rewrite it to speak d
 
 ## 🚀 DELIVERABLE:
 
-Create a resume that looks like it was WRITTEN SPECIFICALLY for this job. Every line should make the hiring manager think "This person has been doing exactly what we need."
+Create a resume that looks like it was WRITTEN SPECIFICALLY for this job with PROFESSIONAL FORMATTING:
 
-CRITICAL: Process the ENTIRE resume including ALL work experiences (INCOMM, KRISHNA AI, OKTA, etc.), education, projects - everything. Do not stop after the first role!
+FORMATTING CHECKLIST:
+✅ Proper spacing between sections
+✅ Consistent bullet point formatting
+✅ Clear section headers
+✅ Professional layout structure
+✅ Easy to read and scan
+✅ Blank lines for visual separation
+✅ Consistent indentation
+
+CRITICAL: Process the ENTIRE resume including ALL work experiences, projects - everything. Do not stop after the first role!
 
 REMEMBER:
 - Transform aggressively while keeping core truths
 - Use their exact language and terminology
-- Make it impossible to ignore
-- Format cleanly with clear sections
+- Make it impossible to ignore with CLEAN formatting
+- Professional structure with proper spacing
 - NO generic bullets - everything tailored to THIS job
 - COMPLETE THE ENTIRE RESUME - all sections, all roles
+- RESPECT the optional section preferences (only add what was requested)
+- ENSURE EXCELLENT VISUAL FORMATTING
 
-Return ONLY the transformed resume text, starting with contact information.
-""" 
+Return ONLY the transformed resume text with proper formatting, starting with contact information.
+"""

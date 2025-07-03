@@ -1,10 +1,10 @@
-# 🚀 AI Resume Tailoring App - LangChain Enhanced
+# 🚀 Apply.AI - AI-Powered Resume Tailoring
 
-**Transform your resume with AI intelligence and industry insights**
+**Transform your resume with AI intelligence for every job opportunity**
 
-An advanced AI-powered resume tailoring application that uses **LangChain**, **RAG (Retrieval-Augmented Generation)**, and **GPT-4o-mini** to create perfectly customized resumes for any job opportunity.
+Apply.AI is an advanced AI-powered resume tailoring application that uses LangChain, RAG (Retrieval-Augmented Generation), and GPT-4o-mini to create perfectly customized resumes for any job opportunity.
 
-## 🎯 **What Makes This Special**
+## 🎯 **What Makes Apply.AI Special**
 
 ### 🔍 **RAG-Enhanced Intelligence**
 - **Vector Storage**: FAISS-based system stores job descriptions for intelligent pattern recognition
@@ -12,27 +12,29 @@ An advanced AI-powered resume tailoring application that uses **LangChain**, **R
 - **Industry Intelligence**: Learns from patterns across thousands of job descriptions
 - **Context-Aware Prompting**: Uses historical data to improve resume tailoring
 
-### 📊 **Advanced Diff Analysis**
-- **Section-by-Section Comparison**: Track changes in each resume section
-- **Enhancement Scoring**: Quantitative assessment (0-100) of resume improvements  
-- **Visual Diff Display**: Highlight additions, modifications, and deletions
-- **Content Analytics**: Word count, action verbs, and keyword analysis
+### 🎨 **Modern User Experience**
+- **Clean Design**: Inspired by Notion, Tome.app, and Jasper.ai
+- **Drag-and-Drop Upload**: Intuitive file handling with visual feedback
+- **Bulk Processing**: Handle up to 10 job applications simultaneously
+- **Smart Status Tracking**: Real-time progress with elegant animations
+- **Professional Output**: Beautifully formatted, ATS-optimized PDFs
 
-### 💾 **Session Management**
-- **History Tracking**: Save and reload tailoring sessions
-- **Version Control**: Compare multiple resume versions
-- **Progress Analytics**: Track improvement over time
-- **Resume Evolution**: See how your resume develops for different industries
+### 🧠 **Intelligent Customization**
+- **Optional Sections**: Choose which sections to include (Professional Summary, Skills, Education)
+- **Education Builder**: Comprehensive form for academic credentials
+- **Smart Formatting**: One-page optimized with professional typography
+- **Content Detection**: Intelligent parsing of names, companies, and achievements
 
-### 🧠 **Multi-Step AI Workflows**
-- **Intelligent Processing**: Step-by-step reasoning chains
-- **Memory Systems**: Learn from previous interactions
-- **Adaptive Learning**: Improve recommendations based on usage patterns
+### 💾 **Powered by Advanced AI**
+- **LangChain Workflows**: Multi-step reasoning chains for strategic positioning
+- **RAG Architecture**: Retrieval-Augmented Generation for contextual improvements
+- **GPT-4o-mini**: Latest language model for natural, professional content
+- **Vector Embeddings**: Semantic understanding of job requirements
 
 ## 🏗️ **Technical Architecture**
 
 ```
-Frontend (React/Next.js)
+Frontend (Next.js + TailwindCSS)
     ↓
 Backend API (FastAPI)
     ↓
@@ -40,9 +42,9 @@ LangChain Processor ←→ Vector Store (FAISS)
     ↓                      ↓
 OpenAI GPT-4o-mini    Job Descriptions DB
     ↓
-Diff Analysis Engine
+Professional PDF Generator
     ↓
-Enhanced Resume Output
+Tailored Resume Output
 ```
 
 ## 🚀 **Quick Start**
@@ -55,7 +57,7 @@ Enhanced Resume Output
 ### 1. Clone & Setup
 ```bash
 git clone <your-repo-url>
-cd ai-resume-tailoring-app
+cd ApplyAI
 
 # Run the complete setup (installs everything)
 ./setup.sh
@@ -70,14 +72,14 @@ nano backend/.env
 OPENAI_API_KEY=sk-your-actual-api-key-here
 ```
 
-### 3. Launch the App
+### 3. Launch Apply.AI
 ```bash
 # Starts both backend and frontend
 ./run.sh
 ```
 
 ### 4. Access the Application
-- **Frontend UI**: http://localhost:3000
+- **Apply.AI Interface**: http://localhost:3000
 - **Backend API**: http://localhost:8000  
 - **API Documentation**: http://localhost:8000/docs
 
@@ -86,92 +88,99 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 ./stop.sh
 ```
 
-## 🎯 **How to Use**
+## 🎯 **How to Use Apply.AI**
 
 ### **Step 1: Upload Your Resume**
-- Drag & drop or select PDF/DOCX files
-- Supports most common resume formats
-- Instant text extraction and processing
+- **Drag & Drop**: Simply drop your PDF or DOCX file
+- **File Preview**: See your uploaded file with format confirmation
+- **Instant Processing**: Automatic text extraction and parsing
 
-### **Step 2: Add Job Information**
-- **Option A**: Paste job URL (LinkedIn, Indeed, Greenhouse, etc.)
-- **Option B**: Manually enter job title and description
-- Automatic web scraping extracts job requirements
+### **Step 2: Add Job Opportunities**
+- **Multiple Jobs**: Add up to 10 job URLs at once
+- **Job Counter**: Track how many positions you're applying to
+- **URL Validation**: Automatic detection of job posting URLs
+- **Smart Extraction**: Pulls job titles, companies, and requirements
 
-### **Step 3: Configure AI Settings**
-- ✅ **Enable RAG**: Use vector database for enhanced context
-- ✅ **Enable Diff Analysis**: Track changes between versions
-- Choose processing mode (RAG-Enhanced vs Standard)
+### **Step 3: Customize Your Resume**
+- **Output Format**: Choose PDF or Text format
+- **Optional Sections**: Select which sections to include:
+  - ✅ Professional Summary
+  - ✅ Skills Section
+  - ✅ Education Details (with comprehensive form)
+- **Smart Defaults**: Reasonable presets for quick processing
 
-### **Step 4: Generate Tailored Resume**
-- AI analyzes job requirements against your experience
-- RAG system provides industry context from similar jobs
-- Multi-step reasoning ensures strategic positioning
+### **Step 4: Generate Tailored Resumes**
+- **Bulk Processing**: One click generates resumes for all jobs
+- **Live Progress**: "✨ Tailoring resume for [Company]..." updates
+- **Smart Status**: Real-time feedback with completion indicators
 
-### **Step 5: Review Results**
-- **Enhancement Score**: 0-100 rating of improvements
-- **Side-by-Side Comparison**: Original vs tailored versions
-- **Detailed Diff Analysis**: See exactly what changed
-- **Session History**: Access previous tailoring sessions
+### **Step 5: Review and Download**
+- **Result Cards**: Clean cards showing job title and company
+- **Status Indicators**: ✅ Success, ❌ Error, ⏳ Processing
+- **Download Options**: Individual or bulk download
+- **Resume Comparison**: Side-by-side view of original vs tailored
 
 ## 🔥 **Key Features**
 
-### **🎨 Smart Resume Tailoring**
+### **🎨 Modern Interface**
+- ✅ Clean, minimalist design
+- ✅ Intuitive drag-and-drop upload
+- ✅ Real-time progress animations
+- ✅ Responsive layout for all devices
+- ✅ Professional color scheme and typography
+
+### **📄 Professional Output**
 - ✅ ATS-optimized formatting
-- ✅ Strategic keyword integration  
+- ✅ One-page layout optimization
+- ✅ Professional fonts (Helvetica family)
+- ✅ Consistent bullet point styling
+- ✅ Smart content spacing and margins
+
+### **🔍 AI Intelligence**
+- ✅ Strategic keyword integration
 - ✅ Industry-specific language adaptation
 - ✅ Achievement reframing for target roles
 - ✅ Skills section optimization
+- ✅ Company-specific customization
 
-### **📈 Analytics & Insights**
-- ✅ Enhancement scoring (0-100)
-- ✅ Word count and content analysis
-- ✅ Action verb improvement tracking
-- ✅ Professional keyword integration
-- ✅ Section modification percentages
-
-### **🔍 RAG Intelligence**
-- ✅ Similar job discovery
-- ✅ Industry pattern recognition
-- ✅ Context-aware enhancements
-- ✅ Historical learning
-- ✅ Semantic job matching
-
-### **💾 Session Management**
-- ✅ Save/load tailoring sessions
-- ✅ Version history tracking
-- ✅ Progress analytics
-- ✅ Resume evolution insights
+### **⚡ Bulk Processing**
+- ✅ Handle up to 10 jobs simultaneously
+- ✅ Efficient batch processing
+- ✅ Individual status tracking
+- ✅ Bulk download options
+- ✅ Error handling and retry logic
 
 ## 🛠️ **Technical Stack**
 
-### **Backend**
+### **Frontend**
+- **Next.js 13+**: React framework with modern features
+- **TailwindCSS**: Utility-first styling framework
+- **React Hooks**: Modern state management
+- **Framer Motion**: Smooth animations and transitions
+- **Axios**: HTTP client for API communication
+
+### **Backend**  
 - **FastAPI**: High-performance async API framework
 - **LangChain**: Advanced AI workflow orchestration
 - **OpenAI GPT-4o-mini**: Latest language model
 - **FAISS**: Vector similarity search
-- **BeautifulSoup**: Web scraping
-- **PyPDF2 & python-docx**: Document processing
-
-### **Frontend**  
-- **Next.js**: React framework with SSR
-- **Tailwind CSS**: Utility-first styling
-- **React Hooks**: Modern state management
-- **Axios**: HTTP client for API calls
+- **BeautifulSoup**: Web scraping for job postings
+- **ReportLab**: Professional PDF generation
 
 ### **AI & ML**
 - **RAG Architecture**: Retrieval-Augmented Generation
 - **Vector Embeddings**: OpenAI text-embedding-ada-002
 - **Multi-step Workflows**: LangChain reasoning chains
-- **Memory Systems**: Conversation history tracking
+- **Semantic Search**: Intelligent job matching
 
-## 📊 **Performance Metrics**
+## 📊 **Performance & Quality**
 
-Our testing shows:
-- **95%+ Accuracy**: Factual information preservation
-- **85-95 Enhancement Scores**: Typical improvement ratings
-- **3-5x Faster**: Compared to manual tailoring
-- **100% ATS Compatible**: Optimized formatting
+Apply.AI delivers:
+- **Professional Quality**: Industry-standard resume formatting
+- **ATS Compatibility**: Optimized for applicant tracking systems
+- **One-Page Layout**: Efficient space utilization
+- **Fast Processing**: Bulk generation in seconds
+- **High Accuracy**: Maintains factual information integrity
 
 ## 🔧 **Advanced Configuration**
 
@@ -195,12 +204,11 @@ MAX_CONTENT_LENGTH=50000
 TEMPERATURE=0.1
 ```
 
-### **Custom Prompts**
-Edit `backend/utils/langchain_processor.py` to customize:
-- Industry-specific prompting strategies
-- Enhancement criteria and scoring
-- RAG retrieval parameters
-- Memory management settings
+### **Customization Options**
+- **Optional Sections**: Configure which resume sections to include
+- **Education Details**: Comprehensive academic credential forms
+- **Output Formats**: PDF (default) or plain text
+- **Processing Mode**: RAG-enhanced vs standard processing
 
 ## 🚀 **Deployment Options**
 
@@ -229,26 +237,26 @@ docker-compose up -d
 
 ## 🤝 **Contributing**
 
-We welcome contributions! Areas for enhancement:
+We welcome contributions to Apply.AI! Areas for enhancement:
 - Additional job board integrations
-- More sophisticated diff visualizations
-- Advanced RAG techniques
+- More output format options
+- Advanced customization features
 - Industry-specific templates
-- Multi-language support
+- Mobile app development
 
 ## 📈 **Roadmap**
 
 ### **Version 2.1** (Next Release)
-- [ ] Visual diff highlighting in UI
-- [ ] Export to multiple formats (PDF, DOCX, LaTeX)
-- [ ] Advanced analytics dashboard
+- [ ] LinkedIn integration
 - [ ] Custom template system
+- [ ] Advanced formatting options
+- [ ] Mobile-responsive improvements
 
 ### **Version 2.2** (Future)
 - [ ] Multi-language support
 - [ ] Industry-specific models
-- [ ] Integration with job boards APIs
 - [ ] Team collaboration features
+- [ ] Advanced analytics dashboard
 
 ## 🐛 **Troubleshooting**
 
@@ -281,13 +289,14 @@ npm install
 ### **Performance Issues**
 
 **Slow processing:**
-- Reduce `MAX_SIMILAR_JOBS` in .env
-- Disable RAG for faster processing
-- Use smaller document chunks
-
-**Memory usage:**
+- Reduce number of simultaneous jobs
+- Check internet connection for job URL fetching
 - Restart application: `./stop.sh && ./run.sh`
-- Clear vector store: `rm -rf backend/vector_stores/*`
+
+**PDF formatting issues:**
+- Ensure resume content isn't too lengthy
+- Check for special characters in input
+- Verify PDF output directory permissions
 
 ## 📞 **Support**
 
@@ -301,10 +310,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**🎉 Ready to transform your resume with AI?**
+**🎉 Ready to transform your job search with Apply.AI?**
 
 ```bash
 ./setup.sh && ./run.sh
 ```
 
-*Built with ❤️ using LangChain, OpenAI, and React* 
+*Built with ❤️ using LangChain, OpenAI, Next.js, and TailwindCSS* 

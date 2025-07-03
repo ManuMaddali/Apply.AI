@@ -13,6 +13,7 @@ import tempfile
 from reportlab.lib.enums import TA_LEFT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import black, darkblue
 
 class ResumeEditor:
     def __init__(self):
@@ -406,7 +407,7 @@ class ResumeEditor:
     
     def create_tailored_resume_pdf(self, tailored_text: str, output_path: str, job_title: str = "") -> bool:
         """
-        Create a PDF that preserves exact text formatting with proper wrapping
+        Create a compact, one-page PDF with proper formatting and text wrapping
         """
         try:
             from reportlab.pdfgen import canvas
@@ -416,131 +417,254 @@ class ResumeEditor:
             c = canvas.Canvas(output_path, pagesize=letter)
             width, height = letter
             
-            # Set font to Courier (monospace) - smaller to fit more text
-            font_size = 8  # Reduced to fit more text
-            c.setFont("Courier", font_size)
+            # More compact font sizes to fit everything on one page
+            name_font_size = 16
+            section_font_size = 11
+            body_font_size = 10
+            small_font_size = 9
             
-            # Calculate available width for text
-            left_margin = 30
-            right_margin = 30
+            # Tighter margins for more content space
+            left_margin = 36  # 0.5 inch
+            right_margin = 36
+            top_margin = 36
+            bottom_margin = 36
             available_width = width - left_margin - right_margin
             
             # Starting position from top
-            y_position = height - 40
-            line_height = 10  # Reduced line height
+            y_position = height - top_margin
             
-            # Character width in Courier font (approximation)
-            char_width = font_size * 0.6  # Courier is roughly 60% of font size width
+            # Compact line heights
+            name_line_height = 18
+            section_line_height = 14
+            body_line_height = 12
+            small_line_height = 10
+            
+            # Calculate character width for better text wrapping
+            char_width = body_font_size * 0.6
             max_chars_per_line = int(available_width / char_width)
             
-            # Split text into lines
-            lines = tailored_text.split('\n')
+            # Parse and format the resume content
+            sections = self._parse_resume_for_compact_formatting(tailored_text)
             
-            def wrap_line(line, max_chars):
-                """Wrap a line if it's too long, preserving indentation"""
-                if len(line) <= max_chars:
-                    return [line]
+            for section_type, content in sections:
+                # Conservative page break check
+                if y_position < bottom_margin + 50:
+                    break  # Stop adding content to keep it on one page
                 
-                # Find indentation
-                indent = len(line) - len(line.lstrip())
-                indent_str = ' ' * indent
-                content = line.lstrip()
-                
-                wrapped_lines = []
-                while len(content) > max_chars - indent:
-                    # Find the last space before max_chars
-                    break_point = max_chars - indent
-                    space_pos = content.rfind(' ', 0, break_point)
+                if section_type == "name":
+                    # Name formatting
+                    c.setFont("Helvetica-Bold", name_font_size)
+                    c.setFillColor(darkblue)
+                    c.drawString(left_margin, y_position, content.strip())
+                    c.setFillColor(black)
+                    y_position -= name_line_height
                     
-                    if space_pos == -1:  # No space found, break at max_chars
-                        space_pos = break_point
+                elif section_type == "contact":
+                    # Contact info
+                    c.setFont("Helvetica", small_font_size)
+                    c.drawString(left_margin, y_position, content.strip())
+                    y_position -= small_line_height + 6
                     
-                    wrapped_lines.append(indent_str + content[:space_pos])
-                    content = content[space_pos:].lstrip()
-                
-                # Add remaining content
-                if content:
-                    wrapped_lines.append(indent_str + content)
-                
-                return wrapped_lines
-            
-            for line in lines:
-                # Check if we need a new page
-                if y_position < 50:
-                    c.showPage()
-                    c.setFont("Courier", font_size)
-                    y_position = height - 40
-                
-                # Handle empty lines
-                if not line.strip():
-                    y_position -= line_height * 0.5  # Smaller gap for empty lines
-                    continue
-                
-                # Replace bullet points for proper rendering
-                display_line = line.replace('•', '·').replace('●', '·')  # Use middle dot (smaller bullet)
-                
-                # Check if this is a header (all caps, no bullets)
-                is_header = (line.strip().isupper() and 
-                           len(line.strip()) > 3 and 
-                           not any(char in line for char in ['●', '•', '-', '·']) and
-                           len(line.strip()) < 50)  # Headers are usually shorter
-                
-                if is_header:
-                    c.setFont("Courier-Bold", font_size + 1)
-                    # Center headers or keep them left-aligned
-                    c.drawString(left_margin, y_position, display_line.strip())
-                    c.setFont("Courier", font_size)
-                    y_position -= line_height
-                else:
-                    # Wrap long lines
-                    wrapped_lines = wrap_line(display_line, max_chars_per_line)
+                elif section_type == "section_header":
+                    # Section headers
+                    y_position -= 4
+                    c.setFont("Helvetica-Bold", section_font_size)
+                    c.setFillColor(darkblue)
+                    c.drawString(left_margin, y_position, content.strip().upper())
+                    c.setFillColor(black)
+                    y_position -= section_line_height
                     
-                    for wrapped_line in wrapped_lines:
-                        # Check for new page again
-                        if y_position < 50:
-                            c.showPage()
-                            c.setFont("Courier", font_size)
-                            y_position = height - 40
+                elif section_type == "company_header":
+                    # Company/job headers
+                    y_position -= 2
+                    c.setFont("Helvetica-Bold", body_font_size)
+                    wrapped_lines = self._smart_wrap_text(content.strip(), max_chars_per_line)
+                    for line in wrapped_lines:
+                        if y_position < bottom_margin + 30:
+                            break
+                        c.drawString(left_margin, y_position, line)
+                        y_position -= body_line_height
+                    
+                elif section_type == "bullet_point":
+                    # Consistent bullet point formatting
+                    c.setFont("Helvetica", body_font_size)
+                    c.setFillColor(black)
+                    
+                    # Remove existing bullet symbols
+                    clean_content = content.strip()
+                    while clean_content and clean_content[0] in ['•', '●', '·', '-', '*']:
+                        clean_content = clean_content[1:].strip()
+                    
+                    if not clean_content:
+                        continue
+                    
+                    # Text wrapping
+                    bullet_max_chars = max_chars_per_line - 6
+                    wrapped_lines = self._smart_wrap_text(clean_content, bullet_max_chars)
+                    
+                    for i, line in enumerate(wrapped_lines):
+                        if y_position < bottom_margin + 20:
+                            break
                         
-                        # Preserve exact indentation
-                        leading_spaces = 0
-                        for char in wrapped_line:
-                            if char == ' ':
-                                leading_spaces += 1
-                            elif char == '\t':
-                                leading_spaces += 4
-                            else:
-                                break
+                        c.setFont("Helvetica", body_font_size)  # Ensure consistent font
+                        c.setFillColor(black)
                         
-                        # Special handling for bullet points
-                        line_content = wrapped_line.lstrip()
-                        x_position = left_margin + (leading_spaces * char_width)
-                        
-                        if line_content.startswith('·'):
-                            # Draw bullet at smaller size and then draw the rest
-                            c.setFont("Courier", font_size - 1)  # Smaller font for bullet
-                            c.drawString(x_position, y_position, '•')  # Use smaller bullet
-                            c.setFont("Courier", font_size)
-                            # Draw the rest of the text after the bullet
-                            rest_of_line = line_content[1:].lstrip()
-                            if rest_of_line:
-                                bullet_width = char_width * 0.8  # Approximate bullet width
-                                c.drawString(x_position + bullet_width, y_position, ' ' + rest_of_line)
+                        if i == 0:
+                            # First line with bullet
+                            c.drawString(left_margin + 10, y_position, "•")
+                            c.drawString(left_margin + 20, y_position, line)
                         else:
-                            # Regular text
-                            c.drawString(x_position, y_position, line_content)
+                            # Continuation lines
+                            c.drawString(left_margin + 20, y_position, line)
                         
-                        y_position -= line_height
+                        y_position -= body_line_height
+                    
+                elif section_type == "body_text":
+                    # Regular body text
+                    c.setFont("Helvetica", body_font_size)
+                    c.setFillColor(black)
+                    wrapped_lines = self._smart_wrap_text(content.strip(), max_chars_per_line)
+                    
+                    for line in wrapped_lines:
+                        if y_position < bottom_margin + 20:
+                            break
+                        c.drawString(left_margin, y_position, line)
+                        y_position -= body_line_height
+                    
+                elif section_type == "spacing":
+                    spacing = min(int(content), 6)
+                    y_position -= spacing
             
             # Save the PDF
             c.save()
             return True
             
         except Exception as e:
-            print(f"Error creating PDF: {str(e)}")
+            print(f"Error creating compact PDF: {str(e)}")
             import traceback
             traceback.print_exc()
             return False
+    
+    def _parse_resume_for_compact_formatting(self, text: str) -> list:
+        """Parse resume text for compact formatting with comprehensive bullet detection"""
+        lines = text.split('\n')
+        sections = []
+        
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            
+            if not stripped:
+                # Empty line - add minimal spacing
+                sections.append(("spacing", "4"))
+                continue
+            
+            # Debug what we're classifying
+            print(f"Line {i}: '{stripped[:50]}...' -> ", end="")
+            
+            # Detect name (first substantial line)
+            if i < 3 and len([s for s in sections if s[0] == "name"]) == 0:
+                if (not any(char in stripped.lower() for char in ['@', '.com', 'phone', 'email', '(', ')']) and 
+                    len(stripped) < 60 and len(stripped) > 5):
+                    print("NAME")
+                    sections.append(("name", stripped))
+                    continue
+            
+            # Detect contact info
+            if any(indicator in stripped.lower() for indicator in ['@', '.com', 'phone', '(', ')', 'email', 'linkedin']) or re.search(r'\d{3}[-.]?\d{3}[-.]?\d{4}', stripped):
+                print("CONTACT")
+                sections.append(("contact", stripped))
+                continue
+            
+            # Detect section headers
+            if (stripped.isupper() and 5 < len(stripped) < 35 and 
+                not any(char in stripped for char in ['•', '●', '·', '@', '(', ')'])):
+                print("SECTION_HEADER")
+                sections.append(("section_header", stripped))
+                continue
+            
+            # Detect company/job headers (very strict)
+            if ('|' in stripped and re.search(r'\b\d{4}\b', stripped)):
+                print("COMPANY_HEADER")
+                sections.append(("company_header", stripped))
+                continue
+            
+            # COMPREHENSIVE bullet detection - catch everything that could be bullet content
+            is_bullet = False
+            
+            # 1. Direct bullet symbols
+            if any(stripped.startswith(char) for char in ['•', '●', '·', '-', '*']):
+                is_bullet = True
+                print("BULLET_POINT (symbol)")
+            
+            # 2. Action verbs
+            elif stripped.split():
+                first_word = stripped.split()[0].lower()
+                action_verbs = ['led', 'managed', 'developed', 'created', 'implemented', 'designed', 'built', 
+                               'achieved', 'increased', 'decreased', 'improved', 'optimized', 'coordinated', 
+                               'collaborated', 'established', 'launched', 'delivered', 'executed', 'analyzed', 
+                               'drove', 'spearheaded', 'acted', 'served', 'translated', 'automated', 'worked',
+                               'focused', 'specialized', 'utilized', 'leveraged', 'maintained', 'supported',
+                               'facilitated', 'streamlined', 'enhanced', 'engineered', 'architected']
+                if first_word in action_verbs:
+                    is_bullet = True
+                    print(f"BULLET_POINT (action verb: {first_word})")
+            
+            # 3. Lines with metrics/achievements
+            if not is_bullet and re.search(r'\d+%|\d+x|increase|decrease|improve|reduce|result', stripped.lower()):
+                is_bullet = True
+                print("BULLET_POINT (metrics/achievement)")
+            
+            # 4. Indented lines or lines that look like bullet continuations
+            if not is_bullet and len(line) - len(line.lstrip()) > 2:
+                is_bullet = True
+                print("BULLET_POINT (indented)")
+            
+            if is_bullet:
+                sections.append(("bullet_point", stripped))
+                continue
+            
+            # Everything else is body text
+            print("BODY_TEXT")
+            sections.append(("body_text", stripped))
+        
+        return sections
+    
+    def _smart_wrap_text(self, text: str, max_chars: int) -> list:
+        """Smart text wrapping that preserves meaning and avoids awkward breaks"""
+        if len(text) <= max_chars:
+            return [text]
+        
+        # Split into words
+        words = text.split()
+        lines = []
+        current_line = ""
+        
+        for word in words:
+            # Test if adding this word would exceed the limit
+            test_line = current_line + (" " if current_line else "") + word
+            
+            if len(test_line) <= max_chars:
+                current_line = test_line
+            else:
+                # Current line is full, start a new one
+                if current_line:
+                    lines.append(current_line)
+                
+                # If single word is too long, we need to break it
+                if len(word) > max_chars:
+                    # Break the long word
+                    while len(word) > max_chars:
+                        lines.append(word[:max_chars-1] + "-")
+                        word = word[max_chars-1:]
+                    current_line = word
+                else:
+                    current_line = word
+        
+        # Add the last line if it has content
+        if current_line:
+            lines.append(current_line)
+        
+        return lines
     
     def create_tailored_resume_docx(self, tailored_text: str, output_path: str, job_title: str = "") -> bool:
         """
