@@ -316,4 +316,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ./setup.sh && ./run.sh
 ```
 
-*Built with ❤️ using LangChain, OpenAI, Next.js, and TailwindCSS* 
+*Built with ❤️ using LangChain, OpenAI, Next.js, and TailwindCSS*
