@@ -1,8 +1,8 @@
-# 🚀 AI Resume Tailoring App - LangChain Enhanced
+# 🚀 Apply.AI
 
 **Transform your resume with AI intelligence and industry insights**
 
-An advanced AI-powered resume tailoring application that uses **LangChain**, **RAG (Retrieval-Augmented Generation)**, and **GPT-4o-mini** to create perfectly customized resumes for any job opportunity.
+Apply.AI is an advanced AI-powered resume tailoring application that uses **LangChain**, **RAG (Retrieval-Augmented Generation)**, and **GPT-4o-mini** to create perfectly customized resumes for any job opportunity.
 
 ## 🎯 **What Makes This Special**
 
