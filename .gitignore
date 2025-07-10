@@ -227,4 +227,12 @@ deploy/
 
 # CDN/Static assets (if externally hosted)
 static/
-media/ 
+media/ *.pdf
+*BUSINESS*.md
+*DEPLOYMENT*.md  
+*SECURITY*.md
+*PRODUCTION*.md
+backend/uploads/*.pdf
+backend/generated_resumes/*
+backend/backend/
+*.txt
