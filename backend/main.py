@@ -13,6 +13,7 @@ from routes.scrape_jobs import router as scrape_router
 from routes.generate_resumes import router as generate_router
 from routes.batch_processing import router as batch_router
 
+
 app = FastAPI(
     title="AI Resume Tailoring API",
     description="LangChain-powered AI Resume Tailoring with RAG, Diff Analysis, and Batch Processing",

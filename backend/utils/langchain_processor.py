@@ -1,5 +1,6 @@
 import os
-from typing import Optional, List, Dict, Any
+import re
+from typing import Optional, List, Dict, Any, Set
 from dotenv import load_dotenv
 
 # Try to import LangChain components, fallback if not available (Python 3.13 compatibility)
@@ -71,6 +72,75 @@ class LangChainResumeProcessor:
         
         # Create vector store directory
         os.makedirs("vector_stores", exist_ok=True)
+    
+    def _detect_existing_sections(self, resume_text: str) -> Set[str]:
+        """
+        Robustly detect existing sections in a resume.
+        Returns a set of normalized section names that exist.
+        """
+        existing_sections = set()
+        text_lower = resume_text.lower()
+        
+        # Comprehensive section patterns - covers all common variations
+        section_patterns = {
+            'summary': [
+                r'\b(professional\s+summary|summary|career\s+summary|profile|objective|career\s+objective|professional\s+profile|executive\s+summary|personal\s+statement|overview)\b',
+                r'\b(qualifications\s+summary|career\s+highlights|professional\s+overview)\b'
+            ],
+            'skills': [
+                r'\b(skills|technical\s+skills|core\s+competencies|competencies|expertise|technical\s+expertise|key\s+skills|professional\s+skills)\b',
+                r'\b(technologies|tools\s+and\s+technologies|programming\s+languages|software\s+skills|technical\s+proficiencies)\b',
+                r'\b(core\s+skills|relevant\s+skills|technical\s+competencies)\b'
+            ],
+            'education': [
+                r'\b(education|academic\s+background|educational\s+background|qualifications|academic\s+qualifications)\b',
+                r'\b(degrees|certifications\s+and\s+education|training\s+and\s+education|academic\s+credentials)\b',
+                r'\b(university|college|bachelor|master|phd|degree)\b'
+            ]
+        }
+        
+        # Check each section type
+        for section_type, patterns in section_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, text_lower):
+                    existing_sections.add(section_type)
+                    break  # Found this section type, move to next
+        
+        # Additional heuristic checks for edge cases
+        lines = resume_text.split('\n')
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+                
+            line_lower = line_clean.lower()
+            
+            # Check for section headers (lines that are short, uppercase, or end with colon)
+            if len(line_clean) < 50 and (
+                line_clean.isupper() or 
+                line_clean.endswith(':') or 
+                (len(line_clean.split()) <= 3 and any(word.capitalize() == word for word in line_clean.split()))
+            ):
+                # Check if it matches any section patterns
+                for section_type, patterns in section_patterns.items():
+                    for pattern in patterns:
+                        if re.search(pattern, line_lower):
+                            existing_sections.add(section_type)
+                            break
+        
+        # Special detection for common degree patterns (for education)
+        degree_patterns = [
+            r'\b(b\.?s\.?|bachelor|b\.?a\.?|master|m\.?s\.?|m\.?a\.?|phd|ph\.?d\.?|doctorate|mba)\b',
+            r'\b(associate|diploma|certificate)\b.*\b(degree|program)\b',
+            r'\b\d{4}\b.*\b(graduated|graduation|degree|university|college)\b'
+        ]
+        
+        for pattern in degree_patterns:
+            if re.search(pattern, text_lower):
+                existing_sections.add('education')
+                break
+        
+        return existing_sections
         
     def initialize_job_vectorstore(self, job_descriptions: List[Dict[str, str]]):
         """Initialize FAISS vector store with job descriptions"""
@@ -237,19 +307,34 @@ DELIVER: A completely transformed resume that looks custom-written for this exac
                     similar_jobs_context += f"Title: {doc.metadata.get('job_title', 'Unknown')}\n"
                     similar_jobs_context += f"Description: {doc.page_content[:500]}...\n"
             
-            # Handle optional sections
+            # Handle optional sections with intelligent detection
             optional_sections = optional_sections or {}
             include_summary = optional_sections.get("includeSummary", False)
             include_skills = optional_sections.get("includeSkills", False)
             include_education = optional_sections.get("includeEducation", False)
             education_details = optional_sections.get("educationDetails", {})
             
-            # Build optional sections instructions
+            # Detect existing sections
+            existing_sections = self._detect_existing_sections(resume_text)
+            
+            # Build intelligent optional sections instructions
             optional_instructions = ""
             
             if include_summary:
-                optional_instructions += """
-PROFESSIONAL SUMMARY (REQUIRED):
+                if 'summary' in existing_sections:
+                    optional_instructions += """
+PROFESSIONAL SUMMARY (ENHANCE EXISTING):
+The resume already has a professional summary section. ENHANCE and TRANSFORM it to be compelling and perfectly tailored for THIS role:
+- Completely rewrite using keywords from the job description and similar jobs
+- Highlight years of experience in relevant areas mentioned in the job posting
+- Position them as already doing this type of work
+- End with a value proposition that matches company needs
+- Keep it as the top section but make it dramatically better
+
+"""
+                else:
+                    optional_instructions += """
+PROFESSIONAL SUMMARY (ADD NEW):
 Add a compelling 3-4 line professional summary at the top that positions the candidate as perfect for THIS role:
 - Use keywords from the job description and similar jobs
 - Highlight years of experience in relevant areas
@@ -269,16 +354,42 @@ Add a compelling 3-4 line professional summary at the top that positions the can
                 if education_details.get("gpa"):
                     education_info += f"GPA: {education_details['gpa']}\n"
                 
-                optional_instructions += f"""
-EDUCATION SECTION (REQUIRED):
+                if 'education' in existing_sections:
+                    optional_instructions += f"""
+EDUCATION SECTION (ENHANCE EXISTING):
+The resume already has education information. ENHANCE and IMPROVE the existing education section:
+- Keep all existing education but reformat professionally
+- Add any missing details from the provided information: {education_info if education_info else "No additional details provided"}
+- Emphasize aspects most relevant to the target role
+- Ensure proper formatting and presentation
+- DO NOT duplicate education entries
+
+"""
+                else:
+                    optional_instructions += f"""
+EDUCATION SECTION (ADD NEW):
 Add an education section with the following information:
 {education_info if education_info else "Use relevant educational background that supports the role"}
 
 """
             
             if include_skills:
-                optional_instructions += """
-SKILLS SECTION (REQUIRED):
+                if 'skills' in existing_sections:
+                    optional_instructions += """
+SKILLS SECTION (ENHANCE EXISTING):
+The resume already has a skills section. ENHANCE and TRANSFORM it to be perfectly aligned with this job:
+- Keep existing relevant skills but reorganize and prioritize based on job requirements
+- Add technical skills mentioned in the job posting and similar jobs (in order of importance)
+- Include programming languages, tools, platforms from the job descriptions
+- Emphasize soft skills that the role emphasizes
+- Add industry-specific competencies mentioned in the job posting
+- Group skills logically (Technical, Leadership, Domain Expertise, etc.)
+- Remove outdated or irrelevant skills and replace with job-relevant ones
+
+"""
+                else:
+                    optional_instructions += """
+SKILLS SECTION (ADD NEW):
 Add a skills section that includes:
 - Technical skills mentioned in the job posting and similar jobs (in order of importance)
 - Programming languages, tools, platforms from the job descriptions
@@ -288,12 +399,26 @@ Add a skills section that includes:
 
 """
             
+            # Add section detection information
+            detected_sections_info = ""
+            if existing_sections:
+                detected_sections_info = f"""
+⚠️ IMPORTANT - EXISTING SECTIONS DETECTED:
+The original resume already contains these sections: {', '.join(existing_sections).upper()}
+- For existing sections: ENHANCE and IMPROVE them, do not duplicate
+- For new sections: ADD them in appropriate locations
+- Maintain the overall structure while improving content quality
+
+"""
+            
             # Create enhanced prompt using similar jobs
             rag_prompt = PromptTemplate(
-                input_variables=["resume_text", "job_description", "job_title", "similar_jobs", "optional_instructions"],
+                input_variables=["resume_text", "job_description", "job_title", "similar_jobs", "optional_instructions", "detected_sections_info"],
                 template="""You are an elite resume transformation specialist with access to a database of similar job postings. Use this knowledge to create an exceptionally tailored resume with PROFESSIONAL FORMATTING.
 
 CRITICAL FORMATTING RULE: Output in CLEAN, WELL-SPACED format with proper structure and spacing.
+
+{detected_sections_info}
 
 FORMATTING REQUIREMENTS:
 - Use proper line breaks and spacing between sections
@@ -343,8 +468,9 @@ TRANSFORMATION RULES:
 4. Transform generic achievements into role-specific wins with relevant metrics
 5. Make every line show direct relevance to what employers in this space are looking for
 6. COMPLETE the entire resume - process ALL work experiences and sections
-7. RESPECT the optional section preferences (only add what was requested)
-8. ENSURE EXCELLENT VISUAL FORMATTING with proper spacing
+7. RESPECT the optional section preferences (enhance existing, add new as needed)
+8. NEVER DUPLICATE SECTIONS - enhance what exists, add what's missing
+9. ENSURE EXCELLENT VISUAL FORMATTING with proper spacing
 
 FORMATTING STRUCTURE:
 - Header: Name, title, contact info with proper spacing
@@ -368,7 +494,8 @@ Transform this resume to be a perfect match for the target job with PROFESSIONAL
                 "job_description": job_description,
                 "job_title": job_title,
                 "similar_jobs": similar_jobs_context,
-                "optional_instructions": optional_instructions
+                "optional_instructions": optional_instructions,
+                "detected_sections_info": detected_sections_info
             })
             
             return {

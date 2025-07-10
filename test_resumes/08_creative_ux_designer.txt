@@ -1,0 +1,106 @@
+SOPHIA RODRIGUEZ
+Senior UX Designer
+Email: sophia.rodriguez@email.com | Phone: (555) 789-0123 | LinkedIn: linkedin.com/in/sophiarodriguez
+Portfolio: sophiarodriguez.design
+
+PROFESSIONAL SUMMARY
+Creative UX Designer with 6+ years of experience crafting intuitive digital experiences for web and mobile applications. Proven ability to translate complex user needs into elegant design solutions, resulting in 40% improvement in user engagement and 25% increase in conversion rates.
+
+PROFESSIONAL EXPERIENCE
+Senior UX Designer
+Figma | March 2021 - Present
+• Lead design for collaborative features used by 4M+ designers and developers globally
+• Conduct user research and usability testing to inform design decisions
+• Collaborate with product managers and engineers to deliver pixel-perfect implementations
+• Mentor junior designers and establish design system best practices
+• Increased user engagement by 35% through improved onboarding experience
+
+UX Designer
+Airbnb | June 2019 - February 2021
+• Designed host and guest experiences for vacation rental platform
+• Led end-to-end design process from user research to final implementation
+• Created design systems and component libraries used across multiple product teams
+• Improved booking conversion rate by 25% through optimized search and booking flow
+• Collaborated with international teams to ensure cultural sensitivity in design
+
+Product Designer
+Spotify | August 2017 - May 2019
+• Designed music discovery and playlist features for 300M+ users
+• Conducted user interviews and A/B testing to validate design hypotheses
+• Created prototypes and wireframes for new product features
+• Worked closely with data science team to understand user behavior patterns
+• Improved user retention by 20% through personalized recommendation interfaces
+
+Junior UX Designer
+Adobe | July 2016 - July 2017
+• Supported design team for Creative Cloud applications
+• Created user flows, wireframes, and high-fidelity mockups
+• Participated in design reviews and critique sessions
+• Assisted with user research and competitive analysis
+• Contributed to design system documentation and guidelines
+
+DESIGN PROCESS & EXPERTISE
+User Research & Strategy
+• Conducted 100+ user interviews and usability testing sessions
+• Developed user personas, journey maps, and service blueprints
+• Performed competitive analysis and market research
+• Created user research reports and actionable insights for stakeholders
+
+Visual & Interaction Design
+• Designed responsive web and mobile applications for iOS and Android
+• Created design systems, style guides, and component libraries
+• Developed interactive prototypes and micro-interactions
+• Ensured accessibility compliance (WCAG 2.1 AA standards)
+
+Collaboration & Communication
+• Facilitated design workshops and brainstorming sessions
+• Presented design concepts to C-level executives and stakeholders
+• Collaborated with cross-functional teams including engineering and product management
+• Mentored junior designers and contributed to design community
+
+EDUCATION
+Master of Fine Arts in Interaction Design
+California College of the Arts | 2016
+Thesis: "Designing for Emotional Connection in Digital Experiences"
+
+Bachelor of Arts in Graphic Design
+Parsons School of Design | 2014
+Magna Cum Laude
+
+TECHNICAL SKILLS
+Design Tools: Figma, Sketch, Adobe Creative Suite, Principle, Framer
+Prototyping: InVision, Marvel, Axure, Zeplin
+Research: Maze, UserTesting, Hotjar, Google Analytics
+Development: HTML, CSS, JavaScript (basic), React (basic)
+Project Management: Jira, Asana, Miro, Notion
+
+DESIGN PHILOSOPHY
+I believe great design is invisible—it solves problems so elegantly that users don't need to think about it. My approach combines user empathy with business strategy, ensuring every design decision serves both user needs and business objectives.
+
+SELECTED PROJECTS
+Financial Dashboard Redesign (2023)
+• Redesigned complex financial dashboard for fintech startup
+• Improved user task completion rate by 50% through simplified information architecture
+• Reduced user onboarding time from 10 minutes to 3 minutes
+
+E-commerce Mobile App (2022)
+• Designed mobile shopping experience for fashion retailer
+• Increased mobile conversion rate by 30% through optimized checkout flow
+• Implemented AR try-on feature that reduced return rate by 15%
+
+ACHIEVEMENTS
+• Webby Award Winner - Best User Experience (2023)
+• Design Team Lead Award - Figma (2022)
+• Published case study featured in UX Design Magazine (2021)
+• Speaker at Design+Research Conference (2020, 2021)
+
+COMMUNITY INVOLVEMENT
+• Co-organizer of San Francisco UX Meetup (2020-Present)
+• Mentor for AIGA Design for Good program
+• Volunteer designer for nonprofit organizations
+• Guest lecturer at UC Berkeley Design Program
+
+CERTIFICATIONS
+• Google UX Design Professional Certificate (2023)
+• Certified Usability Analyst (CUA) (2022)
+• Accessibility Professional Certificate (2021) 

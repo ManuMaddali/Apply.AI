@@ -11,14 +11,14 @@ resume_editor = ResumeEditor()
 @router.post("/upload")
 async def upload_resume(file: UploadFile = File(...)):
     """
-    Upload and process a resume file (PDF or DOCX)
+    Upload and process a resume file (PDF, DOCX, or TXT)
     """
     try:
         # Validate file type
-        if not file.filename.lower().endswith(('.pdf', '.docx', '.doc')):
+        if not file.filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
             return JSONResponse({
                 "success": False,
-                "detail": "Only PDF and DOCX files are supported"
+                "detail": "Only PDF, DOCX, and TXT files are supported"
             })
         
         # Generate unique filename

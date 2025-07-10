@@ -50,15 +50,29 @@ class BatchProcessRequest(BaseModel):
             "gpa": ""
         }
     }
+    cover_letter_options: Optional[Dict[str, Any]] = {
+        "includeCoverLetter": False,
+        "coverLetterDetails": {
+            "tone": "professional",
+            "emphasize": "experience",
+            "additionalInfo": ""
+        }
+    }
 
 class PDFGenerateRequest(BaseModel):
     resume_text: str
     job_title: str
     filename: Optional[str] = None
 
+class CoverLetterPDFRequest(BaseModel):
+    cover_letter_text: str
+    job_title: str
+    filename: Optional[str] = None
+
 class ZIPGenerateRequest(BaseModel):
     resumes: List[Dict[str, Any]]
     batch_id: str
+    include_cover_letters: Optional[bool] = False
 
 def generate_pdf_from_text(resume_text: str, job_title: str) -> BytesIO:
     """Generate PDF using ResumeEditor for better formatting"""
@@ -105,8 +119,98 @@ def generate_pdf_from_text(resume_text: str, job_title: str) -> BytesIO:
         buffer.seek(0)
         return buffer
 
+def generate_cover_letter_pdf(cover_letter_text: str, job_title: str) -> BytesIO:
+    """Generate a professional cover letter PDF"""
+    try:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1*inch, bottomMargin=1*inch, leftMargin=1*inch, rightMargin=1*inch)
+        
+        # Create custom styles
+        styles = getSampleStyleSheet()
+        
+        # Header style
+        header_style = ParagraphStyle(
+            'HeaderStyle',
+            parent=styles['Normal'],
+            fontSize=14,
+            spaceAfter=24,
+            alignment=1,  # Center alignment
+            fontName='Helvetica-Bold'
+        )
+        
+        # Date style
+        date_style = ParagraphStyle(
+            'DateStyle',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=24,
+            alignment=2,  # Right alignment
+        )
+        
+        # Body style
+        body_style = ParagraphStyle(
+            'BodyStyle',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=12,
+            alignment=TA_JUSTIFY,
+            leftIndent=0,
+            rightIndent=0,
+            lineHeight=14
+        )
+        
+        # Title style
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=18,
+            fontName='Helvetica-Bold',
+            alignment=1  # Center alignment
+        )
+        
+        # Build content
+        content = []
+        
+        # Date
+        current_date = datetime.now().strftime("%B %d, %Y")
+        content.append(Paragraph(current_date, date_style))
+        
+        # Title
+        content.append(Paragraph(f"Cover Letter - {job_title}", title_style))
+        
+        # Cover letter content
+        # Split the cover letter text into paragraphs
+        paragraphs = cover_letter_text.split('\n\n')
+        
+        for paragraph in paragraphs:
+            if paragraph.strip():
+                # Clean up the paragraph text
+                clean_paragraph = paragraph.strip().replace('\n', ' ')
+                content.append(Paragraph(clean_paragraph, body_style))
+        
+        # Build the PDF
+        doc.build(content)
+        buffer.seek(0)
+        return buffer
+        
+    except Exception as e:
+        print(f"Cover letter PDF generation error: {e}")
+        # Fallback to basic PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        content = [
+            Paragraph(f"Cover Letter for: {job_title}", styles['Title']),
+            Spacer(1, 12),
+            Paragraph(cover_letter_text[:2000] + "...", styles['Normal'])
+        ]
+        doc.build(content)
+        buffer.seek(0)
+        return buffer
+
 class BatchJobStatus:
-    def __init__(self, batch_id: str, total_jobs: int, optional_sections: Dict[str, Any] = None):
+    def __init__(self, batch_id: str, total_jobs: int, optional_sections: Dict[str, Any] = None, cover_letter_options: Dict[str, Any] = None):
         self.batch_id = batch_id
         self.state = "pending"  # pending, processing, completed, failed
         self.total = total_jobs
@@ -127,8 +231,16 @@ class BatchJobStatus:
                 "gpa": ""
             }
         }
+        self.cover_letter_options = cover_letter_options or {
+            "includeCoverLetter": False,
+            "coverLetterDetails": {
+                "tone": "professional",
+                "emphasize": "experience",
+                "additionalInfo": ""
+            }
+        }
 
-async def process_single_job(resume_text: str, job_url: str, use_rag: bool, optional_sections: Dict[str, Any], batch_id: str, job_index: int) -> Dict[str, Any]:
+async def process_single_job(resume_text: str, job_url: str, use_rag: bool, optional_sections: Dict[str, Any], cover_letter_options: Dict[str, Any], batch_id: str, job_index: int) -> Dict[str, Any]:
     """Process a single job and return the result"""
     try:
         # Update current job in status
@@ -145,7 +257,8 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
                 "job_title": f"Job_{job_index + 1}",
                 "status": "failed",
                 "error": "Failed to scrape job description",
-                "tailored_resume": None
+                "tailored_resume": None,
+                "cover_letter": None
             }
 
         # Extract job title
@@ -183,15 +296,35 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
                 "job_title": job_title,
                 "status": "failed",
                 "error": "Failed to generate tailored resume",
-                "tailored_resume": None
+                "tailored_resume": None,
+                "cover_letter": None
             }
 
+        # Generate cover letter if requested
+        cover_letter = None
+        if cover_letter_options.get("includeCoverLetter", False):
+            try:
+                cover_letter = fallback_processor.generate_cover_letter(
+                    resume_text=resume_text,
+                    job_description=job_description,
+                    job_title=job_title,
+                    cover_letter_options=cover_letter_options
+                )
+            except Exception as e:
+                print(f"Cover letter generation failed for job {job_index + 1}: {e}")
+                # Don't fail the entire job if cover letter fails
+
         # Perform diff analysis
-        diff_analysis = diff_analyzer.analyze_resume_diff(
-            original_text=resume_text,
-            tailored_text=tailored_resume,
-            job_title=job_title
-        )
+        diff_analysis = None
+        try:
+            diff_analysis = diff_analyzer.analyze_resume_diff(
+                original_text=resume_text,
+                tailored_text=tailored_resume,
+                job_title=job_title
+            )
+        except Exception as e:
+            print(f"Diff analysis failed for job {job_index + 1}: {e}")
+            # Continue without diff analysis
 
         # Store job description for future RAG
         if job_description and job_url:
@@ -203,6 +336,13 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
             }]
             langchain_processor.initialize_job_vectorstore(job_data)
 
+        # Safely extract enhancement score
+        enhancement_score = None
+        if diff_analysis and isinstance(diff_analysis, dict):
+            enhancement_data = diff_analysis.get("enhancement_score", {})
+            if enhancement_data and isinstance(enhancement_data, dict):
+                enhancement_score = enhancement_data.get("overall_score")
+
         return {
             "job_index": job_index,
             "job_url": job_url,
@@ -210,8 +350,9 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
             "job_description": job_description,
             "status": "success",
             "tailored_resume": tailored_resume,
+            "cover_letter": cover_letter,
             "similar_jobs_found": similar_jobs_found,
-            "enhancement_score": diff_analysis.get("enhancement_score", {}).get("overall_score"),
+            "enhancement_score": enhancement_score,
             "diff_analysis": diff_analysis,
             "processing_time": time.time()
         }
@@ -223,10 +364,11 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
             "job_title": f"Job_{job_index + 1}",
             "status": "failed",
             "error": str(e),
-            "tailored_resume": None
+            "tailored_resume": None,
+            "cover_letter": None
         }
 
-async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str], use_rag: bool, output_format: str, optional_sections: Dict[str, Any]):
+async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str], use_rag: bool, output_format: str, optional_sections: Dict[str, Any], cover_letter_options: Dict[str, Any]):
     """Background task to process all jobs in a batch"""
     try:
         batch_jobs[batch_id].state = "processing"
@@ -236,7 +378,7 @@ async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str
         
         # Process jobs sequentially (could be made parallel for better performance)
         for i, job_url in enumerate(job_urls):
-            result = await process_single_job(resume_text, job_url, use_rag, optional_sections, batch_id, i)
+            result = await process_single_job(resume_text, job_url, use_rag, optional_sections, cover_letter_options, batch_id, i)
             results.append(result)
             
             # Update progress
@@ -278,7 +420,7 @@ async def start_batch_processing(request: BatchProcessRequest, background_tasks:
         batch_id = str(uuid.uuid4())
         
         # Initialize batch status
-        batch_status = BatchJobStatus(batch_id, len(request.job_urls), request.optional_sections)
+        batch_status = BatchJobStatus(batch_id, len(request.job_urls), request.optional_sections, request.cover_letter_options)
         batch_jobs[batch_id] = batch_status
         
         # Start background processing
@@ -289,7 +431,8 @@ async def start_batch_processing(request: BatchProcessRequest, background_tasks:
             request.job_urls,
             request.use_rag,
             request.output_format,
-            request.optional_sections
+            request.optional_sections,
+            request.cover_letter_options
         )
         
         return JSONResponse({
@@ -328,6 +471,26 @@ async def generate_single_pdf(request: PDFGenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
+@router.post("/generate-cover-letter-pdf")
+async def generate_cover_letter_pdf_endpoint(request: CoverLetterPDFRequest):
+    """Generate a single cover letter PDF"""
+    try:
+        # Generate cover letter PDF
+        pdf_buffer = generate_cover_letter_pdf(request.cover_letter_text, request.job_title)
+        
+        # Return PDF as response
+        from fastapi.responses import Response
+        return Response(
+            content=pdf_buffer.getvalue(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={request.filename or 'cover_letter.pdf'}"
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate cover letter PDF: {str(e)}")
+
 @router.post("/generate-zip")
 async def generate_zip_file(request: ZIPGenerateRequest):
     """Generate a ZIP file containing multiple resume PDFs with improved error handling"""
@@ -346,6 +509,7 @@ async def generate_zip_file(request: ZIPGenerateRequest):
         zip_path = os.path.join(temp_dir, f"batch_resumes_{request.batch_id[:8]}_{int(time.time())}.zip")
         
         successful_pdfs = 0
+        successful_cover_letters = 0
         
         # Create ZIP file
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
@@ -359,33 +523,47 @@ async def generate_zip_file(request: ZIPGenerateRequest):
                     if not resume_data.get('job_title'):
                         resume_data['job_title'] = f"Resume_{i+1}"
                     
-                    # Generate PDF for this resume
-                    pdf_buffer = generate_pdf_from_text(
-                        resume_data['resume_text'], 
-                        resume_data['job_title']
-                    )
-                    
-                    # Create safe filename
+                    # Create safe filename base
                     job_title = resume_data['job_title']
                     safe_title = "".join(c for c in job_title if c.isalnum() or c in (' ', '-', '_')).strip()
                     if not safe_title:
                         safe_title = f"Resume_{i+1}"
                     safe_title = safe_title.replace(' ', '_')[:50]  # Limit length
-                    filename = f"{i+1:02d}_{safe_title}.pdf"
                     
-                    # Add PDF to ZIP
-                    zipf.writestr(filename, pdf_buffer.getvalue())
+                    # Generate Resume PDF
+                    pdf_buffer = generate_pdf_from_text(
+                        resume_data['resume_text'], 
+                        resume_data['job_title']
+                    )
+                    
+                    resume_filename = f"{i+1:02d}_{safe_title}_Resume.pdf"
+                    zipf.writestr(resume_filename, pdf_buffer.getvalue())
                     successful_pdfs += 1
+                    
+                    # Generate Cover Letter PDF if available and requested
+                    if request.include_cover_letters and resume_data.get('cover_letter'):
+                        try:
+                            cover_letter_buffer = generate_cover_letter_pdf(
+                                resume_data['cover_letter'],
+                                resume_data['job_title']
+                            )
+                            
+                            cover_letter_filename = f"{i+1:02d}_{safe_title}_Cover_Letter.pdf"
+                            zipf.writestr(cover_letter_filename, cover_letter_buffer.getvalue())
+                            successful_cover_letters += 1
+                        except Exception as e:
+                            print(f"Error generating cover letter PDF for resume {i+1}: {e}")
                     
                     # Add summary file for this resume
                     summary_content = f"""Resume: {resume_data['job_title']}
 Job URL: {resume_data.get('job_url', 'N/A')}
 Enhancement Score: {resume_data.get('enhancement_score', 'N/A')}
+Cover Letter: {'Included' if resume_data.get('cover_letter') and request.include_cover_letters else 'Not included'}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 Status: Successfully generated
 """
                     
-                    summary_filename = f"{i+1:02d}_{safe_title}_info.txt"
+                    summary_filename = f"{i+1:02d}_{safe_title}_Info.txt"
                     zipf.writestr(summary_filename, summary_content.encode('utf-8'))
                     
                 except Exception as e:
@@ -409,18 +587,22 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 ========================
 Batch ID: {request.batch_id}
 Total Resumes Requested: {len(request.resumes)}
-Successful PDFs Generated: {successful_pdfs}
+Successful Resume PDFs Generated: {successful_pdfs}
+Successful Cover Letter PDFs Generated: {successful_cover_letters}
+Cover Letters Requested: {'Yes' if request.include_cover_letters else 'No'}
 Failed: {len(request.resumes) - successful_pdfs}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 This ZIP file contains:
 - {successful_pdfs} successfully generated PDF resume(s)
+{f"- {successful_cover_letters} successfully generated cover letter PDF(s)" if request.include_cover_letters else ""}
 - Info files with job details and enhancement scores
 - Error logs for any failed generations
 - This summary file
 
 All resumes have been tailored using AI for specific job requirements.
 RAG (Retrieval-Augmented Generation) and advanced diff analysis were applied.
+{f"Cover letters have been personalized based on user preferences and job requirements." if request.include_cover_letters else ""}
 """
             zipf.writestr("BATCH_SUMMARY.txt", batch_summary.encode('utf-8'))
         
@@ -445,7 +627,7 @@ RAG (Retrieval-Augmented Generation) and advanced diff analysis were applied.
         return FileResponse(
             path=zip_path,
             media_type="application/zip",
-            filename=f"batch_resumes_{request.batch_id[:8]}.zip",
+            filename=f"Apply_AI_Batch_{request.batch_id[:8]}.zip",
             background=background_tasks
         )
         
@@ -498,15 +680,21 @@ async def get_batch_results(batch_id: str):
         batch_status = batch_jobs[batch_id]
         
         # Return results from either batch_results or batch_status
-        results = batch_results.get(batch_id, batch_status.results)
+        if batch_id in batch_results:
+            results = batch_results[batch_id]
+        else:
+            results = batch_status.results
         
         return JSONResponse({
             "success": True,
             "batch_id": batch_id,
-            "total_jobs": batch_status.total,
-            "successful_jobs": len([r for r in results if r["status"] == "success"]),
-            "failed_jobs": len([r for r in results if r["status"] == "failed"]),
-            "results": results
+            "results": results,
+            "summary": {
+                "total": len(results),
+                "successful": len([r for r in results if r.get("status") == "success"]),
+                "failed": len([r for r in results if r.get("status") == "failed"]),
+                "cover_letters_generated": len([r for r in results if r.get("cover_letter")])
+            }
         })
         
     except Exception as e:

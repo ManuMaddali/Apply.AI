@@ -21,6 +21,8 @@ Apply.AI is an advanced AI-powered resume tailoring application that uses LangCh
 
 ### 🧠 **Intelligent Customization**
 - **Optional Sections**: Choose which sections to include (Professional Summary, Skills, Education)
+- **Smart Section Detection**: Automatically detects existing resume sections to prevent duplicates
+- **Intelligent Enhancement**: Enhances existing sections instead of creating duplicates  
 - **Education Builder**: Comprehensive form for academic credentials
 - **Smart Formatting**: One-page optimized with professional typography
 - **Content Detection**: Intelligent parsing of names, companies, and achievements
@@ -185,6 +187,8 @@ Apply.AI delivers:
 ## 🔧 **Advanced Configuration**
 
 ### **Environment Variables (.env)**
+
+#### **Backend (.env)**
 ```bash
 # OpenAI Configuration
 OPENAI_API_KEY=sk-your-key-here
@@ -203,6 +207,39 @@ MAX_FILE_SIZE=10485760  # 10MB
 MAX_CONTENT_LENGTH=50000
 TEMPERATURE=0.1
 ```
+
+#### **Frontend (.env.local)**
+```bash
+# Feature Flags
+ENABLE_TESTING_SUITE=false  # Set to 'true' to enable testing features
+```
+
+### **🧪 Testing Suite (Feature Flag)**
+
+Apply.AI includes a comprehensive testing suite for developers. This feature is hidden behind a feature flag for security and performance.
+
+#### **Enable Testing Suite**
+```bash
+# Create frontend/.env.local file
+echo "ENABLE_TESTING_SUITE=true" > frontend/.env.local
+
+# Restart the application
+./stop.sh && ./run.sh
+```
+
+#### **Testing Features**
+- **Manual Testing**: Load pre-configured test resumes and job URLs
+- **Scenario Testing**: Complete test scenarios with expected outcomes
+- **Batch Testing**: Run multiple test scenarios simultaneously
+- **Performance Testing**: Measure processing latency and memory usage
+- **Backend Connectivity**: Test API endpoints and health checks
+- **Result Export**: Export test results for analysis
+
+#### **Access Testing Suite**
+When enabled, a "Testing Suite" button appears in the top-right corner of the main application. This opens the testing interface in a new tab.
+
+#### **Production Safety**
+The testing suite is automatically disabled in production environments unless explicitly enabled, ensuring security and performance.
 
 ### **Customization Options**
 - **Optional Sections**: Configure which resume sections to include
@@ -298,6 +335,12 @@ npm install
 - Check for special characters in input
 - Verify PDF output directory permissions
 
+**Duplicate sections in output:**
+- ✅ **Fixed**: Smart section detection now prevents duplicates
+- System automatically detects existing Summary, Skills, and Education sections
+- Only enhances existing sections or adds missing ones when requested
+- No longer creates duplicate content when optional sections are selected
+
 ## 📞 **Support**
 
 - **Documentation**: Read `PROJECT_STRUCTURE.md` for detailed architecture
@@ -316,4 +359,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ./setup.sh && ./run.sh
 ```
 
-*Built with ❤️ using LangChain, OpenAI, Next.js, and TailwindCSS*
+*Built with using LangChain, OpenAI, Next.js, and TailwindCSS*
