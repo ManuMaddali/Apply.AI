@@ -1,611 +1,551 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import FileUpload from '../components/FileUpload'
-import JobUrlsInput from '../components/JobUrlsInput'
-import OutputSettings from '../components/OutputSettings'
-import OptionalSections from '../components/OptionalSections'
-import CoverLetter from '../components/CoverLetter'
-import ResultCard from '../components/ResultCard'
-import ResumeModal from '../components/ResumeModal'
-import { API_BASE_URL } from '../utils/api'
+"use client"
 
-export default function Home() {
-  const [file, setFile] = useState(null)
-  const [jobUrls, setJobUrls] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [processing, setProcessing] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [batchJobId, setBatchJobId] = useState('')
-  const [batchStatus, setBatchStatus] = useState(null)
-  const [results, setResults] = useState([])
-  const [outputFormat, setOutputFormat] = useState('text')
-  const [pollingInterval, setPollingInterval] = useState(null)
-  const [selectedResume, setSelectedResume] = useState(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [originalResumeText, setOriginalResumeText] = useState('')
-  const [optionalSections, setOptionalSections] = useState({
-    includeSummary: false,
-    includeSkills: false,
-    includeEducation: false,
-    educationDetails: {
-      degree: '',
-      institution: '',
-      year: '',
-      gpa: ''
-    }
-  })
-  const [coverLetterOptions, setCoverLetterOptions] = useState({
-    includeCoverLetter: false,
-    coverLetterDetails: {
-      tone: 'professional',
-      emphasize: 'experience',
-      additionalInfo: ''
-    }
-  })
+import Link from "next/link"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Check, ChevronRight, Menu, X, FileText, Target, Zap, Award, BarChart, Users } from "lucide-react"
+import { useState } from "react"
 
-  // Clean up polling on component unmount
-  useEffect(() => {
-    return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval)
-      }
-    }
-  }, [pollingInterval])
-
-  const handleFileUpload = useCallback((event) => {
-    const selectedFile = event.target.files[0]
-    if (selectedFile) {
-      if (selectedFile.type === 'application/pdf' || 
-          selectedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-          selectedFile.type === 'text/plain') {
-        setFile(selectedFile)
-        setError('')
-      } else {
-        setError('Please upload a PDF, DOCX, or TXT file')
-        setFile(null)
-      }
-    }
-  }, [])
-
-  const validateJobUrls = (urls) => {
-    const lines = urls.trim().split('\n').filter(line => line.trim())
-    if (lines.length === 0) {
-      return { valid: false, message: 'Please enter at least one job URL' }
-    }
-    if (lines.length > 10) {
-      return { valid: false, message: 'Maximum 10 job URLs allowed' }
-    }
-    
-    const invalidUrls = lines.filter(line => {
-      try {
-        new URL(line.trim())
-        return false
-      } catch {
-        return true
-      }
-    })
-    
-    if (invalidUrls.length > 0) {
-      return { valid: false, message: `Invalid URLs found: ${invalidUrls.slice(0, 3).join(', ')}${invalidUrls.length > 3 ? '...' : ''}` }
-    }
-    
-    return { valid: true, urls: lines.map(line => line.trim()) }
-  }
-
-  const startBatchProcessing = async () => {
-    if (!file) {
-      setError('Please upload a resume file')
-      return
-    }
-
-    const validation = validateJobUrls(jobUrls)
-    if (!validation.valid) {
-      setError(validation.message)
-      return
-    }
-
-    setLoading(true)
-    setProcessing(true)
-    setError('')
-    setResults([])
-
-    try {
-      // First upload the resume
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const uploadResponse = await fetch(`${API_BASE_URL}/resumes/upload`, {
-        method: 'POST',
-        body: formData
-      })
-
-      const uploadData = await uploadResponse.json()
-
-      if (!uploadData.success) {
-        throw new Error(uploadData.detail || 'Failed to upload resume')
-      }
-
-      setOriginalResumeText(uploadData.resume_text)
-
-      // Start batch processing with RAG and diff analysis enabled by default
-      const batchResponse = await fetch(`${API_BASE_URL}/batch/process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resume_text: uploadData.resume_text,
-          job_urls: validation.urls,
-          use_rag: true, // Always enabled
-          compare_versions: true, // Always enabled
-          output_format: outputFormat,
-          optional_sections: optionalSections, // Include the optional sections preferences
-          cover_letter_options: coverLetterOptions // Include cover letter options
-        })
-      })
-
-      const batchData = await batchResponse.json()
-
-      if (batchData.success) {
-        setBatchJobId(batchData.batch_job_id)
-        setBatchStatus({
-          state: 'processing',
-          total: validation.urls.length,
-          completed: 0,
-          failed: 0,
-          current_job: 'Starting batch processing...'
-        })
-        
-        // Initialize results with processing state
-        const initialResults = validation.urls.map((url, index) => ({
-          job_url: url,
-          status: 'processing',
-          job_title: 'Processing...'
-        }))
-        setResults(initialResults)
-        
-        startStatusPolling(batchData.batch_job_id)
-      } else {
-        throw new Error(batchData.detail || 'Failed to start batch processing')
-      }
-
-    } catch (error) {
-      setError(error.message)
-      setProcessing(false)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const startStatusPolling = (jobId) => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/batch/status/${jobId}`)
-        const data = await response.json()
-        
-        if (data.success) {
-          setBatchStatus(data.status)
-          
-          if (data.status.state === 'completed' || data.status.state === 'failed') {
-            clearInterval(interval)
-            setPollingInterval(null)
-            setProcessing(false)
-            
-            if (data.status.state === 'completed') {
-              loadBatchResults(jobId)
-            } else {
-              setError('Batch processing failed. Please try again.')
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error polling status:', error)
-      }
-    }, 1500)
-    
-    setPollingInterval(interval)
-  }
-
-  const loadBatchResults = async (jobId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/batch/results/${jobId}`)
-      const data = await response.json()
-      
-      if (data.success) {
-        setResults(data.results)
-        setSuccess('Your resumes are ready! 🎉')
-        setTimeout(() => setSuccess(''), 5000)
-      }
-    } catch (error) {
-      console.error('Error loading results:', error)
-    }
-  }
-
-  const viewFullResume = (result) => {
-    setSelectedResume(result)
-    setModalOpen(true)
-  }
-
-  const downloadIndividualResumePDF = async (result) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/batch/generate-pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resume_text: result.tailored_resume,
-          job_title: result.job_title,
-          filename: `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_tailored_resume.pdf`
-        })
-      })
-
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_tailored_resume.pdf`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-      } else {
-        throw new Error('Failed to generate PDF')
-      }
-    } catch (error) {
-      setError('Failed to download PDF. Please try again.')
-      console.error('Error downloading PDF:', error)
-    }
-  }
-
-  const downloadIndividualCoverLetterPDF = async (result) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/batch/generate-cover-letter-pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cover_letter_text: result.cover_letter,
-          job_title: result.job_title,
-          filename: `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_cover_letter.pdf`
-        })
-      })
-
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_cover_letter.pdf`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-      } else {
-        throw new Error('Failed to generate cover letter PDF')
-      }
-    } catch (error) {
-      setError('Failed to download cover letter PDF. Please try again.')
-      console.error('Error downloading cover letter PDF:', error)
-    }
-  }
-
-  const downloadIndividualResumeText = (result) => {
-    try {
-      const textContent = result.tailored_resume
-      const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${result.job_title.replace(/[^a-z0-9]/gi, '_')}_tailored_resume.txt`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      setError('Failed to download text file. Please try again.')
-      console.error('Error downloading text:', error)
-    }
-  }
-
-  const canSubmit = file && jobUrls.trim() && !loading && !processing
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Modern Header */}
-      <div className="relative bg-white/80 backdrop-light border-b border-white/50 shadow-sm scroll-optimized">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Testing Button - Only visible when feature flag is enabled */}
-          {process.env.ENABLE_TESTING_SUITE === 'true' && (
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={() => {
-                  // Always link to dev instance on port 3000
-                  const devUrl = 'http://localhost:3000/testing';
-                  window.open(devUrl, '_blank');
-                }}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 flex items-center space-x-2 shadow-lg"
-                title="Open Testing Suite in Development Mode"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span>Testing Suite</span>
-                <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          )}
-          
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-              </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Apply.AI
-              </h1>
-            </div>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Transform your resume for every opportunity. Our AI analyzes job descriptions and tailors your resume to match what employers are looking for.
-            </p>
-          </div>
+    <div className="flex min-h-[100dvh] flex-col">
+      <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b">
+        <Link className="flex items-center gap-2 font-semibold" href="#">
+          <FileText className="h-6 w-6 text-emerald-600" />
+          <span>ResumeMatch</span>
+        </Link>
+        <MobileNav />
+        <nav className="hidden md:flex gap-6">
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="#features">
+            Features
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="#how-it-works">
+            How It Works
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="#pricing">
+            Pricing
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="#testimonials">
+            Testimonials
+          </Link>
+        </nav>
+        <div className="hidden md:flex gap-4">
+          <Link href="/app">
+            <Button variant="outline">Log In</Button>
+          </Link>
+          <Link href="/app">
+            <Button className="bg-emerald-600 hover:bg-emerald-700">Sign Up Free</Button>
+          </Link>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          
-          {/* Left Column - Inputs (Takes 2/3 of space) */}
-          <div className="xl:col-span-2 space-y-6">
-            <FileUpload 
-              file={file} 
-              onFileChange={handleFileUpload} 
-            />
-            
-            <JobUrlsInput 
-              jobUrls={jobUrls} 
-              onJobUrlsChange={setJobUrls} 
-            />
-            
-            <CoverLetter 
-              options={coverLetterOptions}
-              onOptionsChange={setCoverLetterOptions}
-            />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <OptionalSections 
-                options={optionalSections}
-                onOptionsChange={setOptionalSections}
-              />
-              
-              <OutputSettings 
-                outputFormat={outputFormat} 
-                onFormatChange={setOutputFormat} 
-              />
+      </header>
+      <main className="flex-1">
+        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-emerald-50 to-white">
+          <div className="container px-4 md:px-6">
+            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+              <div className="flex flex-col justify-center space-y-4">
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
+                    Land more interviews with tailored resumes
+                  </h1>
+                  <p className="max-w-[600px] text-gray-500 md:text-xl">
+                    ResumeMatch automatically tailors your resume to match job descriptions, increasing your chances of
+                    getting past ATS systems and impressing recruiters.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Link href="/app">
+                    <Button size="lg" className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                      Try For Free <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href="#how-it-works">
+                    <Button size="lg" variant="outline">
+                      How It Works
+                    </Button>
+                  </Link>
+                </div>
+                <p className="text-sm text-gray-500">No credit card required. Free plan available.</p>
+              </div>
+              <div className="relative mx-auto lg:order-last">
+                <div className="absolute -top-4 -left-4 h-72 w-72 rounded-full bg-emerald-100 blur-3xl opacity-70"></div>
+                <Image
+                  src="/placeholder.svg?height=550&width=550"
+                  width={550}
+                  height={550}
+                  alt="Resume tailoring app interface showing a resume being matched to a job description"
+                  className="relative z-10 mx-auto rounded-xl shadow-xl border"
+                />
+              </div>
             </div>
           </div>
+        </section>
 
-          {/* Right Column - Results & Action */}
-          <div className="xl:col-span-1 space-y-6">
-            {/* Sticky Action Card */}
-            <div className="sticky top-8 z-20 sticky-optimized">
-              <div className="bg-white/80 backdrop-light rounded-2xl shadow-lg border border-white/50 p-6 scroll-optimized">
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Ready to Apply?</h3>
-                  <p className="text-sm text-gray-600">Your tailored resumes will appear below</p>
+        <section className="w-full py-12 md:py-24 bg-white">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-emerald-100 px-3 py-1 text-sm text-emerald-800">
+                  Why ResumeMatch?
                 </div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
+                  Get past the ATS and land more interviews
+                </h2>
+                <p className="max-w-[900px] text-gray-500 md:text-xl">
+                  74% of resumes are rejected by ATS systems before a human ever sees them. Our app ensures your resume
+                  gets through.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 md:grid-cols-3">
+              {stats.map((stat, index) => (
+                <Card key={index} className="text-center border-none shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="text-4xl font-bold text-emerald-600">{stat.value}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-500">{stat.label}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                {/* Submit Button */}
-                <button
-                  onClick={startBatchProcessing}
-                  disabled={!canSubmit}
-                  className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-300 transform ${
-                    canSubmit
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-105'
-                      : 'bg-gray-300 cursor-not-allowed'
-                  }`}
+        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-gray-50">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-emerald-100 px-3 py-1 text-sm text-emerald-800">
+                  Features
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Everything you need to stand out</h2>
+                <p className="max-w-[900px] text-gray-500 md:text-xl">
+                  Our intelligent resume tailoring tools help you customize your resume for each job application in
+                  minutes.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 md:grid-cols-2 lg:grid-cols-3">
+              {features.map((feature, index) => (
+                <Card key={index} className="bg-white border-none shadow-sm">
+                  <CardHeader>
+                    <feature.icon className="h-10 w-10 text-emerald-600" />
+                    <CardTitle className="mt-4">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="how-it-works" className="w-full py-12 md:py-24 lg:py-32 bg-white">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-emerald-100 px-3 py-1 text-sm text-emerald-800">
+                  How It Works
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
+                  Three simple steps to a tailored resume
+                </h2>
+                <p className="max-w-[900px] text-gray-500 md:text-xl">
+                  Our process is designed to be quick and effective, helping you create the perfect resume in minutes.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-center gap-10 py-12 md:grid-cols-3">
+              {steps.map((step, index) => (
+                <div key={index} className="flex flex-col items-center text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-900 mb-4">
+                    <span className="text-xl font-bold">{index + 1}</span>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{step.title}</h3>
+                  <p className="text-gray-500">{step.description}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-center mt-8">
+              <Link href="/app">
+                <Button size="lg" className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                  Get Started Now <ChevronRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32 bg-emerald-50">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-emerald-100 px-3 py-1 text-sm text-emerald-800">
+                  Testimonials
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Success stories from our users</h2>
+                <p className="max-w-[900px] text-gray-500 md:text-xl">
+                  Hear from job seekers who landed their dream jobs with the help of ResumeMatch.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 md:grid-cols-2 lg:grid-cols-3">
+              {testimonials.map((testimonial, index) => (
+                <Card key={index} className="bg-white border-none shadow-sm">
+                  <CardHeader>
+                    <div className="flex items-center gap-4">
+                      <Image
+                        src={testimonial.avatar || "/placeholder.svg"}
+                        width={40}
+                        height={40}
+                        alt={testimonial.name}
+                        className="rounded-full"
+                      />
+                      <div>
+                        <CardTitle className="text-base">{testimonial.name}</CardTitle>
+                        <CardDescription>{testimonial.position}</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-500">{testimonial.quote}</p>
+                  </CardContent>
+                  <CardFooter>
+                    <p className="text-sm font-medium text-emerald-600">{testimonial.result}</p>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-white">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-emerald-100 px-3 py-1 text-sm text-emerald-800">Pricing</div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Simple, transparent pricing</h2>
+                <p className="max-w-[900px] text-gray-500 md:text-xl">
+                  Choose the plan that's right for your job search needs.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-start gap-6 py-12 md:grid-cols-3">
+              {pricingPlans.map((plan, index) => (
+                <Card
+                  key={index}
+                  className={plan.featured ? "border-emerald-600 shadow-lg" : "border-gray-200 shadow-sm"}
                 >
-                  {(loading || processing) ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Tailoring Your Resume...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center">
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      Tailor My Resume
-                    </span>
-                  )}
-                </button>
-
-                {/* Status Indicators */}
-                <div className="mt-4 space-y-2">
-                  <div className={`flex items-center text-sm ${file ? 'text-green-600' : 'text-gray-400'}`}>
-                    <div className={`w-2 h-2 rounded-full mr-2 ${file ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                    Resume {file ? 'uploaded' : 'required'}
-                  </div>
-                  <div className={`flex items-center text-sm ${jobUrls.trim() ? 'text-green-600' : 'text-gray-400'}`}>
-                    <div className={`w-2 h-2 rounded-full mr-2 ${jobUrls.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                    Job URLs {jobUrls.trim() ? 'added' : 'required'}
-                  </div>
-                  {coverLetterOptions.includeCoverLetter && (
-                    <div className="flex items-center text-sm text-indigo-600">
-                      <div className="w-2 h-2 rounded-full mr-2 bg-indigo-500"></div>
-                      Cover letter enabled
+                  {plan.featured && (
+                    <div className="absolute -top-4 left-0 right-0 mx-auto w-fit rounded-full bg-emerald-600 px-3 py-1 text-xs text-white">
+                      Most Popular
                     </div>
                   )}
-                </div>
+                  <CardHeader>
+                    <CardTitle>{plan.name}</CardTitle>
+                    <div className="flex gap-1">
+                      <span className="text-3xl font-bold">${plan.price}</span>
+                      <span className="text-gray-500 self-end">{plan.billing}</span>
+                    </div>
+                    <CardDescription>{plan.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="grid gap-2">
+                      {plan.features.map((feature, featureIndex) => (
+                        <li key={featureIndex} className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-emerald-600" />
+                          <span className="text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                  <CardFooter>
+                    <Link href="/app">
+                      <Button
+                        className="w-full"
+                        variant={plan.featured ? "default" : "outline"}
+                        style={plan.featured ? { backgroundColor: "#059669", borderColor: "#059669" } : {}}
+                      >
+                        {plan.buttonText}
+                      </Button>
+                    </Link>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-emerald-600 text-white">
+          <div className="container px-4 md:px-6">
+            <div className="grid gap-10 md:grid-cols-2 md:gap-16">
+              <div className="space-y-4">
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Ready to land your dream job?</h2>
+                <p className="text-emerald-100 md:text-xl">
+                  Join thousands of job seekers who have boosted their interview chances with ResumeMatch.
+                </p>
+              </div>
+              <div className="flex flex-col items-start space-y-4 md:justify-center">
+                <Link href="/app">
+                  <Button size="lg" className="gap-1 bg-white text-emerald-600 hover:bg-emerald-50">
+                    Get Started For Free <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <p className="text-sm text-emerald-100">No credit card required. Cancel anytime.</p>
               </div>
             </div>
-
-            {/* Progress Indicator */}
-            {processing && batchStatus && (
-              <div className="bg-white/80 backdrop-light rounded-2xl shadow-lg border border-white/50 p-6 scroll-optimized">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Processing</h3>
-                  <span className="text-sm text-gray-500">
-                    {batchStatus.completed}/{batchStatus.total} completed
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${(batchStatus.completed / batchStatus.total) * 100}%` }}
-                  />
-                </div>
-                <p className="text-sm text-gray-600 mt-2">{batchStatus.current_job}</p>
-              </div>
-            )}
-
-            {/* Results Section */}
-            {results.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Your Tailored Resumes</h3>
-                  {results.some(r => r.status === 'success') && (
-                    <button
-                      onClick={async () => {
-                        const successfulResults = results.filter(r => r.status === 'success' && r.tailored_resume)
-                        
-                        if (successfulResults.length === 0) {
-                          setError('No successful results to download')
-                          return
-                        }
-
-                        try {
-                          setLoading(true)
-                          
-                          const response = await fetch(`${API_BASE_URL}/batch/generate-zip`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              resumes: successfulResults.map(result => ({
-                                resume_text: result.tailored_resume,
-                                job_title: result.job_title,
-                                job_url: result.job_url,
-                                enhancement_score: result.enhancement_score,
-                                cover_letter: result.cover_letter || null
-                              })),
-                              batch_id: batchJobId,
-                              include_cover_letters: coverLetterOptions.includeCoverLetter
-                            })
-                          })
-
-                          if (response.ok) {
-                            const blob = await response.blob()
-                            
-                            if (blob.size === 0) {
-                              throw new Error('Generated ZIP file is empty')
-                            }
-                            
-                            const url = window.URL.createObjectURL(blob)
-                            const a = document.createElement('a')
-                            a.href = url
-                            a.download = `Apply_AI_Resumes_${new Date().toISOString().split('T')[0]}.zip`
-                            document.body.appendChild(a)
-                            a.click()
-                            document.body.removeChild(a)
-                            window.URL.revokeObjectURL(url)
-                          } else {
-                            throw new Error('Failed to generate ZIP file')
-                          }
-                        } catch (error) {
-                          setError('Failed to download ZIP file. Please try downloading individual PDFs instead.')
-                        } finally {
-                          setLoading(false)
-                        }
-                      }}
-                      className="text-sm bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 font-medium flex items-center gap-2 shadow-md"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                      </svg>
-                      Download All
-                      {outputFormat === 'files' && <span className="text-xs opacity-75 ml-1">PDF + Word</span>}
-                      {outputFormat === 'docx' && <span className="text-xs opacity-75 ml-1">Word</span>}
-                      {outputFormat === 'text' && <span className="text-xs opacity-75 ml-1">PDF</span>}
-                    </button>
-                  )}
-                </div>
-                
-                <div className="space-y-4 max-h-[800px] overflow-y-auto custom-scrollbar">
-                  {results.map((result, index) => (
-                    <ResultCard
-                      key={index}
-                      result={result}
-                      onView={viewFullResume}
-                      onDownloadPDF={downloadIndividualResumePDF}
-                      onDownloadCoverLetter={downloadIndividualCoverLetterPDF}
-                      onDownloadText={downloadIndividualResumeText}
-                      includeCoverLetter={coverLetterOptions.includeCoverLetter}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!processing && results.length === 0 && (
-              <div className="bg-white/50 backdrop-light rounded-2xl border border-white/50 p-12 text-center scroll-optimized">
-                <div className="mx-auto w-16 h-16 bg-gradient-to-r from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <p className="text-gray-600 text-lg">Upload your resume and add job URLs to get started</p>
-                <p className="text-gray-500 text-sm mt-2">Your tailored resumes will appear here</p>
-              </div>
-            )}
+          </div>
+        </section>
+      </main>
+      <footer className="w-full border-t py-6 md:py-12 bg-gray-50">
+        <div className="container px-4 md:px-6">
+          <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-4">
+            <div className="space-y-4">
+              <Link className="flex items-center gap-2 font-semibold" href="#">
+                <FileText className="h-6 w-6 text-emerald-600" />
+                <span>ResumeMatch</span>
+              </Link>
+              <p className="text-sm text-gray-500">
+                Helping job seekers land more interviews with tailored resumes since 2023.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-medium">Product</h4>
+              <nav className="flex flex-col gap-2">
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Features
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Pricing
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Testimonials
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  FAQ
+                </Link>
+              </nav>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-medium">Company</h4>
+              <nav className="flex flex-col gap-2">
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  About
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Blog
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Careers
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Contact
+                </Link>
+              </nav>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-medium">Legal</h4>
+              <nav className="flex flex-col gap-2">
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Terms
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Privacy
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="#">
+                  Cookies
+                </Link>
+              </nav>
+            </div>
+          </div>
+          <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-6 md:flex-row">
+            <p className="text-xs text-gray-500">© {new Date().getFullYear()} ResumeMatch. All rights reserved.</p>
+            <div className="flex gap-4">
+              <Link className="text-sm hover:underline text-gray-500" href="#">
+                Privacy Policy
+              </Link>
+              <Link className="text-sm hover:underline text-gray-500" href="#">
+                Terms of Service
+              </Link>
+            </div>
           </div>
         </div>
-
-        {/* Error/Success Messages */}
-        {error && (
-          <div className="mt-6 bg-red-50/80 backdrop-light border border-red-200 text-red-700 px-6 py-4 rounded-xl shadow-sm scroll-optimized">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              {error}
-            </div>
-          </div>
-        )}
-        
-        {success && (
-          <div className="mt-6 bg-green-50/80 backdrop-light border border-green-200 text-green-700 px-6 py-4 rounded-xl shadow-sm scroll-optimized">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              {success}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Resume View Modal */}
-      <ResumeModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        resume={selectedResume?.tailored_resume}
-        jobTitle={selectedResume?.job_title}
-        originalResume={originalResumeText}
-      />
+      </footer>
     </div>
   )
-} 
+}
+
+function MobileNav() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <div className="md:hidden">
+      <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </Button>
+      {isOpen && (
+        <div className="fixed inset-0 top-16 z-50 bg-background p-6 shadow-lg">
+          <nav className="flex flex-col gap-6">
+            <Link className="text-lg font-medium hover:underline" href="#features" onClick={() => setIsOpen(false)}>
+              Features
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="#how-it-works" onClick={() => setIsOpen(false)}>
+              How It Works
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="#pricing" onClick={() => setIsOpen(false)}>
+              Pricing
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="#testimonials" onClick={() => setIsOpen(false)}>
+              Testimonials
+            </Link>
+            <div className="flex flex-col gap-2">
+              <Link href="/app" onClick={() => setIsOpen(false)}>
+                <Button variant="outline" className="w-full bg-transparent">
+                  Log In
+                </Button>
+              </Link>
+              <Link href="/app" onClick={() => setIsOpen(false)}>
+                <Button className="w-full bg-emerald-600 hover:bg-emerald-700">Sign Up Free</Button>
+              </Link>
+            </div>
+          </nav>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Sample data
+const stats = [
+  {
+    value: "3x",
+    label: "More likely to get an interview with a tailored resume",
+  },
+  {
+    value: "75%",
+    label: "Of resumes are rejected by ATS before a human sees them",
+  },
+  {
+    value: "2 min",
+    label: "Average time to tailor your resume with our app",
+  },
+]
+
+const features = [
+  {
+    icon: Target,
+    title: "ATS Keyword Optimization",
+    description:
+      "Our AI analyzes job descriptions and suggests keywords to include in your resume to pass ATS systems.",
+  },
+  {
+    icon: FileText,
+    title: "Smart Resume Templates",
+    description: "Choose from ATS-friendly templates designed to highlight your skills and experience.",
+  },
+  {
+    icon: Zap,
+    title: "One-Click Tailoring",
+    description: "Paste a job description and our AI will automatically tailor your resume to match the requirements.",
+  },
+  {
+    icon: BarChart,
+    title: "Match Score Analysis",
+    description: "See how well your resume matches each job description with a detailed compatibility score.",
+  },
+  {
+    icon: Award,
+    title: "Skills Highlighter",
+    description: "Automatically identify and emphasize the skills that matter most for each position.",
+  },
+  {
+    icon: Users,
+    title: "Industry Insights",
+    description: "Get data-driven recommendations based on successful resumes in your target industry.",
+  },
+]
+
+const steps = [
+  {
+    title: "Upload Your Resume",
+    description: "Upload your existing resume or create a new one using our templates.",
+  },
+  {
+    title: "Paste Job Description",
+    description: "Copy and paste the job description you're applying for.",
+  },
+  {
+    title: "Get Your Tailored Resume",
+    description: "Our AI will optimize your resume for the specific job in seconds.",
+  },
+]
+
+const testimonials = [
+  {
+    name: "Alex Johnson",
+    position: "Software Engineer",
+    avatar: "/placeholder.svg?height=40&width=40",
+    quote:
+      "I applied to 15 jobs with generic resumes and got zero callbacks. After using ResumeMatch, I tailored each application and landed 5 interviews in two weeks.",
+    result: "Hired at Google after 3 weeks",
+  },
+  {
+    name: "Sarah Chen",
+    position: "Marketing Manager",
+    avatar: "/placeholder.svg?height=40&width=40",
+    quote:
+      "The keyword optimization feature helped me understand exactly what recruiters were looking for. My resume went from being ignored to getting calls for interviews.",
+    result: "Received 4 job offers in one month",
+  },
+  {
+    name: "Michael Rodriguez",
+    position: "Financial Analyst",
+    avatar: "/placeholder.svg?height=40&width=40",
+    quote:
+      "As a career changer, I was struggling to get noticed. ResumeMatch helped me highlight transferable skills I didn't even know I had.",
+    result: "Successfully switched industries",
+  },
+]
+
+const pricingPlans = [
+  {
+    name: "Free",
+    price: "0",
+    billing: "/month",
+    description: "Perfect for occasional job seekers",
+    features: ["3 tailored resumes per month", "Basic ATS optimization", "2 resume templates", "Email support"],
+    buttonText: "Sign Up Free",
+  },
+  {
+    name: "Pro",
+    price: "19",
+    billing: "/month",
+    description: "For active job seekers",
+    features: [
+      "Unlimited tailored resumes",
+      "Advanced ATS optimization",
+      "All resume templates",
+      "Match score analysis",
+      "Priority support",
+    ],
+    buttonText: "Get Started",
+    featured: true,
+  },
+  {
+    name: "Career",
+    price: "39",
+    billing: "/month",
+    description: "Complete career solution",
+    features: [
+      "Everything in Pro",
+      "Cover letter generator",
+      "LinkedIn profile optimization",
+      "Interview preparation tools",
+      "1-on-1 resume review",
+      "24/7 priority support",
+    ],
+    buttonText: "Get Career",
+  },
+]

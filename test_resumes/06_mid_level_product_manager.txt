@@ -1,4 +1,4 @@
-DAVID PATEL
+DAVID Smith
 Senior Product Manager
 Email: david.patel@email.com | Phone: (555) 567-8901 | LinkedIn: linkedin.com/in/davidpatel
 
@@ -30,32 +30,15 @@ Google | August 2018 - May 2019
 • Assisted in go-to-market planning for new product features
 • Participated in customer interviews and market research activities
 
-PRODUCT MANAGEMENT EXPERIENCE
-Product Launches
-• Successfully launched 8 major product features across consumer and enterprise platforms
-• Led end-to-end product development from ideation to market launch
-• Managed product launch timelines and coordinated with marketing teams
-
-User Research & Analytics
-• Conducted 50+ user interviews and usability testing sessions
-• Analyzed user behavior data using SQL, Python, and analytics tools
-• Designed and executed A/B tests to optimize product performance
-• Created user personas and journey maps to guide product decisions
-
-Stakeholder Management
-• Collaborated with engineering, design, marketing, and sales teams
-• Presented product updates to C-level executives and board members
-• Managed relationships with external partners and vendors
-• Facilitated cross-functional workshops and planning sessions
+ workshops and planning sessions
 
 EDUCATION
-Master of Business Administration (MBA)
-Stanford Graduate School of Business | 2018
-Focus: Technology Strategy and Product Management
+- Master of Business Administration (MBA)
+- Stanford Graduate School of Business | 2018
 
-Bachelor of Science in Computer Science
-University of California, Berkeley | 2016
-GPA: 3.8/4.0
+- Bachelor of Science in Computer Science
+- University of California, Berkeley | 2016
+- GPA: 3.8/4.0
 
 TECHNICAL SKILLS
 Analytics: SQL, Python, R, Google Analytics, Mixpanel, Amplitude
@@ -63,24 +46,3 @@ Design: Figma, Sketch, Adobe Creative Suite
 Project Management: Jira, Asana, Trello, Confluence
 Data Visualization: Tableau, Looker, Power BI
 A/B Testing: Optimizely, LaunchDarkly, VWO
-
-CORE COMPETENCIES
-• Product Strategy & Roadmapping
-• User Experience Design
-• Data-Driven Decision Making
-• Agile/Scrum Methodologies
-• Cross-Functional Leadership
-• Market Research & Analysis
-• Go-to-Market Strategy
-• Technical Product Management
-
-ACHIEVEMENTS
-• Launched product features that generated $25M+ in additional revenue
-• Improved user engagement metrics by 200% through personalization initiatives
-• Reduced customer acquisition cost by 30% through optimized onboarding
-• Led team that won "Innovation of the Year" award (2022)
-
-CERTIFICATIONS
-• Certified Scrum Product Owner (CSPO) (2023)
-• Google Analytics Individual Qualification (2022)
-• Pragmatic Institute Product Management Certification (2021) 
