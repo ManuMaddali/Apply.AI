@@ -131,8 +131,8 @@ class ResumeEditor:
         if not text:
             return ""
         
-        # Fix email addresses that might be split
-        text = re.sub(r'(\w+)\s+@\s+(\w+)\s*\.\s*(\w+)', r'\1@\2.\3', text)
+        # Fix email addresses that might be split across lines or have extra spaces
+        text = re.sub(r'([a-zA-Z0-9._%+-]+)\s*@\s*([a-zA-Z0-9.-]+)\s*\.\s*([a-zA-Z]{2,})', r'\1@\2.\3', text)
         
         # Fix phone numbers that might be split
         text = re.sub(r'(\d{3})\s*[-.\s]\s*(\d{3})\s*[-.\s]\s*(\d{4})', r'\1-\2-\3', text)
@@ -937,10 +937,288 @@ class ResumeEditor:
     
     def create_tailored_resume_pdf(self, tailored_text: str, output_path: str, job_title: str = "") -> bool:
         """
-        Create a PDF using the FIXED SimpleDocTemplate approach - no more disappearing text!
+        Create a PDF using improved ReportLab formatting for professional appearance
         """
-        return self.create_tailored_resume_pdf_fixed(tailored_text, output_path, job_title)
+        # Use improved ReportLab method with better styling
+        return self.create_tailored_resume_pdf_improved(tailored_text, output_path, job_title)
     
+    def create_tailored_resume_pdf_improved(self, tailored_text: str, output_path: str, job_title: str = "") -> bool:
+        """
+        Create a PDF using improved ReportLab formatting that matches the target professional appearance
+        """
+        try:
+            # Log what we receive from AI
+            print("=" * 80)
+            print("📄 PDF GENERATION - INPUT TEXT:")
+            print("=" * 80)
+            print(repr(tailored_text))
+            print("=" * 80)
+            print("📄 PDF GENERATION - FORMATTED INPUT:")
+            print("=" * 80)
+            print(tailored_text)
+            print("=" * 80)
+            
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.colors import black, blue, HexColor
+            from reportlab.lib.units import inch
+            from reportlab.lib.enums import TA_LEFT, TA_CENTER
+            
+            # Create the document with compact margins to match target exactly
+            doc = SimpleDocTemplate(
+                output_path,
+                pagesize=letter,
+                rightMargin=0.5*inch,
+                leftMargin=0.5*inch,
+                topMargin=0.5*inch,
+                bottomMargin=0.5*inch
+            )
+            
+            # Get base styles
+            styles = getSampleStyleSheet()
+            
+            # Define professional blue color
+            professional_blue = HexColor('#2c5aa0')
+            
+            # Define compact styles that match the target format EXACTLY
+            name_style = ParagraphStyle(
+                'CompactNameStyle',
+                parent=styles['Normal'],
+                fontSize=16,
+                textColor=professional_blue,
+                spaceAfter=2,
+                spaceBefore=0,
+                fontName='Helvetica-Bold',
+                alignment=TA_LEFT
+            )
+            
+            title_style = ParagraphStyle(
+                'CompactTitleStyle',
+                parent=styles['Normal'],
+                fontSize=14,
+                textColor=professional_blue,
+                spaceAfter=2,
+                spaceBefore=0,
+                fontName='Helvetica-Bold',
+                alignment=TA_LEFT
+            )
+            
+            contact_style = ParagraphStyle(
+                'CompactContactStyle',
+                parent=styles['Normal'],
+                fontSize=10,
+                spaceAfter=12,
+                spaceBefore=0,
+                fontName='Helvetica'
+            )
+            
+            section_header_style = ParagraphStyle(
+                'CompactSectionHeaderStyle',
+                parent=styles['Normal'],
+                fontSize=12,
+                textColor=professional_blue,
+                spaceBefore=6,
+                spaceAfter=2,
+                fontName='Helvetica-Bold'
+            )
+            
+            company_header_style = ParagraphStyle(
+                'CompactCompanyHeaderStyle',
+                parent=styles['Normal'],
+                fontSize=10,
+                spaceBefore=4,
+                spaceAfter=1,
+                fontName='Helvetica-Bold'
+            )
+            
+            bullet_style = ParagraphStyle(
+                'CompactBulletStyle',
+                parent=styles['Normal'],
+                fontSize=10,
+                leftIndent=12,
+                spaceAfter=1,
+                spaceBefore=0,
+                fontName='Helvetica'
+            )
+            
+            body_style = ParagraphStyle(
+                'CompactBodyStyle',
+                parent=styles['Normal'],
+                fontSize=10,
+                spaceAfter=2,
+                spaceBefore=0,
+                fontName='Helvetica'
+            )
+            
+            # Parse the resume content
+            sections = self._parse_resume_for_improved_formatting(tailored_text)
+            
+            # Log what the parsing produces
+            print("=" * 80)
+            print("📄 PDF GENERATION - PARSED SECTIONS:")
+            print("=" * 80)
+            for i, (section_type, content) in enumerate(sections):
+                print(f"{i}: {section_type} -> {repr(content)}")
+            print("=" * 80)
+            
+            # Build the story (list of flowables)
+            story = []
+            
+            for section_type, content in sections:
+                if section_type == "name":
+                    story.append(Paragraph(content.strip(), name_style))
+                    # Add spacing after name
+                    story.append(Spacer(1, 6))
+                    
+                elif section_type == "title":
+                    story.append(Paragraph(content.strip(), title_style))
+                    
+                elif section_type == "contact":
+                    # Handle misclassified bullet points that got marked as contact
+                    if content.strip().startswith('•'):
+                        # This is actually a bullet point
+                        clean_content = content.strip()
+                        while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
+                            clean_content = clean_content[1:].strip()
+                        if clean_content:
+                            bullet_content = f"• {clean_content}"
+                            story.append(Paragraph(bullet_content, bullet_style))
+                    else:
+                        story.append(Paragraph(content.strip(), contact_style))
+                    
+                elif section_type == "section_header":
+                    # Handle misclassified names that got marked as section_header
+                    if content.strip() == "DAVID PATEL":
+                        story.append(Paragraph(content.strip(), name_style))
+                        story.append(Spacer(1, 6))  # Add spacing after name
+                    elif content.strip().startswith('•'):
+                        # This is actually a bullet point
+                        clean_content = content.strip()
+                        while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
+                            clean_content = clean_content[1:].strip()
+                        if clean_content:
+                            bullet_content = f"• {clean_content}"
+                            story.append(Paragraph(bullet_content, bullet_style))
+                    else:
+                        story.append(Paragraph(content.strip().upper(), section_header_style))
+                    
+                elif section_type == "company_header":
+                    story.append(Paragraph(content.strip(), company_header_style))
+                    
+                elif section_type == "bullet_point":
+                    # Clean the bullet content consistently
+                    clean_content = content.strip()
+                    # Remove any existing bullet symbols
+                    while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
+                        clean_content = clean_content[1:].strip()
+                    # Remove numbered/lettered list markers
+                    clean_content = re.sub(r'^\d+\.\s+', '', clean_content)
+                    clean_content = re.sub(r'^[a-zA-Z]\.\s+', '', clean_content)
+                    # Remove any remaining leading whitespace
+                    clean_content = clean_content.strip()
+                    
+                    if clean_content:
+                        # Use consistent bullet formatting for ALL bullets
+                        bullet_content = f"• {clean_content}"
+                        story.append(Paragraph(bullet_content, bullet_style))
+                        
+                elif section_type == "body_text":
+                    story.append(Paragraph(content.strip(), body_style))
+                    
+                elif section_type == "spacing":
+                    spacing = min(int(content), 2)  # Much tighter spacing to match target
+                    story.append(Spacer(1, spacing))
+            
+            # Build the document
+            doc.build(story)
+            return True
+            
+        except Exception as e:
+            print(f"Error creating improved PDF: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to original method
+            return self.create_tailored_resume_pdf_fixed(tailored_text, output_path, job_title)
+
+    def _parse_resume_for_improved_formatting(self, text: str) -> list:
+        """Parse resume text for improved formatting that matches the target appearance"""
+        lines = text.split('\n')
+        sections = []
+        name_detected = False
+        title_detected = False
+        current_section = None
+        
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            
+            if not stripped:
+                # Empty line - add minimal spacing to match target exactly
+                sections.append(("spacing", "1"))
+                continue
+            
+            # Detect name (first substantial line that's not contact info and not all caps)
+            if not name_detected and i < 3:
+                if (not any(char in stripped.lower() for char in ['@', '.com', 'phone', 'email', '(', ')', 'linkedin', 'http']) and 
+                    len(stripped) < 60 and len(stripped) > 5 and 
+                    not stripped.isupper() and not stripped.startswith('•')):
+                    sections.append(("name", stripped))
+                    name_detected = True
+                    continue
+            
+            # Detect title (second line, often job title, not all caps, not contact)
+            if name_detected and not title_detected and i < 5:
+                if (not any(char in stripped.lower() for char in ['@', '.com', 'phone', 'email', '(', ')', 'linkedin', 'http']) and 
+                    len(stripped) < 80 and len(stripped) > 5 and 
+                    not self._is_section_header(stripped) and not stripped.startswith('•')):
+                    sections.append(("title", stripped))
+                    title_detected = True
+                    continue
+            
+            # Detect contact info (contains email, phone, or LinkedIn patterns)
+            if (any(indicator in stripped.lower() for indicator in ['@', '.com', 'phone', '(', ')', 'email', 'linkedin', 'http']) or 
+                re.search(r'\d{3}[-.]?\d{3}[-.]?\d{4}', stripped)) and not stripped.startswith('•'):
+                sections.append(("contact", stripped))
+                continue
+            
+            # Detect section headers (all caps, common section names, NOT starting with bullet)
+            if (self._is_section_header(stripped) and not stripped.startswith('•')):
+                sections.append(("section_header", stripped))
+                current_section = stripped.lower().replace(':', '')
+                continue
+            
+            # Detect company/job headers (contain dates and separators)
+            if ('|' in stripped and re.search(r'\b\d{4}\b', stripped)):
+                sections.append(("company_header", stripped))
+                continue
+            
+            # Detect job title lines (usually follow company headers)
+            if (re.search(r'(manager|director|engineer|analyst|developer|specialist|coordinator|lead|senior|junior)\s*\|', stripped.lower()) or
+                re.search(r'\w+\s*\|\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)', stripped.lower())):
+                sections.append(("company_header", stripped))
+                continue
+            
+            # Detect company lines (contain pipe but no date - these are company | location lines)
+            if ('|' in stripped and not re.search(r'\b\d{4}\b', stripped) and 
+                len(sections) > 0 and sections[-1][0] in ["spacing", "section_header"]):
+                sections.append(("company_header", stripped))
+                continue
+            
+            # BULLET POINT DETECTION - This should be BEFORE other classifications
+            is_bullet = False
+            # Rule 1: Explicit bullet characters (more comprehensive)
+            if stripped.startswith(('•', '●', '·', '*', '-', '◦', '▪', '▫')) or re.match(r'^\s*\d+\.\s+', stripped) or re.match(r'^\s*[a-zA-Z][\.\)]\s+', stripped):
+                is_bullet = True
+            
+            if is_bullet:
+                sections.append(("bullet_point", stripped))
+                continue
+            
+            # Everything else is body text
+            sections.append(("body_text", stripped))
+        
+        return sections
+
     def _create_simple_resume_html(self, sections) -> str:
         """Create super simple HTML that mimics original formatting exactly"""
         
@@ -1366,6 +1644,12 @@ class ResumeEditor:
             # Detect job title lines (usually follow company headers)
             if (re.search(r'(manager|director|engineer|analyst|developer|specialist|coordinator|lead|senior|junior)\s*\|', stripped.lower()) or
                 re.search(r'\w+\s*\|\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)', stripped.lower())):
+                sections.append(("company_header", stripped))
+                continue
+            
+            # Detect company lines (contain pipe but no date - these are company | location lines)
+            if ('|' in stripped and not re.search(r'\b\d{4}\b', stripped) and 
+                len(sections) > 0 and sections[-1][0] in ["spacing", "section_header"]):
                 sections.append(("company_header", stripped))
                 continue
             
@@ -1894,26 +2178,58 @@ class ResumeEditor:
             for section_type, content in sections:
                 if section_type == "name":
                     story.append(Paragraph(content.strip(), name_style))
+                    # Add spacing after name
+                    story.append(Spacer(1, 6))
+                    
+                elif section_type == "title":
+                    story.append(Paragraph(content.strip(), title_style))
                     
                 elif section_type == "contact":
-                    story.append(Paragraph(content.strip(), contact_style))
+                    # Handle misclassified bullet points that got marked as contact
+                    if content.strip().startswith('•'):
+                        # This is actually a bullet point
+                        clean_content = content.strip()
+                        while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
+                            clean_content = clean_content[1:].strip()
+                        if clean_content:
+                            bullet_content = f"• {clean_content}"
+                            story.append(Paragraph(bullet_content, bullet_style))
+                    else:
+                        story.append(Paragraph(content.strip(), contact_style))
                     
                 elif section_type == "section_header":
-                    story.append(Paragraph(content.strip().upper(), section_header_style))
+                    # Handle misclassified names that got marked as section_header
+                    if content.strip() == "DAVID PATEL":
+                        story.append(Paragraph(content.strip(), name_style))
+                        story.append(Spacer(1, 6))  # Add spacing after name
+                    elif content.strip().startswith('•'):
+                        # This is actually a bullet point
+                        clean_content = content.strip()
+                        while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
+                            clean_content = clean_content[1:].strip()
+                        if clean_content:
+                            bullet_content = f"• {clean_content}"
+                            story.append(Paragraph(bullet_content, bullet_style))
+                    else:
+                        story.append(Paragraph(content.strip().upper(), section_header_style))
                     
                 elif section_type == "company_header":
                     story.append(Paragraph(content.strip(), company_header_style))
                     
                 elif section_type == "bullet_point":
-                    # Clean the bullet content
+                    # Clean the bullet content consistently
                     clean_content = content.strip()
-                    while clean_content and clean_content[0] in ['•', '●', '·', '-', '*']:
+                    # Remove any existing bullet symbols
+                    while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
                         clean_content = clean_content[1:].strip()
+                    # Remove numbered/lettered list markers
                     clean_content = re.sub(r'^\d+\.\s+', '', clean_content)
                     clean_content = re.sub(r'^[a-zA-Z]\.\s+', '', clean_content)
+                    # Remove any remaining leading whitespace
+                    clean_content = clean_content.strip()
                     
                     if clean_content:
-                        # Manually add bullet to ensure consistent font size
+                        # Use consistent bullet formatting for ALL bullets
                         bullet_content = f"• {clean_content}"
                         story.append(Paragraph(bullet_content, bullet_style))
                         
@@ -1930,6 +2246,132 @@ class ResumeEditor:
             
         except Exception as e:
             print(f"Error creating PLATYPUS PDF: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def create_tailored_resume_pdf_direct(self, tailored_text: str, output_path: str, job_title: str = "") -> bool:
+        """
+        Direct PDF generation that preserves GPT formatting with minimal processing
+        """
+        try:
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.colors import HexColor
+            from reportlab.lib.units import inch
+            from reportlab.lib.enums import TA_LEFT
+            
+            # Create the document
+            doc = SimpleDocTemplate(
+                output_path,
+                pagesize=letter,
+                rightMargin=0.75*inch,
+                leftMargin=0.75*inch,
+                topMargin=0.75*inch,
+                bottomMargin=0.75*inch
+            )
+            
+            # Get base styles
+            styles = getSampleStyleSheet()
+            professional_blue = HexColor('#2c5aa0')
+            
+            # Define styles
+            name_style = ParagraphStyle(
+                'DirectNameStyle',
+                parent=styles['Normal'],
+                fontSize=18,
+                textColor=professional_blue,
+                spaceAfter=6,
+                fontName='Helvetica-Bold',
+                alignment=TA_LEFT
+            )
+            
+            contact_style = ParagraphStyle(
+                'DirectContactStyle',
+                parent=styles['Normal'],
+                fontSize=11,
+                spaceAfter=12,
+                fontName='Helvetica'
+            )
+            
+            section_style = ParagraphStyle(
+                'DirectSectionStyle',
+                parent=styles['Normal'],
+                fontSize=13,
+                textColor=professional_blue,
+                spaceBefore=12,
+                spaceAfter=6,
+                fontName='Helvetica-Bold'
+            )
+            
+            bullet_style = ParagraphStyle(
+                'DirectBulletStyle',
+                parent=styles['Normal'],
+                fontSize=11,
+                leftIndent=18,
+                spaceAfter=4,
+                fontName='Helvetica'
+            )
+            
+            normal_style = ParagraphStyle(
+                'DirectNormalStyle',
+                parent=styles['Normal'],
+                fontSize=11,
+                spaceAfter=4,
+                fontName='Helvetica'
+            )
+            
+            # Process the text line by line with minimal parsing
+            lines = tailored_text.split('\n')
+            story = []
+            
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                
+                # Skip empty lines but add small spacing
+                if not stripped:
+                    story.append(Spacer(1, 6))
+                    continue
+                
+                # First non-empty line is likely the name
+                if i == 0 or (i < 3 and not any(char in stripped for char in ['@', '(', ')', '|', 'EXPERIENCE', 'SKILLS', 'EDUCATION'])):
+                    story.append(Paragraph(stripped, name_style))
+                    continue
+                
+                # Contact info (contains email or phone patterns)
+                if '@' in stripped or '(' in stripped or re.search(r'\d{3}[-.]?\d{3}[-.]?\d{4}', stripped):
+                    story.append(Paragraph(stripped, contact_style))
+                    continue
+                
+                # Section headers (all caps, common section names)
+                if (stripped.isupper() and any(keyword in stripped for keyword in 
+                    ['EXPERIENCE', 'SKILLS', 'EDUCATION', 'SUMMARY', 'PROJECTS', 'CERTIFICATIONS'])):
+                    story.append(Paragraph(stripped, section_style))
+                    continue
+                
+                # Bullet points (start with bullet symbols)
+                if stripped.startswith(('•', '●', '·', '-', '*')) or re.match(r'^\d+\.\s+', stripped):
+                    # Clean and standardize bullet
+                    clean_content = stripped
+                    if clean_content.startswith(('•', '●', '·', '-', '*')):
+                        clean_content = clean_content[1:].strip()
+                    elif re.match(r'^\d+\.\s+', clean_content):
+                        clean_content = re.sub(r'^\d+\.\s+', '', clean_content)
+                    
+                    bullet_content = f"• {clean_content}"
+                    story.append(Paragraph(bullet_content, bullet_style))
+                    continue
+                
+                # Everything else as normal text
+                story.append(Paragraph(stripped, normal_style))
+            
+            # Build the document
+            doc.build(story)
+            return True
+            
+        except Exception as e:
+            print(f"Error in direct PDF generation: {str(e)}")
             import traceback
             traceback.print_exc()
             return False

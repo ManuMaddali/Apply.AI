@@ -427,6 +427,11 @@ FORMATTING REQUIREMENTS:
 - Use consistent formatting throughout
 - NO markdown syntax (**bold**, *italic*) - use plain text only
 - Maintain professional resume structure
+- Always leave one blank line between the name and contact information
+- Use consistent bullet points (•) with uniform spacing
+- Do not mix tabs and spaces; use 2 spaces for bullet indent
+- Keep all bullet points vertically aligned
+- Add consistent margins between sections
 
 FORMATTING EXAMPLE:
 Name
@@ -497,6 +502,17 @@ Transform this resume to be a perfect match for the target job with PROFESSIONAL
                 "optional_instructions": optional_instructions,
                 "detected_sections_info": detected_sections_info
             })
+            
+            # Log the AI response for debugging
+            print("=" * 80)
+            print("🤖 LANGCHAIN AI GENERATED RESPONSE:")
+            print("=" * 80)
+            print(repr(tailored_resume))
+            print("=" * 80)
+            print("📝 LANGCHAIN AI RESPONSE (FORMATTED):")
+            print("=" * 80)
+            print(tailored_resume)
+            print("=" * 80)
             
             return {
                 "tailored_resume": tailored_resume,

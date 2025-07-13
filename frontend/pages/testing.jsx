@@ -8,8 +8,7 @@ import OptionalSections from '../components/OptionalSections';
 import OutputSettings from '../components/OutputSettings';
 import ResultCard from '../components/ResultCard';
 import TestingUtils from '../components/TestingUtils';
-
-const API_BASE_URL = 'http://localhost:8000/api';
+import { API_BASE_URL, checkBackendHealth } from '../utils/api';
 
 export default function TestingPage() {
   // Check feature flag and environment access
@@ -116,33 +115,13 @@ export default function TestingPage() {
       setConnectionStatus('Testing backend connection...');
       setError('');
       
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
-      const response = await fetch(`http://localhost:8000/health`, {
-        method: 'GET',
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      console.log('Response received:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Backend response:', data);
-        setConnectionStatus(`✅ Backend connection successful! Version: ${data.version}`);
-        setTimeout(() => setConnectionStatus(''), 3000);
-      } else {
-        throw new Error(`Backend responded with status: ${response.status}`);
-      }
+      const data = await checkBackendHealth();
+      console.log('Backend response:', data);
+      setConnectionStatus(`✅ Backend connection successful! Status: ${data.status}`);
+      setTimeout(() => setConnectionStatus(''), 3000);
     } catch (error) {
       console.error('Backend connection error:', error);
-      if (error.name === 'AbortError') {
-        setError('Backend connection timed out. Make sure the backend server is running on localhost:8000');
-      } else {
-        setError(`Backend connection failed: ${error.message}. Make sure the backend server is running on localhost:8000`);
-      }
+      setError(`Backend connection failed: ${error.message}. Make sure the backend server is running.`);
       setConnectionStatus('');
     }
   };

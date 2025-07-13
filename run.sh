@@ -65,8 +65,21 @@ fi
 
 # Start backend with error handling
 echo "🔄 Starting backend server..."
-nohup python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
-BACKEND_PID=$!
+
+# Check for SSL certificates
+if [ -f "certs/server.crt" ] && [ -f "certs/server.key" ]; then
+    echo "🔒 SSL certificates found - starting with HTTPS on port 8443"
+    nohup python -m uvicorn main:app --reload --host 0.0.0.0 --port 8443 --ssl-keyfile certs/server.key --ssl-certfile certs/server.crt > ../backend.log 2>&1 &
+    BACKEND_PID=$!
+    BACKEND_URL="https://localhost:8443"
+    BACKEND_PORT=8443
+else
+    echo "🌐 Starting with HTTP (no SSL certificates found)"
+    nohup python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
+    BACKEND_PID=$!
+    BACKEND_URL="http://localhost:8000"
+    BACKEND_PORT=8000
+fi
 
 cd ..
 
@@ -75,14 +88,14 @@ echo "⏳ Waiting for backend to start..."
 sleep 8
 
 # Check if backend is running
-if ! curl -f http://localhost:8000/health >/dev/null 2>&1; then
+if ! curl -f -k $BACKEND_URL/health >/dev/null 2>&1; then
     echo "❌ Backend failed to start. Check backend.log for details."
     echo "📋 Last 20 lines of backend.log:"
     tail -20 backend.log
     exit 1
 fi
 
-echo "✅ Backend is running on http://localhost:8000"
+echo "✅ Backend is running on $BACKEND_URL"
 
 # Start frontend
 echo "⚛️ Starting React frontend..."
@@ -119,8 +132,8 @@ echo ""
 echo "🎉 AI Resume Tailoring App is now running!"
 echo ""
 echo "📱 Frontend: http://localhost:3000"
-echo "🔧 Backend API: http://localhost:8000"
-echo "📚 API Docs: http://localhost:8000/docs"
+echo "🔧 Backend API: $BACKEND_URL"
+echo "📚 API Docs: $BACKEND_URL/docs"
 echo ""
 if [[ "$PYTHON_VERSION" == "3.13" ]]; then
     echo "⚠️  PYTHON 3.13 MODE:"

@@ -6,8 +6,7 @@ import OptionalSections from '../components/OptionalSections'
 import CoverLetter from '../components/CoverLetter'
 import ResultCard from '../components/ResultCard'
 import ResumeModal from '../components/ResumeModal'
-
-const API_BASE_URL = 'http://localhost:8000/api'
+import { API_BASE_URL } from '../utils/api'
 
 export default function Home() {
   const [file, setFile] = useState(null)

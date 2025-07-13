@@ -1,0 +1,23 @@
+{
+  "build": {
+    "builder": "DOCKERFILE",
+    "buildCommand": "docker build -t applyai-backend ."
+  },
+  "deploy": {
+    "startCommand": "python -m uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "ENVIRONMENT": "production",
+        "DEBUG": "false",
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      }
+    }
+  }
+} 

@@ -112,7 +112,20 @@ CRITICAL FORMATTING RULE: Output in PLAIN TEXT only. No markdown, no asterisks (
                 temperature=0.1
             )
             
-            return response.choices[0].message.content
+            ai_response = response.choices[0].message.content
+            
+            # Log the AI response for debugging
+            print("=" * 80)
+            print("🤖 AI GENERATED RESPONSE:")
+            print("=" * 80)
+            print(repr(ai_response))
+            print("=" * 80)
+            print("📝 AI RESPONSE (FORMATTED):")
+            print("=" * 80)
+            print(ai_response)
+            print("=" * 80)
+            
+            return ai_response
             
         except Exception as e:
             print(f"Error calling GPT: {str(e)}")
@@ -282,6 +295,11 @@ YOUR GOAL: Take every single bullet point and DRAMATICALLY rewrite it to speak d
 - Use consistent formatting throughout
 - NO markdown syntax (**bold**, *italic*) - use plain text only
 - Maintain professional resume structure
+- Always leave one blank line between the name and contact information
+- Use consistent bullet points (•) with uniform spacing
+- Do not mix tabs and spaces; use 2 spaces for bullet indent
+- Keep all bullet points vertically aligned
+- Add consistent margins between sections
 
 FORMATTING EXAMPLE:
 Name
@@ -507,7 +525,9 @@ Write a complete, professional cover letter that:
 ✅ Complements the tailored resume perfectly
 
 **FORMATTING NOTES:**
-- Write in business letter format
+- Start directly with the greeting (e.g., "Dear Hiring Manager,")
+- DO NOT include sender's contact information at the top (name, address, phone, email)
+- DO NOT include recipient's address information
 - Use proper paragraph spacing
 - No placeholder text (write as if complete)
 - Professional but engaging tone
@@ -515,5 +535,5 @@ Write a complete, professional cover letter that:
 
 **CRITICAL:** Make this cover letter feel authentic and specifically written for THIS opportunity. Avoid generic language and make every sentence count.
 
-Generate ONLY the cover letter text, ready to be used.
+Generate ONLY the cover letter text, ready to be used. Start with the greeting, NOT with contact information.
 """

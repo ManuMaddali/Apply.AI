@@ -38,4 +38,17 @@ python-docx==1.1.0
 reportlab==4.0.7
 
 # Diff analysis
-difflib2==0.1.0 
+difflib2==0.1.0
+
+# Security Dependencies
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+slowapi==0.1.9
+redis==4.5.4
+python-magic==0.4.27
+psutil==5.9.6
+pydantic-settings>=2.4.0
+
+# Additional Security & Monitoring
+sentry-sdk[fastapi]==1.38.0
+cryptography==41.0.7
