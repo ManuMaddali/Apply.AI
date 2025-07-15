@@ -1,4 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { FileText, Menu, X } from "lucide-react"
 import FileUpload from '../components/FileUpload'
 import JobUrlsInput from '../components/JobUrlsInput'
 import OutputSettings from '../components/OutputSettings'
@@ -8,8 +11,52 @@ import ResultCard from '../components/ResultCard'
 import ResumeModal from '../components/ResumeModal'
 import { API_BASE_URL } from '../utils/api'
 
+function MobileNav() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <div className="md:hidden">
+      <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </Button>
+      {isOpen && (
+        <div className="fixed inset-0 top-16 z-50 bg-white/90 backdrop-blur-sm p-6 shadow-lg">
+          <nav className="flex flex-col gap-6">
+            <Link className="text-lg font-medium hover:underline" href="/features" onClick={() => setIsOpen(false)}>
+              Features
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="/how-it-works" onClick={() => setIsOpen(false)}>
+              How It Works
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="/faq" onClick={() => setIsOpen(false)}>
+              FAQ
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="/about" onClick={() => setIsOpen(false)}>
+              About
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="/blog" onClick={() => setIsOpen(false)}>
+              Blog
+            </Link>
+            <Link className="text-lg font-medium hover:underline" href="/contact" onClick={() => setIsOpen(false)}>
+              Contact
+            </Link>
+            <div className="flex flex-col gap-2 mt-4">
+              <Link href="/" onClick={() => setIsOpen(false)}>
+                <Button variant="outline" className="w-full bg-transparent">
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
+          </nav>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Home() {
   const [file, setFile] = useState(null)
+  const [resumeText, setResumeText] = useState('')
   const [jobUrls, setJobUrls] = useState('')
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -59,12 +106,19 @@ export default function Home() {
           selectedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
           selectedFile.type === 'text/plain') {
         setFile(selectedFile)
+        setResumeText('') // Clear text input when file is selected
         setError('')
       } else {
         setError('Please upload a PDF, DOCX, or TXT file')
         setFile(null)
       }
     }
+  }, [])
+
+  const handleResumeTextChange = useCallback((text) => {
+    setResumeText(text)
+    setFile(null) // Clear file when text is entered
+    setError('')
   }, [])
 
   const validateJobUrls = (urls) => {
@@ -93,8 +147,8 @@ export default function Home() {
   }
 
   const startBatchProcessing = async () => {
-    if (!file) {
-      setError('Please upload a resume file')
+    if (!file && !resumeText.trim()) {
+      setError('Please upload a resume file or enter resume text')
       return
     }
 
@@ -110,29 +164,38 @@ export default function Home() {
     setResults([])
 
     try {
-      // First upload the resume
-      const formData = new FormData()
-      formData.append('file', file)
+      let processedResumeText = ''
 
-      const uploadResponse = await fetch(`${API_BASE_URL}/resumes/upload`, {
-        method: 'POST',
-        body: formData
-      })
+      if (file) {
+        // Handle file upload
+        const formData = new FormData()
+        formData.append('file', file)
 
-      const uploadData = await uploadResponse.json()
+        const uploadResponse = await fetch(`${API_BASE_URL}/resumes/upload`, {
+          method: 'POST',
+          body: formData
+        })
 
-      if (!uploadData.success) {
-        throw new Error(uploadData.detail || 'Failed to upload resume')
+        const uploadData = await uploadResponse.json()
+
+        if (!uploadData.success) {
+          throw new Error(uploadData.detail || 'Failed to upload resume')
+        }
+
+        processedResumeText = uploadData.resume_text
+      } else {
+        // Handle text input
+        processedResumeText = resumeText.trim()
       }
 
-      setOriginalResumeText(uploadData.resume_text)
+      setOriginalResumeText(processedResumeText)
 
       // Start batch processing with RAG and diff analysis enabled by default
       const batchResponse = await fetch(`${API_BASE_URL}/batch/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          resume_text: uploadData.resume_text,
+          resume_text: processedResumeText,
           job_urls: validation.urls,
           use_rag: true, // Always enabled
           compare_versions: true, // Always enabled
@@ -304,67 +367,103 @@ export default function Home() {
     }
   }
 
-  const canSubmit = file && jobUrls.trim() && !loading && !processing
+  const canSubmit = (file || resumeText.trim()) && jobUrls.trim() && !loading && !processing
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Modern Header */}
-      <div className="relative bg-white/80 backdrop-light border-b border-white/50 shadow-sm scroll-optimized">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Testing Button - Only visible when feature flag is enabled */}
-          {process.env.ENABLE_TESTING_SUITE === 'true' && (
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={() => {
-                  // Always link to dev instance on port 3000
-                  const devUrl = 'http://localhost:3000/testing';
-                  window.open(devUrl, '_blank');
-                }}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 flex items-center space-x-2 shadow-lg"
-                title="Open Testing Suite in Development Mode"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span>Testing Suite</span>
-                <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          )}
-          
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    <div className="flex min-h-[100dvh] flex-col">
+      <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b bg-white/80 backdrop-blur-sm">
+        <Link className="flex items-center gap-2 font-semibold" href="/">
+          <FileText className="h-6 w-6 text-blue-600" />
+          <span>ApplyAI</span>
+        </Link>
+        <MobileNav />
+        <nav className="hidden md:flex gap-6">
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/features">
+            Features
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/how-it-works">
+            How It Works
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/faq">
+            FAQ
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/about">
+            About
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/blog">
+            Blog
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/contact">
+            Contact
+          </Link>
+        </nav>
+        <div className="hidden md:flex gap-4">
+          <Link href="/">
+            <Button variant="outline">Back to Home</Button>
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        {/* App Title Section */}
+        <div className="relative bg-white/80 backdrop-light border-b border-white/50 shadow-sm scroll-optimized">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5"></div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Testing Button - Only visible when feature flag is enabled */}
+            {process.env.ENABLE_TESTING_SUITE === 'true' && (
+              <div className="absolute top-4 right-4">
+                <button
+                  onClick={() => {
+                    // Always link to dev instance on port 3000
+                    const devUrl = 'http://localhost:3000/testing';
+                    window.open(devUrl, '_blank');
+                  }}
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 flex items-center space-x-2 shadow-lg"
+                  title="Open Testing Suite in Development Mode"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                  <span>Testing Suite</span>
+                  <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </button>
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Apply.AI
-              </h1>
+            )}
+            
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="relative">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                  Apply.AI
+                </h1>
+              </div>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                Transform your resume for every opportunity. Our AI analyzes job descriptions and tailors your resume to match what employers are looking for.
+              </p>
             </div>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Transform your resume for every opportunity. Our AI analyzes job descriptions and tailors your resume to match what employers are looking for.
-            </p>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           
           {/* Left Column - Inputs (Takes 2/3 of space) */}
           <div className="xl:col-span-2 space-y-6">
             <FileUpload 
               file={file} 
-              onFileChange={handleFileUpload} 
+              onFileChange={handleFileUpload}
+              resumeText={resumeText}
+              onResumeTextChange={handleResumeTextChange}
             />
             
             <JobUrlsInput 
@@ -435,9 +534,9 @@ export default function Home() {
 
                 {/* Status Indicators */}
                 <div className="mt-4 space-y-2">
-                  <div className={`flex items-center text-sm ${file ? 'text-green-600' : 'text-gray-400'}`}>
-                    <div className={`w-2 h-2 rounded-full mr-2 ${file ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                    Resume {file ? 'uploaded' : 'required'}
+                  <div className={`flex items-center text-sm ${(file || resumeText.trim()) ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-2 h-2 rounded-full mr-2 ${(file || resumeText.trim()) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    Resume {(file || resumeText.trim()) ? 'ready' : 'required'}
                   </div>
                   <div className={`flex items-center text-sm ${jobUrls.trim() ? 'text-green-600' : 'text-gray-400'}`}>
                     <div className={`w-2 h-2 rounded-full mr-2 ${jobUrls.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
@@ -596,7 +695,8 @@ export default function Home() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </main>
 
       {/* Resume View Modal */}
       <ResumeModal
@@ -606,6 +706,75 @@ export default function Home() {
         jobTitle={selectedResume?.job_title}
         originalResume={originalResumeText}
       />
+
+      <footer className="w-full border-t py-6 md:py-12 bg-white/80 backdrop-blur-sm">
+        <div className="container px-4 md:px-6">
+          <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-4">
+            <div className="space-y-4">
+              <Link className="flex items-center gap-2 font-semibold" href="/">
+                <FileText className="h-6 w-6 text-blue-600" />
+                <span>ApplyAI</span>
+              </Link>
+              <p className="text-sm text-gray-500">
+                Smart. Targeted. Effective. Resumes that open doors — since 2025.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-medium">Product</h4>
+              <nav className="flex flex-col gap-2">
+                <Link className="text-sm hover:underline text-gray-500" href="/features">
+                  Features
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="/how-it-works">
+                  How It Works
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="/faq">
+                  FAQ
+                </Link>
+              </nav>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-medium">Company</h4>
+              <nav className="flex flex-col gap-2">
+                <Link className="text-sm hover:underline text-gray-500" href="/about">
+                  About
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="/blog">
+                  Blog
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="/contact">
+                  Contact
+                </Link>
+              </nav>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-medium">Legal</h4>
+              <nav className="flex flex-col gap-2">
+                <Link className="text-sm hover:underline text-gray-500" href="/terms">
+                  Terms
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="/privacy">
+                  Privacy
+                </Link>
+                <Link className="text-sm hover:underline text-gray-500" href="/cookies">
+                  Cookies
+                </Link>
+              </nav>
+            </div>
+          </div>
+          <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-6 md:flex-row">
+            <p className="text-xs text-gray-500">© {new Date().getFullYear()} ApplyAI. All rights reserved.</p>
+            <div className="flex gap-4">
+              <Link className="text-sm hover:underline text-gray-500" href="/privacy">
+                Privacy Policy
+              </Link>
+              <Link className="text-sm hover:underline text-gray-500" href="/terms">
+                Terms of Service
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 } 
