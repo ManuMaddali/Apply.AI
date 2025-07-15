@@ -234,61 +234,41 @@ class LangChainResumeProcessor:
 
 You are a resume transformation specialist. Your job is to DRAMATICALLY rewrite this resume so it appears to be custom-made for this specific position. Every bullet point should be transformed to use the exact language, metrics, and focus areas from the job description.
 
-ENHANCED RESUME FORMATTING RULES:
-• PROFESSIONAL PRESENTATION: Create a detailed, impactful resume that showcases expertise and achievements
-• PROFESSIONAL SUMMARY: 80-100 words, comprehensive overview that positions candidate as ideal for the role
-• BULLET POINTS: 4-5 detailed bullets per role, each 25-40 words with specific metrics and achievements
-• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count
-• PROFESSIONAL LANGUAGE: Use sophisticated, industry-appropriate terminology
-• QUANTIFIED RESULTS: Include specific metrics, percentages, numbers, and measurable outcomes
-• SKILLS INTEGRATION: Seamlessly incorporate job-relevant skills and technologies
-• OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
+CRITICAL FORMAT RULE: Output in PLAIN TEXT ONLY. No markdown, no asterisks (**), no special formatting. Match the exact format style of the original resume - same spacing, same bullet points, same structure.
 
 {similar_job_insights}
 
-🚨 ENHANCED TRANSFORMATION RULES:
+TRANSFORMATION RULES:
 
-1. **COMPREHENSIVE BULLET REWRITE**
-   - Create 4-5 detailed bullets per role showing progression and impact
-   - Each bullet should be 25-40 words with specific context and measurable results
-   - Use power verbs (Spearheaded, Architected, Optimized, Delivered, Established)
-   - Include team sizes, budget figures, time frames, and success metrics
+1. **COMPLETE BULLET REWRITE**
+   - Take each experience bullet and COMPLETELY reframe it
+   - Use the EXACT terminology from the job posting
+   - Make it sound like they've been doing THIS job already
+   - Add metrics that align with what the employer values
 
-2. **DETAILED PROFESSIONAL SUMMARY**
-   - Write 80-100 words that tell a compelling story
-   - Position candidate as having deep expertise in the target role
-   - Include specific industry context and relevant achievements
-   - Use sophisticated language that demonstrates professionalism
-
-3. **SOPHISTICATED LANGUAGE & METRICS**
-   - Use industry-specific terminology from the job description
-   - Include precise metrics (percentages, dollar amounts, user numbers, time savings)
-   - Show progression and increasing responsibility
-   - Demonstrate strategic thinking and leadership capabilities
-
-4. **MIRROR JOB REQUIREMENTS**
+2. **MIRROR JOB REQUIREMENTS**
    - If job wants "scalable solutions" → Everything they built is "scalable"
    - If job emphasizes "data-driven" → Every decision was "data-driven"
    - If job needs "stakeholder management" → Transform all communication into "stakeholder management"
-   - Use their keywords in EVERY bullet point with sophisticated context
+   - Use their keywords in EVERY bullet point
 
-5. **AGGRESSIVE REFRAMING WITH DETAIL**
-   - Don't just edit - TRANSFORM completely with comprehensive detail
-   - Generic experience → Industry-specific expertise with measurable impact
-   - Basic tasks → Strategic initiatives with quantified results
-   - Team work → Cross-functional leadership with team sizes and outcomes
-   - Problem solving → Data-driven decision making with specific metrics
+3. **AGGRESSIVE REFRAMING**
+   - Don't just edit - TRANSFORM completely
+   - Generic experience → Industry-specific expertise
+   - Basic tasks → Strategic initiatives
+   - Team work → Cross-functional leadership
+   - Problem solving → Data-driven decision making
 
-6. **INDUSTRY ALIGNMENT**
+4. **INDUSTRY ALIGNMENT**
    - Use insights from similar jobs to understand what matters
    - Position experience using industry-standard terminology
    - Emphasize metrics and KPIs common in this field
    - Show deep understanding of their specific challenges
 
-7. **ENHANCED EXAMPLES**
-   - "Managed projects" → "Spearheaded cross-functional initiatives across 3 departments, driving 45% efficiency gains and delivering $2M in cost savings"
-   - "Worked with data" → "Leveraged advanced analytics and machine learning algorithms to inform product strategy, resulting in 3x user engagement and 25% revenue growth"
-   - "Improved processes" → "Architected scalable workflows and automation systems reducing time-to-market by 60% while maintaining 99.9% quality standards"
+5. **DRAMATIC EXAMPLES**
+   - "Managed projects" → "Spearheaded cross-functional initiatives driving 45% efficiency gains"
+   - "Worked with data" → "Leveraged advanced analytics to inform product strategy, resulting in 3x user engagement"
+   - "Improved processes" → "Architected scalable workflows reducing time-to-market by 60%"
 
 TARGET JOB:
 Title: {job_title}
@@ -297,9 +277,9 @@ Description: {job_description}
 ORIGINAL RESUME:
 {resume_text}
 
-CRITICAL: Transform the ENTIRE resume - all roles, all sections. Create 4-5 detailed, impactful bullets per role with comprehensive metrics and achievements. Do not stop after the first job!
+CRITICAL: Transform the ENTIRE resume - all roles, all sections. Do not stop after the first job!
 
-DELIVER: A completely transformed, detailed resume that looks custom-written for this exact role. Start with contact info and make every line count with sophisticated language and measurable impact.
+DELIVER: A completely transformed resume that looks custom-written for this exact role. Start with contact info and make every line count.
 """
         return prompt
     
@@ -346,51 +326,26 @@ DELIVER: A completely transformed, detailed resume that looks custom-written for
 PROFESSIONAL SUMMARY (ENHANCE EXISTING):
 The resume already has a professional summary section. ENHANCE and TRANSFORM it to be compelling and perfectly tailored for THIS role:
 - Completely rewrite using keywords from the job description and similar jobs
-- Make it 80-100 words for maximum impact and detail
-- Write as a natural, flowing story about the candidate's journey and expertise
-- AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-- AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
-- Instead, create an authentic narrative that reads like a compelling story
-- Use varied sentence structure and natural transitions between ideas
-- Connect their background to the target role organically through storytelling
-- Include specific achievements and measurable impact woven naturally into the narrative
-- Make it sound like how a confident professional would describe themselves in conversation
+- Highlight years of experience in relevant areas mentioned in the job posting
+- Position them as already doing this type of work
+- End with a value proposition that matches company needs
+- Keep it as the top section but make it dramatically better
+- Write in flowing, natural sentences - avoid choppy phrases like "and enhanced X by Y%"
+- Focus on expertise and experience rather than specific metrics
+- Use professional language that sounds conversational and human
 
 """
                 else:
                     optional_instructions += """
 PROFESSIONAL SUMMARY (ADD NEW):
-Add a compelling 80-100 word professional summary at the top that positions the candidate as perfect for THIS role:
-- Write as a natural, flowing story about the candidate's journey and expertise
-- AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-- AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
-- Instead, create an authentic narrative that reads like a compelling story
-- Use varied sentence structure and natural transitions between ideas
-- Connect their background to the target role organically through storytelling
-- Include specific achievements and measurable impact woven naturally into the narrative
-- Make it sound like how a confident professional would describe themselves in conversation
-
-"""
-            
-            if include_skills:
-                if 'skills' in existing_sections:
-                    optional_instructions += """
-SKILLS SECTION (ENHANCE EXISTING):
-The resume already has skills information. ENHANCE and IMPROVE it:
-- Keep all existing skills but reorganize and prioritize based on job requirements
-- Add any missing skills that are crucial for the target role
-- Group skills logically by category (Technical, Leadership, etc.)
-- Ensure skills match the job description keywords
-
-"""
-                else:
-                    optional_instructions += """
-SKILLS SECTION (ADD NEW):
-Add a skills section with job-relevant skills organized by category:
-- Technical skills that match the job requirements
-- Leadership and soft skills relevant to the role
-- Industry-specific competencies
-- Tools and technologies mentioned in the job description
+Add a compelling 3-4 line professional summary at the top that positions the candidate as perfect for THIS role:
+- Use keywords from the job description and similar jobs
+- Highlight years of experience in relevant areas
+- Position them as already doing this type of work
+- End with a value proposition that matches company needs
+- Write in flowing, natural sentences - avoid choppy phrases like "and enhanced X by Y%"
+- Focus on expertise and experience rather than specific metrics
+- Use professional language that sounds conversational and human
 
 """
             
@@ -409,10 +364,8 @@ Add a skills section with job-relevant skills organized by category:
                     optional_instructions += f"""
 EDUCATION SECTION (ENHANCE EXISTING):
 The resume already has education information. ENHANCE and IMPROVE the existing education section:
-- Keep all existing education but reformat professionally and compactly
+- Keep all existing education but reformat professionally
 - Add any missing details from the provided information: {education_info if education_info else "No additional details provided"}
-- Format education entries as: Degree Name, Institution | Year (GPA: X.X/4.0 if provided)
-- Include GPA as part of the education entry, not as a separate prominent element
 - Emphasize aspects most relevant to the target role
 - Ensure proper formatting and presentation
 - DO NOT duplicate education entries
@@ -423,9 +376,32 @@ The resume already has education information. ENHANCE and IMPROVE the existing e
 EDUCATION SECTION (ADD NEW):
 Add an education section with the following information:
 {education_info if education_info else "Use relevant educational background that supports the role"}
-- Format education entries as: Degree Name, Institution | Year (GPA: X.X/4.0 if provided)
-- Include GPA as part of the education entry, not as a separate prominent element
-- Keep formatting clean and professional
+
+"""
+            
+            if include_skills:
+                if 'skills' in existing_sections:
+                    optional_instructions += """
+SKILLS SECTION (ENHANCE EXISTING):
+The resume already has a skills section. ENHANCE and TRANSFORM it to be perfectly aligned with this job:
+- Keep existing relevant skills but reorganize and prioritize based on job requirements
+- Add technical skills mentioned in the job posting and similar jobs (in order of importance)
+- Include programming languages, tools, platforms from the job descriptions
+- Emphasize soft skills that the role emphasizes
+- Add industry-specific competencies mentioned in the job posting
+- Group skills logically (Technical, Leadership, Domain Expertise, etc.)
+- Remove outdated or irrelevant skills and replace with job-relevant ones
+
+"""
+                else:
+                    optional_instructions += """
+SKILLS SECTION (ADD NEW):
+Add a skills section that includes:
+- Technical skills mentioned in the job posting and similar jobs (in order of importance)
+- Programming languages, tools, platforms from the job descriptions
+- Soft skills that the role emphasizes
+- Industry-specific competencies
+- Group skills logically (Technical, Leadership, Domain Expertise, etc.)
 
 """
             
@@ -448,16 +424,10 @@ The original resume already contains these sections: {', '.join(existing_section
 
 YOUR MISSION: Aggressively rewrite every bullet point to align with the employer's needs. Reframe experiences as if the candidate has been doing this specific role already. Preserve facts—do not invent new experiences, metrics, or details.
 
-ENHANCED RESUME FORMATTING RULES:
-• PROFESSIONAL PRESENTATION: Create a detailed, impactful resume that showcases expertise and achievements
-• PROFESSIONAL SUMMARY: 80-100 words, natural flowing narrative that tells a compelling story about the candidate - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-• BULLET POINTS: 4-5 detailed bullets per role, each 25-40 words with specific metrics and achievements
-• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count
-• PROFESSIONAL LANGUAGE: Use sophisticated, industry-appropriate terminology
-• QUANTIFIED RESULTS: Include specific metrics, percentages, numbers, and measurable outcomes
-• SKILLS INTEGRATION: Seamlessly incorporate job-relevant skills and technologies
+CRITICAL CONSTRAINTS:
+• Resume MUST fit on EXACTLY ONE PAGE: Limit to 3-4 bullets per role, 18-30 words per bullet. Prioritize high-impact, JD-relevant content; omit or condense less relevant items.
+• BULLET POINT RULE: 1 line each (max 2 if needed for impact). Start with capital letter and strong action verb. Include quantifiable metrics (e.g., percentages, numbers) tied to JD KPIs.
 • OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
-• EDUCATION FORMATTING: Always format as "Degree Name, Institution | Year (GPA: X.X/4.0 if applicable)" - never separate GPA
 
 STATIC TEMPLATE FORMAT:
 [NAME IN ALL CAPS]
@@ -468,8 +438,8 @@ STATIC TEMPLATE FORMAT:
 
 Company Name | Location
 Job Title | Date Range
-• Detailed bullet with specific achievement, comprehensive metrics, and JD keywords
-• Another detailed bullet showcasing impact and measurable results
+• Bullet with achievement, metrics, and JD keywords
+• Another bullet reframed for role fit
 
 FORMATTING REQUIREMENTS:
 • Name: ALL CAPS
@@ -478,10 +448,10 @@ FORMATTING REQUIREMENTS:
 • Company/Job titles: Title Case
 • Bullets: Capital start, sentence case after; 2-space indent; hanging indent for wraps (second line aligns with text).
 • Contact/Education/Skills: Normal case, compact (no extra blanks).
-• Spacing: One blank line between sections/roles; professional presentation.
+• Spacing: One blank line between sections/roles; tight overall for one-page fit.
 
 PROCESS STEPS FOR ACCURACY:
-1. Extract key skills, terms, metrics from JD and similar jobs context.
+1. Extract key skills, terms, metrics from JD.
 2. Map original resume elements to JD—reframe aggressively but truthfully.
 3. Ensure every bullet is specific, results-oriented, and mirrors JD language naturally (avoid stuffing).
 4. Optimize for ATS: Integrate keywords seamlessly; keep structure simple.
@@ -492,87 +462,46 @@ PROCESS STEPS FOR ACCURACY:
 
 YOUR GOAL: Rewrite EVERY bullet and section to directly address JD requirements. Transform dramatically—use JD's exact phrases, emphasize relevant skills/metrics, and showcase problem-solving/impact.
 
-🚨 CRITICAL CONTENT CONSISTENCY RULES:
-• MANDATORY MINIMUM CONTENT: Every resume MUST have the same detailed structure regardless of job description quality
-• NEVER REMOVE CONTENT: Transform and adapt ALL original experiences - do not skip or shorten sections
-• CONSISTENT BULLET COUNT: Each role must have EXACTLY 4-5 detailed bullets (never fewer than 4)
-• CONSISTENT WORD COUNT: Each bullet must be 30-45 words with specific metrics and context for fuller 2-line bullets
-• PRESERVE ALL ROLES: Include ALL work experiences from original resume - transform them, don't skip them
-• MANDATORY SECTIONS: Every resume must include Professional Summary, Professional Experience, Education, Skills
-• CONTENT EXPANSION: If job description is vague/short, use your expertise to create detailed, relevant content
+CRITICAL RULES:
+• ONE-PAGE ONLY: Compact format; 3-4 bullets/role max; rich bullets (18-30 words) with metrics (e.g., 30% growth), technologies, team sizes, outcomes. Cut generic/irrelevant content.
+• PROFESSIONAL SUMMARY: 35-50 words, compelling overview (no metrics—save for bullets); highlight value prop aligned to JD.
+• SKILLS: 3-4 categories max; compact list (e.g., Analytics: SQL, Python); no blanks between.
+• EDUCATION: Degree on line 1, Institution | Year on line 2; no extras.
+• Process ALL sections/roles/projects—enhance existing, add missing if JD-relevant (e.g., Skills if absent).
+• Avoid mistakes: No invented details; natural keyword use; balance hard/soft skills; consistent timeline.
 
-🚨 ENHANCED TAILORING RULES:
+🚨 AGGRESSIVE TAILORING RULES:
 
-1. **COMPREHENSIVE BULLET REWRITE** (MANDATORY 4-5 BULLETS PER ROLE):
-   - Create EXACTLY 4-5 detailed bullets per role showing progression and impact
-   - Each bullet MUST be 30-45 words for fuller 2-line bullets with more content on second line
-   - Use power verbs (Spearheaded, Architected, Optimized, Delivered, Established)
-   - Include team sizes, budget figures, time frames, and success metrics with rich context
-   - If original bullet is vague, ADD specific details that align with job requirements
+1. **REWRITE EACH BULLET**: Identify skill → Reframe with JD terms/metrics → Make it JD-specific (e.g., "Managed team" → "Led cross-functional agile teams in B2B SaaS, achieving 40% faster delivery").
 
-2. **NATURAL PROFESSIONAL SUMMARY** (MANDATORY 80-100 WORDS):
-   - Write EXACTLY 80-100 words as a compelling, authentic narrative - like telling your career story to a friend over coffee
-   - Tell a compelling story about the candidate's journey and expertise
-   - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-   - AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
-   - AVOID formulaic language like "Dynamic [Role] with over X years of experience"
-   - Instead, create an authentic narrative that reads like a compelling story
-   - Use varied sentence structure and natural transitions between ideas
-   - Connect their background to the target role organically through storytelling
-   - Make it sound like how a confident professional would describe themselves in conversation
-   - If job description is vague, use industry best practices to create compelling content
+2. **MIRROR JD**: Use exact keywords/phrases; emphasize priorities like data-driven or collaboration.
 
-3. **SOPHISTICATED LANGUAGE & METRICS** (MANDATORY FOR ALL BULLETS):
-   - Use industry-specific terminology from the job description
-   - Include precise metrics (percentages, dollar amounts, user numbers, time savings)
-   - Show progression and increasing responsibility with detailed context
-   - Demonstrate strategic thinking and leadership capabilities
-   - If no metrics provided, intelligently add realistic, impressive metrics
+3. **ADD CONTEXT**: Include scale, impact, verbs (Led, Optimized); tie to JD KPIs.
 
-4. **PROFESSIONAL STRUCTURE** (MANDATORY COMPLETENESS):
-   - Clean, readable formatting with proper spacing
-   - Consistent structure across all sections
-   - Emphasize most relevant experiences first
-   - Show clear career progression and growth
-   - NEVER skip roles or experiences - adapt them instead
+4. **STRUCTURE**: Header spacing; blank line after contact; between sections/roles; uniform bullets.
 
-5. **CONTENT EXPANSION FOR POOR JOB DESCRIPTIONS**:
-   - If job description is short/vague, use your expertise to create detailed, relevant content
-   - Draw from industry standards and best practices for the role
-   - Create realistic, impressive achievements that align with the position level
-   - Ensure every resume has the same level of detail and impact
-
-6. **MIRROR JOB REQUIREMENTS** (WITH CONTENT CONSISTENCY):
-   - If job wants "scalable solutions" → Everything they built is "scalable"
-   - If job emphasizes "data-driven" → Every decision was "data-driven"
-   - If job needs "stakeholder management" → Transform all communication into "stakeholder management"
-   - Use their keywords in EVERY bullet point with sophisticated context
-   - NEVER remove content - always adapt and enhance instead
-
-ENHANCED TEMPLATE EXAMPLE (FOLLOW THIS STYLE):
+STATIC TEMPLATE EXAMPLE (FOLLOW EXACTLY):
 [NAME IN ALL CAPS]
 [Professional Title in Title Case]
 [Contact info in normal case]
 
 PROFESSIONAL SUMMARY
-Write a natural, flowing narrative about the candidate's journey and expertise that sounds like how they would describe themselves in conversation. Start with their background, weave in their achievements and skills naturally, and connect it to their career goals. Avoid robotic formulas and choppy phrases - make it read like a story that engages the reader and showcases their personality and expertise.
+Compelling 35-50 word overview tailored to JD.
 
 PROFESSIONAL EXPERIENCE
 
 Company Name | Location
 Job Title | Date Range
-• Spearheaded [specific initiative] that delivered [comprehensive measurable outcome], enhancing [business impact] for [detailed context] and achieving [additional quantified results]
-• Architected and implemented [technical solution/process] that transformed [specific area], resulting in [detailed results] and improving [business metrics] by [percentage]
-• Led cross-functional team of [number] professionals to [specific goal], achieving [measurable success] through [detailed methodology] and delivering [additional benefits]
-• Established [framework/system/process] that [specific impact], contributing to [larger business objective] and [additional benefits] through [implementation approach]
-• Optimized [specific area] through [detailed approach], resulting in [quantified improvement] and [additional positive outcomes] while [maintaining context]
+• Led initiatives delivering 35% efficiency gains via JD-relevant tech
+• Collaborated cross-functionally to drive revenue growth
 
 EDUCATION
-Degree Name, Institution | Year (GPA: X.X/4.0 if applicable)
+Degree Name
+Institution | Year
 
 SKILLS
-Category: Skill1, Skill2, Skill3
-Category: Skill4, Skill5, Skill6
+Category: Skill1, Skill2
+Category: Skill3, Skill4
 
 TARGET JOB:
 Title: {job_title}
@@ -597,9 +526,8 @@ TRANSFORMATION RULES:
 ORIGINAL RESUME:
 {resume_text}
 
-Return ONLY the transformed resume in plain text, starting with name. Create a detailed, impactful resume that showcases the candidate's expertise and achievements with natural, flowing language that sounds human and authentic. Focus on professional presentation, comprehensive content, and measurable results that align perfectly with the target role.
-            """)
-            
+Return ONLY the transformed resume in plain text, starting with name. Ensure clean spacing, alignment, and one-page fit."""
+            )
             
             # Create chain and run
             chain = rag_prompt | self.llm | StrOutputParser()

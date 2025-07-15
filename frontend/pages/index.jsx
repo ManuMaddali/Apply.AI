@@ -13,7 +13,7 @@ export default function LandingPage() {
       <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b">
         <Link className="flex items-center gap-2 font-semibold" href="#">
           <FileText className="h-6 w-6 text-emerald-600" />
-          <span>ResumeMatch</span>
+          <span>ApplyAI</span>
         </Link>
         <MobileNav />
         <nav className="hidden md:flex gap-6">
@@ -49,7 +49,7 @@ export default function LandingPage() {
                     Land more interviews with tailored resumes
                   </h1>
                   <p className="max-w-[600px] text-gray-500 md:text-xl">
-                    ResumeMatch automatically tailors your resume to match job descriptions, increasing your chances of
+                    ApplyAI automatically tailors your resume to match job descriptions, increasing your chances of
                     getting past ATS systems and impressing recruiters.
                   </p>
                 </div>
@@ -86,7 +86,7 @@ export default function LandingPage() {
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
                 <div className="inline-block rounded-lg bg-emerald-100 px-3 py-1 text-sm text-emerald-800">
-                  Why ResumeMatch?
+                  Why ApplyAI?
                 </div>
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">
                   Get past the ATS and land more interviews
@@ -284,7 +284,7 @@ export default function LandingPage() {
               <div className="space-y-4">
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Ready to land your dream job?</h2>
                 <p className="text-emerald-100 md:text-xl">
-                  Join thousands of job seekers who have boosted their interview chances with ResumeMatch.
+                  Join many job seekers who have boosted their interview chances with ApplyAI.
                 </p>
               </div>
               <div className="flex flex-col items-start space-y-4 md:justify-center">
@@ -305,10 +305,10 @@ export default function LandingPage() {
             <div className="space-y-4">
               <Link className="flex items-center gap-2 font-semibold" href="#">
                 <FileText className="h-6 w-6 text-emerald-600" />
-                <span>ResumeMatch</span>
+                <span>ApplyAI</span>
               </Link>
               <p className="text-sm text-gray-500">
-                Helping job seekers land more interviews with tailored resumes since 2023.
+              Smart. Targeted. Effective. Resumes that open doors — since 2025.
               </p>
             </div>
             <div className="space-y-4">
@@ -361,7 +361,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-6 md:flex-row">
-            <p className="text-xs text-gray-500">© {new Date().getFullYear()} ResumeMatch. All rights reserved.</p>
+            <p className="text-xs text-gray-500">© {new Date().getFullYear()} ApplyAI. All rights reserved.</p>
             <div className="flex gap-4">
               <Link className="text-sm hover:underline text-gray-500" href="#">
                 Privacy Policy
@@ -438,7 +438,7 @@ const features = [
     icon: Target,
     title: "ATS Keyword Optimization",
     description:
-      "Our AI analyzes job descriptions and suggests keywords to include in your resume to pass ATS systems.",
+      "Our AI analyzes your resume and job descriptions to give you customized resumes that will pass ATS systems.",
   },
   {
     icon: FileText,
@@ -448,7 +448,7 @@ const features = [
   {
     icon: Zap,
     title: "One-Click Tailoring",
-    description: "Paste a job description and our AI will automatically tailor your resume to match the requirements.",
+    description: "Paste a job description (up to 10!) and our AI will automatically tailor your resume to match the requirements.",
   },
   {
     icon: BarChart,
@@ -474,11 +474,11 @@ const steps = [
   },
   {
     title: "Paste Job Description",
-    description: "Copy and paste the job description you're applying for.",
+    description: "Copy and paste the job description (up to 10 for pro and career users)",
   },
   {
     title: "Get Your Tailored Resume",
-    description: "Our AI will optimize your resume for the specific job in seconds.",
+    description: "Our AI will optimize your resume for the specific jobs you're applying to in seconds.",
   },
 ]
 
@@ -488,7 +488,7 @@ const testimonials = [
     position: "Software Engineer",
     avatar: "/placeholder.svg?height=40&width=40",
     quote:
-      "I applied to 15 jobs with generic resumes and got zero callbacks. After using ResumeMatch, I tailored each application and landed 5 interviews in two weeks.",
+      "I applied to 15 jobs with generic resumes and got zero callbacks. After using ApplyAI, I tailored each application and landed 5 interviews in two weeks.",
     result: "Hired at Google after 3 weeks",
   },
   {
@@ -504,7 +504,7 @@ const testimonials = [
     position: "Financial Analyst",
     avatar: "/placeholder.svg?height=40&width=40",
     quote:
-      "As a career changer, I was struggling to get noticed. ResumeMatch helped me highlight transferable skills I didn't even know I had.",
+      "As a career changer, I was struggling to get noticed. ApplyAI helped me highlight transferable skills I didn't even know I had.",
     result: "Successfully switched industries",
   },
 ]
@@ -515,37 +515,23 @@ const pricingPlans = [
     price: "0",
     billing: "/month",
     description: "Perfect for occasional job seekers",
-    features: ["3 tailored resumes per month", "Basic ATS optimization", "2 resume templates", "Email support"],
+    features: ["3 tailored resumes per week", "Basic ATS optimization", "Basic resume template"],
     buttonText: "Sign Up Free",
   },
   {
     name: "Pro",
-    price: "19",
+    price: "9.99",
     billing: "/month",
     description: "For active job seekers",
     features: [
       "Unlimited tailored resumes",
       "Advanced ATS optimization",
       "All resume templates",
+      "Cover letter generator",
       "Match score analysis",
-      "Priority support",
     ],
     buttonText: "Get Started",
     featured: true,
   },
-  {
-    name: "Career",
-    price: "39",
-    billing: "/month",
-    description: "Complete career solution",
-    features: [
-      "Everything in Pro",
-      "Cover letter generator",
-      "LinkedIn profile optimization",
-      "Interview preparation tools",
-      "1-on-1 resume review",
-      "24/7 priority support",
-    ],
-    buttonText: "Get Career",
-  },
+
 ]

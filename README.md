@@ -4,7 +4,7 @@
 
 ## Overview
 
-ApplyAI is a production-ready web application that automatically tailors your resume to specific job postings using advanced AI technology. Upload your resume, paste job URLs, and get professionally optimized resumes in seconds.
+ApplyAI is a production web application that automatically tailors your resume to specific job postings using advanced AI technology. Upload your resume, paste job URLs, and get professionally optimized resumes in seconds.
 
 ### Key Features
 
@@ -13,178 +13,120 @@ ApplyAI is a production-ready web application that automatically tailors your re
 - **Multiple Formats**: Download as PDF or text files
 - **Cover Letter Generation**: Create matching cover letters automatically
 - **Secure & Fast**: Enterprise-grade security with sub-30 second processing
-- **Easy Deployment**: One-click deployment to production
+- **Professional Formatting**: Consistent, ATS-optimized formatting every time
 
-## Quick Start
+## How It Works
 
-### For Users
+### Step 1: Upload Your Resume
+- Support for PDF, DOCX, or TXT formats
+- Secure file processing with automatic cleanup
+- Professional text extraction and analysis
 
-1. **Visit the App**: [Your deployed URL]
-2. **Upload Resume**: PDF, DOCX, or TXT format
-3. **Add Job URLs**: Paste job posting URLs (up to 10)
-4. **Generate**: AI processes and tailors your resume
-5. **Download**: Get PDF or text versions instantly
+### Step 2: Add Job URLs
+- Paste job posting URLs (up to 10 at once)
+- Works with major job boards (LinkedIn, Indeed, Greenhouse, etc.)
+- Automatic job title and company extraction
 
-### For Developers
+### Step 3: AI Processing
+- Advanced AI analyzes job requirements
+- Tailors your experience to match each position
+- Optimizes keywords for ATS systems
+- Maintains professional formatting standards
 
-#### Local Development
+### Step 4: Download Results
+- Professional PDF format ready for submission
+- Consistent formatting across all outputs
+- Optional cover letters included
+- Bulk download available
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/ApplyAI.git
-cd ApplyAI
+## Supported Job Boards
 
-# Start the application
-./run.sh
-```
+- LinkedIn Jobs
+- Indeed
+- Greenhouse
+- Lever
+- Workday
+- BambooHR
+- Most standard job posting websites
 
-#### Production Deployment
+## Security & Privacy
 
-**Ready to deploy in 15-30 minutes!**
+- **Enterprise-grade security** with JWT authentication
+- **Rate limiting** to prevent abuse
+- **Automatic file cleanup** after 24 hours
+- **Input validation** and sanitization
+- **CORS protection** and security headers
+- **No data retention** - your information is processed and deleted
 
-1. **Backend (Railway)**:
-   - Create account at [railway.app](https://railway.app)
-   - Connect GitHub repository
-   - Add Redis service
-   - Set environment variables
+## Output Quality
 
-2. **Frontend (Vercel)**:
-   - Create account at [vercel.com](https://vercel.com)
-   - Connect GitHub repository
-   - Set environment variables
-   - Deploy automatically
-
-**See [PRODUCTION_DEPLOYMENT_GUIDE.md](PRODUCTION_DEPLOYMENT_GUIDE.md) for detailed instructions.**
-
-## Technology Stack
-
-### Backend
-- **FastAPI**: High-performance Python web framework
-- **OpenAI GPT**: Advanced AI for resume analysis and tailoring
-- **Redis**: Rate limiting and caching
-- **Docker**: Containerized deployment
-- **JWT**: Secure authentication
-
-### Frontend
-- **Next.js**: React framework with server-side rendering
-- **Tailwind CSS**: Modern, responsive styling
-- **Vercel**: Optimized deployment platform
-
-### Security
-- Rate limiting and DDoS protection
-- Input validation and sanitization
-- CORS and security headers
-- JWT authentication
-- File upload security
-
-## Environment Setup
-
-### Required Environment Variables
-
-```env
-# Backend (.env)
-OPENAI_API_KEY=sk-your-openai-key
-JWT_SECRET_KEY=your-64-character-secret
-ENVIRONMENT=production
-DEBUG=false
-```
-
-### Optional Configuration
-
-```env
-# Redis (automatically set by Railway)
-REDIS_URL=redis://localhost:6379
-
-# Monitoring
-SENTRY_DSN=your-sentry-dsn
-
-# CORS (set to your domain)
-ALLOWED_ORIGINS=https://yourdomain.com
-```
-
-## Deployment Costs
-
-### Free Tier (Perfect for Starting)
-- **Vercel Frontend**: $0/month (100GB bandwidth)
-- **Railway Backend**: $0-5/month (first $5 free)
-- **OpenAI API**: Pay-per-use (~$10-50/month)
-
-**Total: $0-5/month to start**
-
-### Scaling Costs
-- **Railway Pro**: $20/month (more resources)
-- **Vercel Pro**: $20/month (enhanced features)
-- **Custom domains**: Free on both platforms
-
-## API Documentation
-
-### Health Check
-```
-GET /health
-```
-
-### Resume Upload
-```
-POST /api/resumes/upload
-Content-Type: multipart/form-data
-```
-
-### Batch Processing
-```
-POST /api/batch/process
-Content-Type: application/json
-```
-
-**Full API documentation available at `/docs` in development mode.**
-
-## Security Features
-
-- **Authentication**: JWT-based secure authentication
-- **Rate Limiting**: Prevents abuse and API quota exhaustion
-- **Input Validation**: Comprehensive request sanitization
-- **File Security**: Safe upload handling with type validation
-- **CORS Protection**: Cross-origin request security
-- **Security Headers**: CSP, XSS protection, and more
+- **ATS-Optimized**: Passes applicant tracking systems
+- **Professional Formatting**: Consistent, clean layout
+- **Industry Standards**: Follows modern resume best practices
+- **Keyword Optimization**: Matches job posting language
+- **Achievement Focus**: Emphasizes relevant accomplishments
 
 ## Performance
 
-- **Processing Speed**: < 30 seconds per resume
-- **Concurrent Users**: Supports 100+ simultaneous users
-- **Uptime**: 99.9% with health monitoring
-- **Global CDN**: Fast delivery worldwide via Vercel
+- **Processing Speed**: Under 30 seconds per resume
+- **Concurrent Processing**: Handle multiple jobs simultaneously
+- **High Availability**: 99.9% uptime with global CDN
 - **Auto-scaling**: Handles traffic spikes automatically
+
+## Pricing
+
+**Free to start** - no credit card required
+- Process multiple resumes
+- All formatting features included
+- Professional PDF downloads
+- Cover letter generation
+
+## Getting Started
+
+1. **Visit ApplyAI**: [Your App URL]
+2. **Upload Resume**: Choose your current resume file
+3. **Add Job URLs**: Paste the job postings you want to apply to
+4. **Generate**: Let AI tailor your resume for each position
+5. **Download**: Get professionally formatted resumes instantly
+
+## Benefits
+
+### For Job Seekers
+- **Save Time**: Tailor multiple resumes in minutes
+- **Increase Success**: ATS-optimized formatting improves visibility
+- **Professional Quality**: Consistent, expert-level formatting
+- **Stay Competitive**: Use exact keywords employers are looking for
+
+### For Career Professionals
+- **Bulk Processing**: Handle multiple applications efficiently
+- **Consistent Quality**: Professional output every time
+- **Time Efficiency**: Focus on applications, not formatting
+- **Better Results**: Higher callback rates with tailored resumes
 
 ## Support
 
-### Documentation
-- [Production Deployment Guide](PRODUCTION_DEPLOYMENT_GUIDE.md)
-- [Production Readiness Summary](PRODUCTION_READY_SUMMARY.md)
+### Common Questions
+- **File Formats**: PDF, DOCX, and TXT files supported
+- **Job URLs**: Most major job boards are compatible
+- **Processing Time**: Typically under 30 seconds per resume
+- **File Limits**: Up to 10MB file size, 10 jobs per batch
 
 ### Getting Help
-- **Issues**: GitHub Issues for bugs and feature requests
-- **Railway Support**: [docs.railway.app](https://docs.railway.app)
-- **Vercel Support**: [vercel.com/docs](https://vercel.com/docs)
+For support questions or technical issues:
+- Check our FAQ section in the app
+- Contact support through the application
+- Response time: Within 24 hours
 
-## Contributing
+## Technology
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+Built with enterprise-grade technology:
+- **AI Processing**: Advanced language models for content optimization
+- **Security**: Industry-standard encryption and protection
+- **Performance**: Cloud infrastructure with global delivery
+- **Reliability**: Automated monitoring and error handling
 
-## License
+## About
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+ApplyAI was created to solve the time-consuming problem of tailoring resumes for multiple job applications. Our AI technology helps job seekers present their experience in the most relevant way for each opportunity, increasing their chances of landing interviews.
 
-## Roadmap
-
-- [ ] Advanced AI models integration
-- [ ] Resume analytics and insights
-- [ ] Job application tracking
-- [ ] Team collaboration features
-- [ ] Mobile app development
-
----
-
-**Ready to deploy? Start with the [Production Deployment Guide](PRODUCTION_DEPLOYMENT_GUIDE.md)**
+**Ready to transform your job search? Start tailoring your resumes with ApplyAI today.**

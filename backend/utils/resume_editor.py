@@ -637,47 +637,48 @@ class ResumeEditor:
                 
                 body {{
                     font-family: 'Calibri', 'Arial', sans-serif;
-                    font-size: 11pt;
-                    line-height: 1.4;
+                    font-size: 10.5pt;
+                    line-height: 1.2;
                     color: #333;
                     max-width: 8.5in;
                     margin: 0 auto;
-                    padding: 0.75in;
+                    padding: 0.5in;
                     background: white;
+                    page-break-inside: avoid;
                 }}
                 
                 .header {{
-                    text-align: center;
-                    margin-bottom: 20px;
-                    padding-bottom: 15px;
-                    border-bottom: 2px solid #2c5aa0;
+                    text-align: left;
+                    margin-bottom: 12px;
+                    padding-bottom: 8px;
+                    border-bottom: 1px solid #2c5aa0;
                 }}
                 
                 .name {{
-                    font-size: 24pt;
+                    font-size: 18pt;
                     font-weight: 700;
                     color: #2c5aa0;
-                    margin-bottom: 8px;
-                    letter-spacing: 1px;
+                    margin-bottom: 4px;
+                    letter-spacing: 0.5px;
                 }}
                 
                 .contact {{
-                    font-size: 10pt;
+                    font-size: 9.5pt;
                     color: #555;
-                    line-height: 1.3;
+                    line-height: 1.1;
                 }}
                 
                 .section {{
-                    margin-bottom: 18px;
+                    margin-bottom: 6px;
                 }}
                 
                 .section-header {{
-                    font-size: 13pt;
+                    font-size: 10.5pt;
                     font-weight: 700;
                     color: #2c5aa0;
                     text-transform: uppercase;
-                    margin-bottom: 8px;
-                    padding-bottom: 3px;
+                    margin-bottom: 3px;
+                    padding-bottom: 1px;
                     border-bottom: 1px solid #2c5aa0;
                     letter-spacing: 0.5px;
                 }}
@@ -690,17 +691,17 @@ class ResumeEditor:
                     display: flex;
                     justify-content: space-between;
                     align-items: baseline;
-                    margin-bottom: 2px;
+                    margin-bottom: 1px;
                 }}
                 
                 .company {{
                     font-weight: 600;
-                    font-size: 11pt;
+                    font-size: 10pt;
                     color: #333;
                 }}
                 
                 .location {{
-                    font-size: 10pt;
+                    font-size: 9pt;
                     color: #666;
                     font-style: italic;
                 }}
@@ -709,17 +710,17 @@ class ResumeEditor:
                     display: flex;
                     justify-content: space-between;
                     align-items: baseline;
-                    margin-bottom: 6px;
+                    margin-bottom: 2px;
                 }}
                 
                 .position {{
                     font-weight: 600;
-                    font-size: 11pt;
+                    font-size: 10pt;
                     color: #2c5aa0;
                 }}
                 
                 .dates {{
-                    font-size: 10pt;
+                    font-size: 9pt;
                     color: #666;
                     font-weight: 500;
                 }}
@@ -727,23 +728,32 @@ class ResumeEditor:
                 .bullets {{
                     margin-left: 0;
                     padding-left: 0;
+                    margin-bottom: 6px;
                 }}
                 
                 .bullet {{
                     position: relative;
-                    margin-bottom: 4px;
+                    margin-bottom: 2px;
                     padding-left: 15px;
-                    font-size: 10.5pt;
-                    line-height: 1.4;
-                    text-align: justify;
+                    margin-left: 0;
+                    font-size: 9.5pt;
+                    line-height: 1.15;
+                    text-align: left;
+                    text-indent: -15px;
+                    display: block;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
                 }}
                 
                 .bullet::before {{
                     content: "•";
                     position: absolute;
                     left: 0;
+                    top: 0;
                     color: #2c5aa0;
                     font-weight: bold;
+                    width: 15px;
+                    text-align: left;
                 }}
                 
                 .skills-grid {{
@@ -768,15 +778,59 @@ class ResumeEditor:
                 }}
                 
                 .content {{
-                    font-size: 10.5pt;
-                    line-height: 1.4;
-                    margin-bottom: 8px;
+                    font-size: 9.5pt;
+                    line-height: 1.2;
+                    margin-bottom: 4px;
                     text-align: justify;
+                }}
+                
+                .education-entry {{
+                    margin-bottom: 1px;
+                    line-height: 1.0;
+                }}
+                
+                .degree {{
+                    font-weight: 600;
+                    font-size: 9.5pt;
+                    color: #333;
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1.1;
+                    display: block;
+                }}
+                
+                .institution {{
+                    font-size: 9pt;
+                    color: #666;
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1.1;
+                    display: block;
+                }}
+                
+                .skills-category {{
+                    margin-bottom: 1px;
+                    line-height: 1.0;
+                }}
+                
+                .skills-label {{
+                    font-weight: 600;
+                    font-size: 9pt;
+                    color: #333;
+                    display: inline;
+                }}
+                
+                .skills-list {{
+                    font-size: 9pt;
+                    color: #555;
+                    display: inline;
+                    margin-left: 3px;
                 }}
                 
                 @page {{
                     size: letter;
-                    margin: 0.75in;
+                    margin: 0.5in;
+                    page-break-inside: avoid;
                 }}
                 
                 @media print {{
@@ -900,8 +954,8 @@ class ResumeEditor:
         return html
     
     def _format_skills_section(self, content: list) -> str:
-        """Format skills section in a clean grid"""
-        html = '<div class="skills-grid">'
+        """Format skills section with category labels and compact lists"""
+        html = ''
         
         for line in content:
             line = line.strip()
@@ -912,18 +966,26 @@ class ResumeEditor:
             if line.startswith(('•', '●', '·', '-', '*')):
                 line = line[1:].strip()
             
-            html += f'<div class="skill-item">{line}</div>'
+            # Check if line contains a colon (category: skills format)
+            if ':' in line:
+                parts = line.split(':', 1)
+                category = parts[0].strip()
+                skills = parts[1].strip()
+                html += f'<div class="skills-category"><span class="skills-label">{category}:</span><span class="skills-list">{skills}</span></div>'
+            else:
+                html += f'<div class="skills-category"><span class="skills-list">{line}</span></div>'
         
-        html += '</div>'
         return html
     
     def _format_general_section(self, content: list) -> str:
-        """Format general content sections"""
+        """Format general content sections with education-specific handling"""
         html = ""
+        i = 0
         
-        for line in content:
-            line = line.strip()
+        while i < len(content):
+            line = content[i].strip()
             if not line:
+                i += 1
                 continue
             
             # Check if it's a bullet point
@@ -931,7 +993,25 @@ class ResumeEditor:
                 clean_content = line[1:].strip()
                 html += f'<div class="bullet">{clean_content}</div>'
             else:
-                html += f'<div class="content">{line}</div>'
+                # Check if this looks like an education entry (degree followed by institution)
+                if (i + 1 < len(content) and 
+                    ('degree' in line.lower() or 'bachelor' in line.lower() or 'master' in line.lower() or 
+                     'mba' in line.lower() or 'bs' in line.lower() or 'ms' in line.lower() or
+                     'phd' in line.lower() or 'doctorate' in line.lower() or 'certificate' in line.lower()) and
+                    ('university' in content[i + 1].lower() or 'college' in content[i + 1].lower() or 
+                     'institute' in content[i + 1].lower() or 'school' in content[i + 1].lower())):
+                    
+                    # Format as education entry with no extra spacing
+                    html += f'<div class="education-entry">'
+                    html += f'<div class="degree">{line}</div>'
+                    html += f'<div class="institution">{content[i + 1].strip()}</div>'
+                    html += f'</div>'
+                    i += 2  # Skip the next line since we processed it
+                    continue
+                else:
+                    html += f'<div class="content">{line}</div>'
+            
+            i += 1
         
         return html
     
@@ -958,21 +1038,21 @@ class ResumeEditor:
             print(tailored_text)
             print("=" * 80)
             
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
             from reportlab.lib.pagesizes import letter
             from reportlab.lib.colors import black, blue, HexColor
             from reportlab.lib.units import inch
             from reportlab.lib.enums import TA_LEFT, TA_CENTER
             
-            # Create the document with compact margins to match target exactly
+            # Create the document with compact margins to fit more content
             doc = SimpleDocTemplate(
                 output_path,
                 pagesize=letter,
-                rightMargin=0.5*inch,
-                leftMargin=0.5*inch,
-                topMargin=0.5*inch,
-                bottomMargin=0.5*inch
+                rightMargin=0.4*inch,   # Reduced from 0.5
+                leftMargin=0.4*inch,    # Reduced from 0.5
+                topMargin=0.4*inch,     # Reduced from 0.5
+                bottomMargin=0.4*inch   # Reduced from 0.5
             )
             
             # Get base styles
@@ -981,11 +1061,11 @@ class ResumeEditor:
             # Define professional blue color
             professional_blue = HexColor('#2c5aa0')
             
-            # Define compact styles that match the target format EXACTLY
+            # Define compact styles with reduced font sizes to fit more content
             name_style = ParagraphStyle(
                 'CompactNameStyle',
                 parent=styles['Normal'],
-                fontSize=16,
+                fontSize=14,  # Reduced from 16
                 textColor=professional_blue,
                 spaceAfter=2,
                 spaceBefore=0,
@@ -996,7 +1076,7 @@ class ResumeEditor:
             title_style = ParagraphStyle(
                 'CompactTitleStyle',
                 parent=styles['Normal'],
-                fontSize=14,
+                fontSize=12,  # Reduced from 14
                 textColor=professional_blue,
                 spaceAfter=2,
                 spaceBefore=0,
@@ -1007,8 +1087,8 @@ class ResumeEditor:
             contact_style = ParagraphStyle(
                 'CompactContactStyle',
                 parent=styles['Normal'],
-                fontSize=10,
-                spaceAfter=12,
+                fontSize=9,  # Reduced from 10
+                spaceAfter=6,  # Further reduced from 8
                 spaceBefore=0,
                 fontName='Helvetica'
             )
@@ -1016,37 +1096,29 @@ class ResumeEditor:
             section_header_style = ParagraphStyle(
                 'CompactSectionHeaderStyle',
                 parent=styles['Normal'],
-                fontSize=12,
+                fontSize=11,  # Reduced from 12
                 textColor=professional_blue,
-                spaceBefore=6,
-                spaceAfter=2,
+                spaceBefore=2,  # Further reduced from 4
+                spaceAfter=1,   # Reduced from 2
                 fontName='Helvetica-Bold'
             )
             
             company_header_style = ParagraphStyle(
                 'CompactCompanyHeaderStyle',
                 parent=styles['Normal'],
-                fontSize=10,
-                spaceBefore=4,
-                spaceAfter=1,
+                fontSize=9,  # Reduced from 10
+                spaceBefore=2,  # Further reduced from 3
+                spaceAfter=0,   # Reduced from 1
                 fontName='Helvetica-Bold'
             )
             
-            bullet_style = ParagraphStyle(
-                'CompactBulletStyle',
-                parent=styles['Normal'],
-                fontSize=10,
-                leftIndent=12,
-                spaceAfter=1,
-                spaceBefore=0,
-                fontName='Helvetica'
-            )
+
             
             body_style = ParagraphStyle(
                 'CompactBodyStyle',
                 parent=styles['Normal'],
-                fontSize=10,
-                spaceAfter=2,
+                fontSize=9,  # Reduced from 10
+                spaceAfter=1,  # Reduced from 2
                 spaceBefore=0,
                 fontName='Helvetica'
             )
@@ -1065,11 +1137,55 @@ class ResumeEditor:
             # Build the story (list of flowables)
             story = []
             
+            # Track current section to skip Education and Skills (they'll be handled horizontally)
+            current_section_name = None
+            skip_section = False
+            
             for section_type, content in sections:
+                # Track section headers to know when to skip Education and Skills
+                if section_type == "section_header":
+                    current_section_name = content.strip().upper()
+                    skip_section = current_section_name in ["EDUCATION", "SKILLS"]
+                    
+                    # Only add non-Education/Skills section headers
+                    if not skip_section:
+                        # Handle misclassified names that got marked as section_header
+                        if content.strip() == "DAVID PATEL":
+                            story.append(Paragraph(content.strip(), name_style))
+                            story.append(Spacer(1, 4))  # Reduced spacing after name
+                        elif content.strip().startswith('•'):
+                            # This is actually a bullet point
+                            clean_content = content.strip()
+                            while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
+                                clean_content = clean_content[1:].strip()
+                            if clean_content:
+                                # Use same hanging indent style as other bullets
+                                hanging_bullet_style = ParagraphStyle(
+                                    'HangingBulletStyle',
+                                    parent=styles['Normal'],
+                                    fontSize=9,
+                                    leftIndent=6,            # Further reduced to move continuation lines LEFT
+                                    firstLineIndent=-6,      # Match the leftIndent
+                                    spaceAfter=1,           # Reduced spacing
+                                    spaceBefore=0,
+                                    fontName='Helvetica',
+                                    alignment=TA_LEFT,
+                                    bulletIndent=0
+                                )
+                                bullet_content = f"• {clean_content}"
+                                story.append(Paragraph(bullet_content, hanging_bullet_style))
+                        else:
+                            story.append(Paragraph(content.strip().upper(), section_header_style))
+                    continue
+                
+                # Skip content for Education and Skills sections
+                if skip_section:
+                    continue
+                
                 if section_type == "name":
                     story.append(Paragraph(content.strip(), name_style))
-                    # Add spacing after name
-                    story.append(Spacer(1, 6))
+                    # Add reduced spacing after name
+                    story.append(Spacer(1, 4))
                     
                 elif section_type == "title":
                     story.append(Paragraph(content.strip(), title_style))
@@ -1082,26 +1198,25 @@ class ResumeEditor:
                         while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
                             clean_content = clean_content[1:].strip()
                         if clean_content:
+                            # Use same hanging indent style as other bullets
+                            hanging_bullet_style = ParagraphStyle(
+                                'HangingBulletStyle',
+                                parent=styles['Normal'],
+                                fontSize=9,
+                                leftIndent=6,            # Further reduced to move continuation lines LEFT
+                                firstLineIndent=-6,      # Match the leftIndent
+                                spaceAfter=1,           # Reduced spacing
+                                spaceBefore=0,
+                                fontName='Helvetica',
+                                alignment=TA_LEFT,
+                                bulletIndent=0
+                            )
                             bullet_content = f"• {clean_content}"
-                            story.append(Paragraph(bullet_content, bullet_style))
+                            story.append(Paragraph(bullet_content, hanging_bullet_style))
                     else:
                         story.append(Paragraph(content.strip(), contact_style))
                     
-                elif section_type == "section_header":
-                    # Handle misclassified names that got marked as section_header
-                    if content.strip() == "DAVID PATEL":
-                        story.append(Paragraph(content.strip(), name_style))
-                        story.append(Spacer(1, 6))  # Add spacing after name
-                    elif content.strip().startswith('•'):
-                        # This is actually a bullet point
-                        clean_content = content.strip()
-                        while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
-                            clean_content = clean_content[1:].strip()
-                        if clean_content:
-                            bullet_content = f"• {clean_content}"
-                            story.append(Paragraph(bullet_content, bullet_style))
-                    else:
-                        story.append(Paragraph(content.strip().upper(), section_header_style))
+
                     
                 elif section_type == "company_header":
                     story.append(Paragraph(content.strip(), company_header_style))
@@ -1119,16 +1234,34 @@ class ResumeEditor:
                     clean_content = clean_content.strip()
                     
                     if clean_content:
-                        # Use consistent bullet formatting for ALL bullets
+                        # Create proper hanging indent bullet with correct formatting
+                        # Use a more precise approach for hanging indentation
+                        hanging_bullet_style = ParagraphStyle(
+                            'HangingBulletStyle',
+                            parent=styles['Normal'],
+                            fontSize=9,
+                            leftIndent=6,            # Further reduced to move continuation lines LEFT
+                            firstLineIndent=-6,      # Move first line back to align bullet at margin
+                            spaceAfter=1,           # Reduced spacing
+                            spaceBefore=0,
+                            fontName='Helvetica',
+                            alignment=TA_LEFT,
+                            bulletIndent=0
+                        )
+                        
+                        # Format bullet content with proper spacing
                         bullet_content = f"• {clean_content}"
-                        story.append(Paragraph(bullet_content, bullet_style))
+                        story.append(Paragraph(bullet_content, hanging_bullet_style))
                         
                 elif section_type == "body_text":
                     story.append(Paragraph(content.strip(), body_style))
                     
                 elif section_type == "spacing":
-                    spacing = min(int(content), 2)  # Much tighter spacing to match target
+                    spacing = min(int(content), 1)  # Even tighter spacing to fit on one page
                     story.append(Spacer(1, spacing))
+            
+            # After processing all sections, look for Education and Skills to create horizontal layout
+            self._add_horizontal_education_skills_layout(story, sections, section_header_style, body_style, styles)
             
             # Build the document
             doc.build(story)
@@ -1140,7 +1273,127 @@ class ResumeEditor:
             traceback.print_exc()
             # Fallback to original method
             return self.create_tailored_resume_pdf_fixed(tailored_text, output_path, job_title)
-
+    
+    def _add_horizontal_education_skills_layout(self, story, sections, section_header_style, body_style, styles):
+        """Add horizontal layout for Education and Skills sections"""
+        try:
+            from reportlab.platypus import Table, TableStyle
+            from reportlab.lib.colors import HexColor
+            
+            # Define professional blue color
+            professional_blue = HexColor('#2c5aa0')
+            
+            # Find Education and Skills sections
+            education_content = []
+            skills_content = []
+            current_section = None
+            
+            for section_type, content in sections:
+                if section_type == "section_header":
+                    if content.strip().upper() == "EDUCATION":
+                        current_section = "EDUCATION"
+                        continue
+                    elif content.strip().upper() == "SKILLS":
+                        current_section = "SKILLS"
+                        continue
+                    else:
+                        current_section = None
+                        
+                if current_section == "EDUCATION" and section_type != "spacing":
+                    education_content.append(content.strip())
+                elif current_section == "SKILLS" and section_type != "spacing":
+                    skills_content.append(content.strip())
+            
+            # Only create horizontal layout if both sections exist
+            if education_content and skills_content:
+                # Format Education content for better readability
+                education_text = self._format_education_simple(education_content)
+                skills_text = "\n".join(skills_content)
+                
+                # Create paragraph styles for table content - more compact
+                table_content_style = ParagraphStyle(
+                    'TableContentStyle',
+                    parent=styles['Normal'],
+                    fontSize=8,            # Smaller font for Education/Skills
+                    spaceAfter=0,          # No spacing after
+                    spaceBefore=0,
+                    fontName='Helvetica'
+                )
+                
+                # Create slightly bolder style for Education section
+                education_content_style = ParagraphStyle(
+                    'EducationContentStyle',
+                    parent=styles['Normal'],
+                    fontSize=8,            # Keep same size
+                    spaceAfter=0,          # No spacing after
+                    spaceBefore=0,
+                    fontName='Helvetica-Bold'  # Make it bold
+                )
+                
+                # Create compact header style for table
+                table_header_style = ParagraphStyle(
+                    'TableHeaderStyle',
+                    parent=styles['Normal'],
+                    fontSize=10,
+                    textColor=professional_blue,
+                    spaceBefore=0,
+                    spaceAfter=0,
+                    fontName='Helvetica-Bold'
+                )
+                
+                # Create the table data with bolder Education section
+                table_data = [
+                    [
+                        [
+                            Paragraph("EDUCATION", table_header_style),
+                            Paragraph(education_text, education_content_style)  # Use bolder style
+                        ],
+                        [
+                            Paragraph("SKILLS", table_header_style),
+                            Paragraph(skills_text, table_content_style)
+                        ]
+                    ]
+                ]
+                
+                # Create table with minimal spacing for compactness
+                table = Table(table_data, colWidths=[3.6*inch, 3.6*inch])
+                table.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 3),     # Reduced padding
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ]))
+                
+                # Add more spacing before the horizontal Education/Skills section
+                story.append(Spacer(1, 8))
+                story.append(table)
+                
+        except Exception as e:
+            print(f"Error creating horizontal layout: {e}")
+            # If horizontal layout fails, fall back to normal vertical layout
+            pass
+    
+    def _format_education_simple(self, education_content):
+        """Simple education formatting with line breaks"""
+        try:
+            full_text = " ".join(education_content)
+            
+            # Simple approach: split by years (4 digits preceded by |)
+            import re
+            
+            # Replace " | 2018" or " | 2016" patterns with newlines
+            formatted_text = re.sub(r'\s*\|\s*(\d{4})\s*', r' | \1\n', full_text)
+            
+            # Clean up any trailing/leading whitespace on each line
+            lines = [line.strip() for line in formatted_text.split('\n') if line.strip()]
+            
+            return '\n'.join(lines)
+            
+        except Exception as e:
+            return " ".join(education_content)
+    
     def _parse_resume_for_improved_formatting(self, text: str) -> list:
         """Parse resume text for improved formatting that matches the target appearance"""
         lines = text.split('\n')
@@ -1258,14 +1511,24 @@ class ResumeEditor:
                     margin-bottom: 3px;
                 }
                 .bullet {
-                    margin-left: 10px;
+                    margin-left: 0px;
                     margin-bottom: 3px;
-                    text-indent: -10px;
-                    padding-left: 10px;
+                    text-indent: -15px;
+                    padding-left: 15px;
+                    line-height: 1.2;
+                    position: relative;
+                    display: block;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
                 }
                 .bullet::before {
                     content: "• ";
                     color: black;
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 15px;
+                    text-align: left;
                 }
                 .body-text {
                     margin-bottom: 5px;
@@ -2125,6 +2388,16 @@ class ResumeEditor:
                 alignment=TA_LEFT
             )
             
+            title_style = ParagraphStyle(
+                'TitleStyle',
+                parent=styles['Normal'],
+                fontSize=14,
+                textColor=blue,
+                spaceAfter=4,
+                fontName='Helvetica-Bold',
+                alignment=TA_LEFT
+            )
+            
             contact_style = ParagraphStyle(
                 'ContactStyle',
                 parent=styles['Normal'],
@@ -2157,6 +2430,7 @@ class ResumeEditor:
                 parent=styles['Normal'],
                 fontSize=10,
                 leftIndent=20,
+                firstLineIndent=-15,
                 spaceAfter=3,
                 fontName='Helvetica'
             )
@@ -2309,7 +2583,8 @@ class ResumeEditor:
                 'DirectBulletStyle',
                 parent=styles['Normal'],
                 fontSize=11,
-                leftIndent=18,
+                leftIndent=20,
+                firstLineIndent=-15,
                 spaceAfter=4,
                 fontName='Helvetica'
             )
