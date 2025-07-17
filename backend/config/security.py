@@ -37,6 +37,21 @@ class SecuritySettings(BaseSettings):
     # Authentication
     access_token_expire_minutes: int = 30
     
+    # Email Configuration
+    smtp_server: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_use_tls: bool = True
+    email_from: Optional[str] = None
+    email_from_name: str = "ApplyAI"
+    
+    # Social Authentication
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
+    
     @field_validator('jwt_secret_key')
     @classmethod
     def validate_jwt_secret(cls, v):
@@ -53,6 +68,24 @@ class SecuritySettings(BaseSettings):
             raise ValueError('OPENAI_API_KEY is required')
         if not v.startswith('sk-'):
             raise ValueError('Invalid OpenAI API key format')
+        return v
+    
+    @field_validator('smtp_port')
+    @classmethod
+    def validate_smtp_port(cls, v):
+        if v < 1 or v > 65535:
+            raise ValueError('SMTP port must be between 1 and 65535')
+        return v
+    
+    @field_validator('email_from')
+    @classmethod
+    def validate_email_from(cls, v):
+        if v is None:
+            return v  # Allow None for development
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, v):
+            raise ValueError('Invalid email format for email_from')
         return v
     
 

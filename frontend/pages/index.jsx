@@ -4,10 +4,17 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Check, ChevronRight, Menu, X, FileText, Target, Zap, Award, BarChart, Users } from "lucide-react"
+import { Check, ChevronRight, Menu, X, FileText, Target, Zap, Award, BarChart, Users, User, LogOut } from "lucide-react"
 import { useState } from "react"
+import { useAuth } from "../contexts/AuthContext"
 
 export default function LandingPage() {
+  const { isAuthenticated, user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+  }
+
   return (
     <div className="flex min-h-[100dvh] flex-col">
       <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b bg-white/80 backdrop-blur-sm">
@@ -37,12 +44,32 @@ export default function LandingPage() {
           </Link>
         </nav>
         <div className="hidden md:flex gap-4">
-          <Link href="/app">
-            <Button variant="outline">Log In</Button>
-          </Link>
-          <Link href="/app">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">Sign Up Free</Button>
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm font-medium">{user?.full_name || user?.email}</span>
+              </div>
+              <Link href="/app">
+                <Button variant="outline">Dashboard</Button>
+              </Link>
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="outline">Log In</Button>
+              </Link>
+              <Link href="/register">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">Sign Up Free</Button>
+              </Link>
+            </>
+          )}
         </div>
       </header>
       <main className="flex-1">
@@ -60,9 +87,9 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Link href="/app">
+                  <Link href={isAuthenticated ? "/app" : "/register"}>
                     <Button size="lg" className="gap-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                      Try For Free <ChevronRight className="h-4 w-4" />
+                      {isAuthenticated ? "Go to Dashboard" : "Try For Free"} <ChevronRight className="h-4 w-4" />
                     </Button>
                   </Link>
                   <Link href="/how-it-works">
@@ -352,9 +379,9 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex flex-col items-start space-y-4 md:justify-center">
-                <Link href="/app">
+                <Link href={isAuthenticated ? "/app" : "/register"}>
                   <Button size="lg" className="gap-1 bg-white text-blue-600 hover:bg-blue-50">
-                    Get Started For Free <ChevronRight className="h-4 w-4" />
+                    {isAuthenticated ? "Go to Dashboard" : "Get Started For Free"} <ChevronRight className="h-4 w-4" />
                   </Button>
                 </Link>
                 <p className="text-sm text-blue-100">No credit card required. Cancel anytime.</p>
@@ -437,6 +464,12 @@ export default function LandingPage() {
 
 function MobileNav() {
   const [isOpen, setIsOpen] = useState(false)
+  const { isAuthenticated, user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    setIsOpen(false)
+  }
 
   return (
     <div className="md:hidden">
@@ -446,6 +479,30 @@ function MobileNav() {
       {isOpen && (
         <div className="fixed inset-0 top-16 z-50 bg-white/90 backdrop-blur-sm p-6 shadow-lg">
           <nav className="flex flex-col gap-6">
+            {isAuthenticated && (
+              <>
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{user?.full_name || user?.email}</p>
+                    <p className="text-sm text-gray-600 capitalize">{user?.role || 'free'} plan</p>
+                  </div>
+                </div>
+                <div className="border-t pt-4">
+                  <Link className="text-lg font-medium hover:underline" href="/app" onClick={() => setIsOpen(false)}>
+                    Dashboard
+                  </Link>
+                  <button 
+                    onClick={handleLogout}
+                    className="text-lg font-medium hover:underline text-red-600"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            )}
             <Link className="text-lg font-medium hover:underline" href="/features" onClick={() => setIsOpen(false)}>
               Features
             </Link>
@@ -464,16 +521,18 @@ function MobileNav() {
             <Link className="text-lg font-medium hover:underline" href="/contact" onClick={() => setIsOpen(false)}>
               Contact
             </Link>
-            <div className="flex flex-col gap-2">
-              <Link href="/app" onClick={() => setIsOpen(false)}>
-                <Button variant="outline" className="w-full bg-transparent">
-                  Log In
-                </Button>
-              </Link>
-              <Link href="/app" onClick={() => setIsOpen(false)}>
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">Sign Up Free</Button>
-              </Link>
-            </div>
+            {!isAuthenticated && (
+              <div className="flex flex-col gap-2">
+                <Link href="/login" onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    Log In
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setIsOpen(false)}>
+                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">Sign Up Free</Button>
+                </Link>
+              </div>
+            )}
           </nav>
         </div>
       )}

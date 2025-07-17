@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { FileText, Menu, X } from "lucide-react"
+import { FileText, Menu, X, User, LogOut, Settings, Star, CreditCard } from "lucide-react"
 import FileUpload from '../components/FileUpload'
 import JobUrlsInput from '../components/JobUrlsInput'
 import OutputSettings from '../components/OutputSettings'
@@ -9,10 +9,18 @@ import OptionalSections from '../components/OptionalSections'
 import CoverLetter from '../components/CoverLetter'
 import ResultCard from '../components/ResultCard'
 import ResumeModal from '../components/ResumeModal'
+import ProtectedRoute from '../components/ProtectedRoute'
 import { API_BASE_URL } from '../utils/api'
+import { useAuth } from '../contexts/AuthContext'
 
 function MobileNav() {
   const [isOpen, setIsOpen] = useState(false)
+  const { user, logout, isAuthenticated } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    setIsOpen(false)
+  }
 
   return (
     <div className="md:hidden">
@@ -22,6 +30,36 @@ function MobileNav() {
       {isOpen && (
         <div className="fixed inset-0 top-16 z-50 bg-white/90 backdrop-blur-sm p-6 shadow-lg">
           <nav className="flex flex-col gap-6">
+            {isAuthenticated && (
+              <>
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{user?.full_name || user?.email}</p>
+                    <p className="text-sm text-gray-600 capitalize">{user?.role || 'free'} plan</p>
+                  </div>
+                </div>
+                <div className="border-t pt-4">
+                  <Link className="text-lg font-medium hover:underline flex items-center gap-2" href="/dashboard" onClick={() => setIsOpen(false)}>
+                    <Settings className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                  <Link className="text-lg font-medium hover:underline flex items-center gap-2" href="/pricing" onClick={() => setIsOpen(false)}>
+                    <Star className="h-4 w-4" />
+                    Upgrade
+                  </Link>
+                  <button 
+                    onClick={handleLogout}
+                    className="text-lg font-medium hover:underline flex items-center gap-2 text-red-600"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </button>
+                </div>
+              </>
+            )}
             <Link className="text-lg font-medium hover:underline" href="/features" onClick={() => setIsOpen(false)}>
               Features
             </Link>
@@ -40,13 +78,16 @@ function MobileNav() {
             <Link className="text-lg font-medium hover:underline" href="/contact" onClick={() => setIsOpen(false)}>
               Contact
             </Link>
-            <div className="flex flex-col gap-2 mt-4">
-              <Link href="/" onClick={() => setIsOpen(false)}>
-                <Button variant="outline" className="w-full bg-transparent">
-                  Back to Home
-                </Button>
-              </Link>
-            </div>
+            {/* Only show Back to Home for non-authenticated users */}
+            {!isAuthenticated && (
+              <div className="flex flex-col gap-2 mt-4">
+                <Link href="/" onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    Back to Home
+                  </Button>
+                </Link>
+              </div>
+            )}
           </nav>
         </div>
       )}
@@ -54,8 +95,15 @@ function MobileNav() {
   )
 }
 
-export default function Home() {
+function Home() {
   const [file, setFile] = useState(null)
+  const { user, authenticatedRequest, logout, isAuthenticated } = useAuth()
+  
+  const handleLogout = async () => {
+    await logout()
+    // Redirect to home page after logout
+    window.location.href = '/'
+  }
   const [resumeText, setResumeText] = useState('')
   const [jobUrls, setJobUrls] = useState('')
   const [loading, setLoading] = useState(false)
@@ -171,9 +219,10 @@ export default function Home() {
         const formData = new FormData()
         formData.append('file', file)
 
-        const uploadResponse = await fetch(`${API_BASE_URL}/resumes/upload`, {
+        const uploadResponse = await authenticatedRequest(`${API_BASE_URL}/resumes/upload`, {
           method: 'POST',
-          body: formData
+          body: formData,
+          headers: {} // Let authenticatedRequest handle headers
         })
 
         const uploadData = await uploadResponse.json()
@@ -191,9 +240,8 @@ export default function Home() {
       setOriginalResumeText(processedResumeText)
 
       // Start batch processing with RAG and diff analysis enabled by default
-      const batchResponse = await fetch(`${API_BASE_URL}/batch/process`, {
+      const batchResponse = await authenticatedRequest(`${API_BASE_URL}/batch/process`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           resume_text: processedResumeText,
           job_urls: validation.urls,
@@ -241,7 +289,7 @@ export default function Home() {
   const startStatusPolling = (jobId) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/batch/status/${jobId}`)
+        const response = await authenticatedRequest(`${API_BASE_URL}/batch/status/${jobId}`)
         const data = await response.json()
         
         if (data.success) {
@@ -269,7 +317,7 @@ export default function Home() {
 
   const loadBatchResults = async (jobId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/batch/results/${jobId}`)
+      const response = await authenticatedRequest(`${API_BASE_URL}/batch/results/${jobId}`)
       const data = await response.json()
       
       if (data.success) {
@@ -289,9 +337,8 @@ export default function Home() {
 
   const downloadIndividualResumePDF = async (result) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/batch/generate-pdf`, {
+      const response = await authenticatedRequest(`${API_BASE_URL}/batch/generate-pdf`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           resume_text: result.tailored_resume,
           job_title: result.job_title,
@@ -320,9 +367,8 @@ export default function Home() {
 
   const downloadIndividualCoverLetterPDF = async (result) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/batch/generate-cover-letter-pdf`, {
+      const response = await authenticatedRequest(`${API_BASE_URL}/batch/generate-cover-letter-pdf`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cover_letter_text: result.cover_letter,
           job_title: result.job_title,
@@ -397,10 +443,26 @@ export default function Home() {
             Contact
           </Link>
         </nav>
-        <div className="hidden md:flex gap-4">
-          <Link href="/">
-            <Button variant="outline">Back to Home</Button>
-          </Link>
+        <div className="hidden md:flex gap-4 items-center">
+          {/* User profile and logout for desktop */}
+          {isAuthenticated && (
+            <>
+              <div className="flex items-center gap-2 mr-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm font-medium">{user?.full_name || user?.email}</span>
+              </div>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
@@ -589,9 +651,8 @@ export default function Home() {
                         try {
                           setLoading(true)
                           
-                          const response = await fetch(`${API_BASE_URL}/batch/generate-zip`, {
+                          const response = await authenticatedRequest(`${API_BASE_URL}/batch/generate-zip`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               resumes: successfulResults.map(result => ({
                                 resume_text: result.tailored_resume,
@@ -777,4 +838,12 @@ export default function Home() {
       </footer>
     </div>
   )
-} 
+}
+
+export default function AppPage() {
+  return (
+    <ProtectedRoute>
+      <Home />
+    </ProtectedRoute>
+  )
+}

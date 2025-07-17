@@ -1,7 +1,14 @@
 import os
 import re
 import PyPDF2
-import pdfplumber
+# Try to import pdfplumber, make it optional
+try:
+    import pdfplumber
+    HAS_PDFPLUMBER = True
+except ImportError:
+    HAS_PDFPLUMBER = False
+    print("Warning: pdfplumber not available, falling back to PyPDF2")
+    
 from docx import Document
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -13,7 +20,7 @@ import tempfile
 from reportlab.lib.enums import TA_LEFT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.colors import black, darkblue
+from reportlab.lib.colors import black, blue
 
 class ResumeEditor:
     def __init__(self):
@@ -68,14 +75,15 @@ class ResumeEditor:
     def _extract_from_pdf(self, file_path: str) -> str:
         """Extract text from PDF file using pdfplumber for better layout preservation"""
         
-        # Method 1: Try pdfplumber first (best for layout preservation)
-        try:
-            text = self._extract_pdf_with_pdfplumber(file_path)
-            if text and len(text.strip()) > 50:
-                print(f"Successfully extracted PDF with pdfplumber: {len(text)} chars")
-                return text
-        except Exception as e:
-            print(f"Pdfplumber extraction failed: {e}")
+        # Method 1: Try pdfplumber first (best for layout preservation) if available
+        if HAS_PDFPLUMBER:
+            try:
+                text = self._extract_pdf_with_pdfplumber(file_path)
+                if text and len(text.strip()) > 50:
+                    print(f"Successfully extracted PDF with pdfplumber: {len(text)} chars")
+                    return text
+            except Exception as e:
+                print(f"Pdfplumber extraction failed: {e}")
         
         # Method 2: Fall back to PyPDF2 with aggressive defragmentation
         try:
@@ -91,6 +99,9 @@ class ResumeEditor:
     
     def _extract_pdf_with_pdfplumber(self, file_path: str) -> str:
         """Extract text using pdfplumber which preserves layout better"""
+        if not HAS_PDFPLUMBER:
+            raise ImportError("pdfplumber not available")
+            
         all_text = []
         
         with pdfplumber.open(file_path) as pdf:
@@ -535,30 +546,10 @@ class ResumeEditor:
     
     def create_tailored_resume_pdf_html(self, tailored_text: str, output_path: str, job_title: str = "") -> bool:
         """
-        Create PDF using HTML-to-PDF conversion with WeasyPrint - much more reliable than ReportLab
+        Create PDF using improved ReportLab method (WeasyPrint removed for simplicity)
         """
-        try:
-            from weasyprint import HTML, CSS
-            
-            # Normalize text to handle Unicode issues
-            tailored_text = self._normalize_text_to_ascii(tailored_text)
-            
-            # Parse the resume content
-            sections = self._parse_resume_for_html(tailored_text)
-            
-            # Generate HTML
-            html_content = self._generate_resume_html(sections)
-            
-            # Generate PDF from HTML
-            HTML(string=html_content).write_pdf(output_path)
-            
-            return True
-            
-        except Exception as e:
-            print(f"Error creating HTML-based PDF: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
+        print("WeasyPrint not available, using ReportLab method")
+        return self.create_tailored_resume_pdf_improved(tailored_text, output_path, job_title)
     
     def _parse_resume_for_html(self, text: str) -> dict:
         """Parse resume text into structured data for HTML generation"""
@@ -1587,7 +1578,7 @@ class ResumeEditor:
             width, height = letter
             
             # Define colors
-            darkblue = blue
+            # blue = blue  # not needed, using blue directly
             
             # More compact font sizes to fit everything on one page
             name_font_size = 16
@@ -1622,7 +1613,7 @@ class ResumeEditor:
                 if section_type == "name":
                     # Name formatting
                     c.setFont("Helvetica-Bold", name_font_size)
-                    c.setFillColor(darkblue)
+                    c.setFillColor(blue)
                     c.drawString(left_margin, y_position, content.strip())
                     c.setFillColor(black)
                     y_position -= name_line_height
@@ -1637,7 +1628,7 @@ class ResumeEditor:
                     # Section headers - consistent spacing
                     y_position -= 6  # Consistent spacing before headers
                     c.setFont("Helvetica-Bold", section_font_size)
-                    c.setFillColor(darkblue)
+                    c.setFillColor(blue)
                     c.drawString(left_margin, y_position, content.strip().upper())
                     c.setFillColor(black)
                     y_position -= section_line_height
@@ -1767,7 +1758,7 @@ class ResumeEditor:
                 if section_type == "name":
                     # Name formatting
                     c.setFont("Helvetica-Bold", name_font_size)
-                    c.setFillColor(darkblue)
+                    c.setFillColor(blue)
                     c.drawString(left_margin, y_position, content.strip())
                     c.setFillColor(black)
                     y_position -= name_line_height
@@ -1782,7 +1773,7 @@ class ResumeEditor:
                     # Section headers - consistent spacing
                     y_position -= 6  # Consistent spacing before headers
                     c.setFont("Helvetica-Bold", section_font_size)
-                    c.setFillColor(darkblue)
+                    c.setFillColor(blue)
                     c.drawString(left_margin, y_position, content.strip().upper())
                     c.setFillColor(black)
                     y_position -= section_line_height

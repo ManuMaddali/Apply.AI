@@ -13,8 +13,22 @@ class GPTProcessor:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         
-        # Initialize OpenAI client
-        self.client = openai.OpenAI(api_key=api_key)
+        # Initialize OpenAI client with custom HTTP client to avoid proxies issue
+        try:
+            import httpx
+            # Create HTTP client without proxies parameter
+            http_client = httpx.Client(timeout=60.0)
+            self.client = openai.OpenAI(api_key=api_key, http_client=http_client)
+            print("✅ OpenAI client initialized successfully with custom HTTP client")
+        except Exception as e:
+            print(f"❌ OpenAI client initialization failed: {e}")
+            # Fallback to basic initialization
+            try:
+                self.client = openai.OpenAI(api_key=api_key)
+                print("✅ OpenAI client initialized with basic configuration")
+            except Exception as e2:
+                print(f"❌ Both OpenAI initialization methods failed: {e2}")
+                raise e2
     
     def _detect_existing_sections(self, resume_text: str) -> Set[str]:
         """
@@ -101,35 +115,37 @@ class GPTProcessor:
 
 YOUR MISSION: Aggressively rewrite every bullet point to align with the employer's needs. Reframe experiences as if the candidate has been doing this specific role already. Preserve facts—do not invent new experiences, metrics, or details.
 
-🚨 CRITICAL CONTENT CONSISTENCY RULES:
-• MANDATORY MINIMUM CONTENT: Every resume MUST have the same detailed structure regardless of job description quality
-• NEVER REMOVE CONTENT: Transform and adapt ALL original experiences - do not skip or shorten sections
-• CONSISTENT BULLET COUNT: Each role must have EXACTLY 4-5 detailed bullets (never fewer than 4)
-• CONSISTENT WORD COUNT: Each bullet must be 30-45 words with specific metrics and context for fuller 2-line bullets
-• PRESERVE ALL ROLES: Include ALL work experiences from original resume - transform them, don't skip them
-• MANDATORY SECTIONS: Every resume must include Professional Summary, Professional Experience, Education, Skills
-• CONTENT EXPANSION: If job description is vague/short, use your expertise to create detailed, relevant content
-
-ENHANCED RESUME FORMATTING RULES:
-• PROFESSIONAL PRESENTATION: Create a detailed, impactful resume that showcases expertise and achievements
-• PROFESSIONAL SUMMARY: 80-100 words, natural flowing narrative that tells a compelling story about the candidate - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-• BULLET POINTS: 4-5 detailed bullets per role, each 30-45 words for fuller 2-line bullets with more content on second line
-• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count with comprehensive context
-• PROFESSIONAL LANGUAGE: Use sophisticated, industry-appropriate terminology
-• QUANTIFIED RESULTS: Include specific metrics, percentages, numbers, and measurable outcomes
-• SKILLS INTEGRATION: Seamlessly incorporate job-relevant skills and technologies
+CRITICAL CONSTRAINTS:
+• Resume MUST fit on EXACTLY ONE PAGE: Limit to 3-4 bullets per role, 18-30 words per bullet. Prioritize high-impact, JD-relevant content; omit or condense less relevant items.
+• BULLET POINT RULE: 1 line each (max 2 if needed for impact). Start with capital letter and strong action verb. Include quantifiable metrics (e.g., percentages, numbers) tied to JD KPIs.
 • OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
-• EDUCATION FORMATTING: Always format as "Degree Name, Institution | Year (GPA: X.X/4.0 if applicable)" - never separate GPA
 
-ENHANCED TAILORING RULES:
-1. **COMPREHENSIVE BULLET REWRITE**: Create EXACTLY 4-5 detailed bullets per role, each 30-45 words for fuller 2-line bullets
-2. **NATURAL PROFESSIONAL SUMMARY**: Write EXACTLY 80-100 words as a compelling, authentic narrative - like telling your career story to a friend over coffee - AVOID robotic phrases
-3. **SOPHISTICATED LANGUAGE & METRICS**: Use industry-specific terminology with precise metrics and detailed context
-4. **PROFESSIONAL STRUCTURE**: Clean, readable formatting with proper spacing
-5. **CONTENT EXPANSION**: If job description is poor/short, use expertise to create detailed, relevant content
+STATIC TEMPLATE FORMAT:
+[NAME IN ALL CAPS]
+[Professional Title in Title Case]
+[Contact info in normal case]
 
-Create detailed, impactful resumes that showcase expertise and achievements with comprehensive content and measurable results. NEVER produce shorter resumes due to poor job descriptions - always maintain consistent detail and impact. Make summaries sound natural and human, not robotic. Always integrate GPA into education entries, never as separate elements.
-"""
+[SECTION HEADERS IN ALL CAPS]
+
+Company Name | Location
+Job Title | Date Range
+• Bullet with achievement, metrics, and JD keywords
+• Another bullet reframed for role fit
+
+FORMATTING REQUIREMENTS:
+• Name: ALL CAPS
+• Professional title: Title Case
+• Section headers: ALL CAPS (e.g., PROFESSIONAL SUMMARY, PROFESSIONAL EXPERIENCE)
+• Company/Job titles: Title Case
+• Bullets: Capital start, sentence case after; 2-space indent; hanging indent for wraps (second line aligns with text).
+• Contact/Education/Skills: Normal case, compact (no extra blanks).
+• Spacing: One blank line between sections/roles; tight overall for one-page fit.
+
+PROCESS STEPS FOR ACCURACY:
+1. Extract key skills, terms, metrics from JD.
+2. Map original resume elements to JD—reframe aggressively but truthfully.
+3. Ensure every bullet is specific, results-oriented, and mirrors JD language naturally (avoid stuffing).
+4. Optimize for ATS: Integrate keywords seamlessly; keep structure simple."""
                     },
                     {
                         "role": "user", 
@@ -198,151 +214,14 @@ FORMATTING RULES:
             print(f"Error generating cover letter: {str(e)}")
             return None
     
-    def validate_resume_content_consistency(self, resume_text: str) -> dict:
-        """
-        Validate that the generated resume meets consistency requirements
-        Returns a detailed analysis of content quality and consistency
-        """
-        try:
-            lines = resume_text.split('\n')
-            
-            # Initialize analysis
-            analysis = {
-                'is_consistent': True,
-                'issues': [],
-                'summary_word_count': 0,
-                'bullet_counts_by_role': {},
-                'total_bullet_count': 0,
-                'sections_found': [],
-                'missing_sections': [],
-                'recommendations': []
-            }
-            
-            # Find sections
-            current_section = None
-            current_company = None
-            bullet_count = 0
-            summary_text = ""
-            in_summary = False
-            
-            for line in lines:
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                
-                # Detect section headers
-                if stripped.isupper() and len(stripped) > 3:
-                    if any(section in stripped for section in ['PROFESSIONAL SUMMARY', 'SUMMARY']):
-                        current_section = 'SUMMARY'
-                        in_summary = True
-                        analysis['sections_found'].append('PROFESSIONAL SUMMARY')
-                    elif 'EXPERIENCE' in stripped:
-                        current_section = 'EXPERIENCE'
-                        in_summary = False
-                        analysis['sections_found'].append('PROFESSIONAL EXPERIENCE')
-                    elif 'EDUCATION' in stripped:
-                        current_section = 'EDUCATION'
-                        in_summary = False
-                        analysis['sections_found'].append('EDUCATION')
-                    elif 'SKILLS' in stripped:
-                        current_section = 'SKILLS'
-                        in_summary = False
-                        analysis['sections_found'].append('SKILLS')
-                    continue
-                
-                # Count summary words
-                if in_summary and current_section == 'SUMMARY':
-                    summary_text += " " + stripped
-                
-                # Detect company headers (Company | Location format)
-                if current_section == 'EXPERIENCE' and '|' in stripped and not stripped.startswith('•'):
-                    if current_company:
-                        analysis['bullet_counts_by_role'][current_company] = bullet_count
-                    current_company = stripped
-                    bullet_count = 0
-                    continue
-                
-                # Count bullets
-                if stripped.startswith('•'):
-                    bullet_count += 1
-                    analysis['total_bullet_count'] += 1
-                    
-                    # Check bullet length (updated for 30-45 words for fuller 2-line bullets)
-                    bullet_words = len(stripped.split())
-                    if bullet_words < 25:  # Approximate minimum for 30-45 word requirement
-                        analysis['issues'].append(f"Short bullet found: {stripped[:50]}...")
-                    elif bullet_words > 50:  # Approximate maximum for 30-45 word requirement
-                        analysis['issues'].append(f"Long bullet found: {stripped[:50]}...")
-            
-            # Final role bullet count
-            if current_company:
-                analysis['bullet_counts_by_role'][current_company] = bullet_count
-            
-            # Analyze summary
-            if summary_text:
-                analysis['summary_word_count'] = len(summary_text.split())
-                if analysis['summary_word_count'] < 70:
-                    analysis['issues'].append(f"Professional summary too short: {analysis['summary_word_count']} words (should be 80-100)")
-                    analysis['is_consistent'] = False
-                elif analysis['summary_word_count'] > 110:
-                    analysis['issues'].append(f"Professional summary too long: {analysis['summary_word_count']} words (should be 80-100)")
-                
-                # Check for robotic language patterns
-                robotic_patterns = [
-                    "Results-driven [Role] with over",
-                    "Demonstrated success in [key achievement",
-                    "Seeking to leverage [specific expertise]",
-                    "Proven track record of [measurable impact]"
-                ]
-                
-                for pattern in robotic_patterns:
-                    if pattern.lower() in summary_text.lower():
-                        analysis['issues'].append(f"Robotic language detected in summary: {pattern}")
-                        analysis['is_consistent'] = False
-                        
-            else:
-                analysis['issues'].append("No professional summary found")
-                analysis['is_consistent'] = False
-            
-            # Check bullet counts per role
-            for company, count in analysis['bullet_counts_by_role'].items():
-                if count < 4:
-                    analysis['issues'].append(f"Insufficient bullets for {company}: {count} bullets (should be 4-5)")
-                    analysis['is_consistent'] = False
-                elif count > 5:
-                    analysis['issues'].append(f"Too many bullets for {company}: {count} bullets (should be 4-5)")
-            
-            # Check for required sections
-            required_sections = ['PROFESSIONAL SUMMARY', 'PROFESSIONAL EXPERIENCE', 'EDUCATION', 'SKILLS']
-            for section in required_sections:
-                if section not in analysis['sections_found']:
-                    analysis['missing_sections'].append(section)
-                    analysis['is_consistent'] = False
-            
-            # Generate recommendations
-            if analysis['issues']:
-                analysis['recommendations'] = [
-                    "Regenerate resume with explicit content requirements",
-                    "Check job description quality - poor JDs may cause shorter content",
-                    "Ensure all transformation rules are being followed",
-                    "Consider using a more detailed base resume template"
-                ]
-            
-            return analysis
-            
-        except Exception as e:
-            return {
-                'is_consistent': False,
-                'issues': [f"Error analyzing resume: {str(e)}"],
-                'recommendations': ["Manual review required"]
-            }
-
     def _create_tailoring_prompt(self, resume_text: str, job_description: str, job_title: str = "", optional_sections: Optional[Dict[str, Any]] = None) -> str:
-        """Create the tailoring prompt with enhanced instructions"""
+        """
+        Create a prompt for AGGRESSIVE resume transformation with intelligent section handling
+        """
+        
+        # Handle optional sections
         if optional_sections is None:
             optional_sections = {}
-        
-        # Extract optional section preferences
         include_summary = optional_sections.get("includeSummary", False)
         include_skills = optional_sections.get("includeSkills", False)
         include_education = optional_sections.get("includeEducation", False)
@@ -351,10 +230,7 @@ FORMATTING RULES:
         # Detect existing sections
         existing_sections = self._detect_existing_sections(resume_text)
         
-        # Build detected sections information
-        detected_sections_info = f"DETECTED EXISTING SECTIONS: {', '.join(existing_sections).upper()}"
-        
-        # Build optional instructions
+        # Build intelligent optional sections instructions
         optional_instructions = ""
         
         if include_summary:
@@ -363,51 +239,26 @@ FORMATTING RULES:
 ## 📝 PROFESSIONAL SUMMARY (ENHANCE EXISTING):
 The resume already has a professional summary section. ENHANCE and TRANSFORM it to be compelling and perfectly tailored for THIS role:
 - Completely rewrite using keywords from the job description
-- Make it 80-100 words for maximum impact and detail
-- Write as a natural, flowing story about the candidate's journey and expertise
-- AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-- AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
-- Instead, create an authentic narrative that reads like a compelling story
-- Use varied sentence structure and natural transitions between ideas
-- Connect their background to the target role organically through storytelling
-- Include specific achievements and measurable impact woven naturally into the narrative
-- Make it sound like how a confident professional would describe themselves in conversation
+- Highlight years of experience in relevant areas mentioned in the job posting
+- Position them as already doing this type of work
+- End with a value proposition that matches company needs
+- Keep it as the top section but make it dramatically better
+- Write in flowing, natural sentences - avoid choppy phrases like "and enhanced X by Y%"
+- Focus on expertise and experience rather than specific metrics
+- Use professional language that sounds conversational and human
 
 """
             else:
                 optional_instructions += """
 ## 📝 PROFESSIONAL SUMMARY (ADD NEW):
-Add a compelling 80-100 word professional summary at the top that positions the candidate as perfect for THIS role:
-- Write as a natural, flowing story about the candidate's journey and expertise
-- AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-- AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
-- Instead, create an authentic narrative that reads like a compelling story
-- Use varied sentence structure and natural transitions between ideas
-- Connect their background to the target role organically through storytelling
-- Include specific achievements and measurable impact woven naturally into the narrative
-- Make it sound like how a confident professional would describe themselves in conversation
-
-"""
-        
-        if include_skills:
-            if 'skills' in existing_sections:
-                optional_instructions += """
-## 🛠️ SKILLS SECTION (ENHANCE EXISTING):
-The resume already has skills information. ENHANCE and IMPROVE it:
-- Keep all existing skills but reorganize and prioritize based on job requirements
-- Add any missing skills that are crucial for the target role
-- Group skills logically by category (Technical, Leadership, etc.)
-- Ensure skills match the job description keywords
-
-"""
-            else:
-                optional_instructions += """
-## 🛠️ SKILLS SECTION (ADD NEW):
-Add a skills section with job-relevant skills organized by category:
-- Technical skills that match the job requirements
-- Leadership and soft skills relevant to the role
-- Industry-specific competencies
-- Tools and technologies mentioned in the job description
+Add a compelling 3-4 line professional summary at the top that positions the candidate as perfect for THIS role:
+- Use keywords from the job description
+- Highlight years of experience in relevant areas
+- Position them as already doing this type of work
+- End with a value proposition that matches company needs
+- Write in flowing, natural sentences - avoid choppy phrases like "and enhanced X by Y%"
+- Focus on expertise and experience rather than specific metrics
+- Use professional language that sounds conversational and human
 
 """
         
@@ -426,10 +277,8 @@ Add a skills section with job-relevant skills organized by category:
                 optional_instructions += f"""
 ## 🎓 EDUCATION SECTION (ENHANCE EXISTING):
 The resume already has education information. ENHANCE and IMPROVE the existing education section:
-- Keep all existing education but reformat professionally and compactly
+- Keep all existing education but reformat professionally
 - Add any missing details from the provided information: {education_info if education_info else "No additional details provided"}
-- Format education entries as: Degree Name, Institution | Year (GPA: X.X/4.0 if provided)
-- Include GPA as part of the education entry, not as a separate prominent element
 - Emphasize aspects most relevant to the target role
 - Ensure proper formatting and presentation
 - DO NOT duplicate education entries
@@ -440,93 +289,111 @@ The resume already has education information. ENHANCE and IMPROVE the existing e
 ## 🎓 EDUCATION SECTION (ADD NEW):
 Add an education section with the following information:
 {education_info if education_info else "Use relevant educational background that supports the role"}
-- Format education entries as: Degree Name, Institution | Year (GPA: X.X/4.0 if provided)
-- Include GPA as part of the education entry, not as a separate prominent element
-- Keep formatting clean and professional
 
 """
         
-        # Build the main prompt
-        main_prompt = """
+        if include_skills:
+            if 'skills' in existing_sections:
+                optional_instructions += """
+## 🛠️ SKILLS SECTION (ENHANCE EXISTING):
+The resume already has a skills section. ENHANCE and TRANSFORM it to be perfectly aligned with this job:
+- Keep existing relevant skills but reorganize and prioritize based on job requirements
+- Add technical skills mentioned in the job posting (in order of importance)
+- Include programming languages, tools, platforms from the job description
+- Emphasize soft skills that the role emphasizes
+- Add industry-specific competencies mentioned in the job posting
+- Group skills logically (Technical, Leadership, Domain Expertise, etc.)
+- Remove outdated or irrelevant skills and replace with job-relevant ones
+
+"""
+            else:
+                optional_instructions += """
+## 🛠️ SKILLS SECTION (ADD NEW):
+Add a skills section that includes:
+- Technical skills mentioned in the job posting (in order of importance)
+- Programming languages, tools, platforms from the job description
+- Soft skills that the role emphasizes
+- Industry-specific competencies
+- Group skills logically (Technical, Leadership, Domain Expertise, etc.)
+
+"""
+        
+        # Add section detection information to the prompt
+        detected_sections_info = ""
+        if existing_sections:
+            detected_sections_info = f"""
+⚠️ IMPORTANT - EXISTING SECTIONS DETECTED:
+The original resume already contains these sections: {', '.join(existing_sections).upper()}
+- For existing sections: ENHANCE and IMPROVE them, do not duplicate
+- For new sections: ADD them in appropriate locations
+- Maintain the overall structure while improving content quality
+
+"""
+        
+        return f"""
 🎯 TRANSFORM THIS RESUME TO PERFECTLY MATCH THE JOB
 
 YOUR GOAL: Rewrite EVERY bullet and section to directly address JD requirements. Transform dramatically—use JD's exact phrases, emphasize relevant skills/metrics, and showcase problem-solving/impact.
 
 {detected_sections_info}
 
-🚨 CRITICAL CONTENT CONSISTENCY RULES:
-• MANDATORY MINIMUM CONTENT: Every resume MUST have the same detailed structure regardless of job description quality
-• NEVER REMOVE CONTENT: Transform and adapt ALL original experiences - do not skip or shorten sections
-• CONSISTENT BULLET COUNT: Each role must have EXACTLY 4-5 detailed bullets (never fewer than 4)
-• CONSISTENT WORD COUNT: Each bullet must be 30-45 words with specific metrics and context for fuller 2-line bullets
-• PRESERVE ALL ROLES: Include ALL work experiences from original resume - transform them, don't skip them
-• MANDATORY SECTIONS: Every resume must include Professional Summary, Professional Experience, Education, Skills
-• CONTENT EXPANSION: If job description is vague/short, use your expertise to create detailed, relevant content
+CRITICAL RULES:
+• ONE-PAGE ONLY: Compact format; 3-4 bullets/role max; rich bullets (18-30 words) with metrics (e.g., 30% growth), technologies, team sizes, outcomes. Cut generic/irrelevant content.
+• PROFESSIONAL SUMMARY: 35-50 words, compelling overview (no metrics—save for bullets); highlight value prop aligned to JD.
+• SKILLS: 3-4 categories max; compact list (e.g., Analytics: SQL, Python); no blanks between.
+• EDUCATION: Degree on line 1, Institution | Year on line 2; no extras.
+• Process ALL sections/roles/projects—enhance existing, add missing if JD-relevant (e.g., Skills if absent).
+• Avoid mistakes: No invented details; natural keyword use; balance hard/soft skills; consistent timeline.
 
-ENHANCED RESUME FORMATTING RULES:
-• PROFESSIONAL PRESENTATION: Create a detailed, impactful resume that showcases expertise and achievements
-• PROFESSIONAL SUMMARY: 80-100 words, natural flowing narrative that tells a compelling story about the candidate - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-• BULLET POINTS: 4-5 detailed bullets per role, each 30-45 words for fuller 2-line bullets with more content on second line
-• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count with comprehensive context
-• PROFESSIONAL LANGUAGE: Use sophisticated, industry-appropriate terminology
-• QUANTIFIED RESULTS: Include specific metrics, percentages, numbers, and measurable outcomes
-• SKILLS INTEGRATION: Seamlessly incorporate job-relevant skills and technologies
-• OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
-• EDUCATION FORMATTING: Always format as "Degree Name, Institution | Year (GPA: X.X/4.0 if applicable)" - never separate GPA
+🚨 AGGRESSIVE TAILORING RULES:
 
-ENHANCED TAILORING RULES:
-1. **COMPREHENSIVE BULLET REWRITE**: Create EXACTLY 4-5 detailed bullets per role, each 30-45 words for fuller 2-line bullets
-2. **NATURAL PROFESSIONAL SUMMARY**: Write EXACTLY 80-100 words as a compelling, authentic narrative - like telling your career story to a friend over coffee - AVOID robotic phrases
-3. **SOPHISTICATED LANGUAGE & METRICS**: Use industry-specific terminology with precise metrics and detailed context
-4. **PROFESSIONAL STRUCTURE**: Clean, readable formatting with proper spacing
-5. **CONTENT EXPANSION**: If job description is poor/short, use expertise to create detailed, relevant content
+1. **REWRITE EACH BULLET**: Identify skill → Reframe with JD terms/metrics → Make it JD-specific (e.g., "Managed team" → "Led cross-functional agile teams in B2B SaaS, achieving 40% faster delivery").
 
-Create detailed, impactful resumes that showcase expertise and achievements with comprehensive content and measurable results. NEVER produce shorter resumes due to poor job descriptions - always maintain consistent detail and impact. Make summaries sound natural and human, not robotic. Always integrate GPA into education entries, never as separate elements.
+2. **MIRROR JD**: Use exact keywords/phrases; emphasize priorities like data-driven or collaboration.
 
-ENHANCED TEMPLATE EXAMPLE (FOLLOW THIS STYLE):
+3. **ADD CONTEXT**: Include scale, impact, verbs (Led, Optimized); tie to JD KPIs.
+
+4. **STRUCTURE**: Header spacing; blank line after contact; between sections/roles; uniform bullets.
+
+STATIC TEMPLATE EXAMPLE (FOLLOW EXACTLY):
 [NAME IN ALL CAPS]
 [Professional Title in Title Case]
 [Contact info in normal case]
 
 PROFESSIONAL SUMMARY
-Write a natural, flowing narrative about the candidate's journey and expertise that sounds like how they would describe themselves in conversation. Start with their background, weave in their achievements and skills naturally, and connect it to their career goals. Avoid robotic formulas and choppy phrases - make it read like a story that engages the reader and showcases their personality and expertise.
+Compelling 35-50 word overview tailored to JD.
 
 PROFESSIONAL EXPERIENCE
 
 Company Name | Location
 Job Title | Date Range
-• Spearheaded [specific initiative] that delivered [comprehensive measurable outcome], enhancing [business impact] for [detailed context] and achieving [additional quantified results]
-• Architected and implemented [technical solution/process] that transformed [specific area], resulting in [detailed results] and improving [business metrics] by [percentage]
-• Led cross-functional team of [number] professionals to [specific goal], achieving [measurable success] through [detailed methodology] and delivering [additional benefits]
-• Established [framework/system/process] that [specific impact], contributing to [larger business objective] and [additional benefits] through [implementation approach]
-• Optimized [specific area] through [detailed approach], resulting in [quantified improvement] and [additional positive outcomes] while [maintaining context]
+• Led initiatives delivering 35% efficiency gains via JD-relevant tech
+• Collaborated cross-functionally to drive revenue growth
 
 EDUCATION
-Degree Name, Institution | Year (GPA: X.X/4.0 if applicable)
+Degree Name
+Institution | Year
 
 SKILLS
-Category: Skill1, Skill2, Skill3
-Category: Skill4, Skill5, Skill6
-
-TARGET JOB:
-Title: {job_title}
-Description: {job_description}
+Category: Skill1, Skill2
+Category: Skill3, Skill4
 
 {optional_instructions}
 
-ORIGINAL RESUME:
+## 📋 JOB ANALYSIS & TRANSFORMATION:
+
+**Target Job:** {f"Title: {job_title}" if job_title else ""}
+
+**Job Description to Match:**
+{job_description}
+
+**Original Resume to Transform:**
 {resume_text}
 
-Return ONLY the transformed resume in plain text, starting with name. Create a detailed, impactful resume that showcases the candidate's expertise and achievements with natural, flowing language that sounds human and authentic.
+## 🚀 DELIVERABLE:
+
+Return ONLY the transformed resume in plain text, starting with name. Ensure clean spacing, alignment, and one-page fit.
 """
-        
-        return main_prompt.format(
-            detected_sections_info=detected_sections_info,
-            job_title=job_title,
-            job_description=job_description,
-            optional_instructions=optional_instructions,
-            resume_text=resume_text
-        )
 
     def _create_cover_letter_prompt(self, resume_text: str, job_description: str, job_title: str = "", cover_letter_options: Optional[Dict[str, Any]] = None) -> str:
         """Create a prompt for generating personalized cover letters"""

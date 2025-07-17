@@ -14,7 +14,7 @@ const getApiBaseUrl = () => {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 };
 
-export const API_BASE_URL = getApiBaseUrl() + '/api';
+export const API_BASE_URL = getApiBaseUrl();
 
 // API helper functions
 export const apiRequest = async (endpoint, options = {}) => {

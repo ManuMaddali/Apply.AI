@@ -21,6 +21,10 @@ from routes.upload_resume import router as upload_router
 from routes.scrape_jobs import router as scrape_router
 from routes.generate_resumes import router as generate_router
 from routes.batch_processing import router as batch_router
+from routes.auth import router as auth_router
+
+# Database initialization
+from config.database import init_db, check_database_health
 
 # Validate security configuration on startup
 settings = validate_security_environment()
@@ -50,6 +54,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 # Include routers with rate limiting
+app.include_router(auth_router, prefix="/api", tags=["authentication"])
 app.include_router(upload_router, prefix="/api/resumes", tags=["resumes"])
 app.include_router(scrape_router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(generate_router, prefix="/api/resumes", tags=["resumes"])
@@ -59,15 +64,38 @@ app.include_router(batch_router, prefix="/api/batch", tags=["batch"])
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database and perform startup tasks"""
+    print("🚀 Starting ApplyAI Backend...")
+    
+    # Initialize database
+    try:
+        init_db()
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        raise
+    
+    # Check database health
+    if not check_database_health():
+        print("❌ Database health check failed")
+        raise Exception("Database connection failed")
+    
+    print("✅ ApplyAI Backend startup completed")
+
 @app.get("/health")
 @limiter.limit("30/minute")
 async def health_check(request: Request):
     """Basic health check endpoint"""
+    db_healthy = check_database_health()
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if db_healthy else "unhealthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": "2.0.0",
-        "environment": settings.environment
+        "environment": settings.environment,
+        "database": "connected" if db_healthy else "disconnected"
     }
 
 @app.get("/health/detailed")

@@ -1,10 +1,16 @@
 import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { FileText, ArrowLeft } from 'lucide-react'
+import { FileText, ArrowLeft, User, LogOut } from 'lucide-react'
 import FAQ from '@/components/FAQ'
+import { useAuth } from '../contexts/AuthContext'
 
 const FAQPage = () => {
+  const { isAuthenticated, user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+  }
   return (
     <div className="flex min-h-[100dvh] flex-col">
       {/* Header */}
@@ -34,12 +40,32 @@ const FAQPage = () => {
           </Link>
         </nav>
         <div className="hidden md:flex gap-4">
-          <Link href="/app">
-            <Button variant="outline">Log In</Button>
-          </Link>
-          <Link href="/app">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">Sign Up Free</Button>
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm font-medium">{user?.full_name || user?.email}</span>
+              </div>
+              <Link href="/app">
+                <Button variant="outline">Dashboard</Button>
+              </Link>
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="outline">Log In</Button>
+              </Link>
+              <Link href="/register">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">Sign Up Free</Button>
+              </Link>
+            </>
+          )}
         </div>
       </header>
 

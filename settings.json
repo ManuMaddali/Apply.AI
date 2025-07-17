@@ -1,0 +1,20 @@
+{
+    "files.autoSave": "afterDelay",
+    "cursor.composer.shouldAutoScrollToBottom": false,
+    "diffEditor.maxComputationTime": 0,
+    "cursor.chat.customModels": [
+        {
+            "id": "moonshotai/kimi-k2",
+            "name": "Kimi-K2 (OpenRouter)",
+            "type": "openai",
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "path": "/chat/completions",
+            "headers": {
+                "Authorization": "Bearer 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",
+                "HTTP-Referer": "https://cursor.sh/"
+            },
+            "model": "moonshotai/kimi-k2",
+            "stream": true
+        }
+    ]
+} 

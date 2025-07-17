@@ -37,20 +37,35 @@ class LangChainResumeProcessor:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         
-        self.api_key = api_key
-        self.langchain_available = LANGCHAIN_AVAILABLE
-        
-        if LANGCHAIN_AVAILABLE:
-            # Initialize LangChain components
+        try:
+            import httpx
+            # Create custom HTTP client to avoid proxies issue
+            http_client = httpx.Client(timeout=60.0)
             self.llm = ChatOpenAI(
-                model="gpt-4o-mini",
+                model_name="gpt-4o-mini",
                 temperature=0.1,
                 openai_api_key=api_key,
-                max_tokens=8000
+                max_tokens=8000,
+                http_client=http_client
             )
-            
+            print("✅ LangChain OpenAI initialized successfully with custom HTTP client")
+        except Exception as e:
+            print(f"⚠️  LangChain OpenAI initialization failed: {e}")
+            print("⚠️  Using fallback - resume generation may not work properly")
+            self.llm = None
+        
+        self.langchain_available = LANGCHAIN_AVAILABLE
+        
+        if LANGCHAIN_AVAILABLE and self.llm is not None:
+            # Initialize LangChain components
             try:
-                self.embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+                # Use same custom HTTP client for embeddings
+                embeddings_http_client = httpx.Client(timeout=60.0)
+                self.embeddings = OpenAIEmbeddings(
+                    openai_api_key=api_key,
+                    http_client=embeddings_http_client
+                )
+                print("✅ OpenAI Embeddings initialized successfully with custom HTTP client")
             except Exception as e:
                 print(f"⚠️ OpenAI Embeddings not available: {e}")
                 self.embeddings = None

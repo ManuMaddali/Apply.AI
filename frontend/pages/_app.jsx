@@ -1,6 +1,7 @@
 import '../styles/globals.css'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
+import { AuthProvider } from '../contexts/AuthContext'
 
 export default function App({ Component, pageProps }) {
   const router = useRouter()
@@ -47,5 +48,9 @@ export default function App({ Component, pageProps }) {
     }
   }, [router])
 
-  return <Component {...pageProps} />
+  return (
+    <AuthProvider>
+      <Component {...pageProps} />
+    </AuthProvider>
+  )
 } 

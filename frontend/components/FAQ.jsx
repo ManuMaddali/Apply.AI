@@ -44,7 +44,19 @@ const FAQ = () => {
         },
         {
           question: "Do I need to create an account to use the service?",
-          answer: "No account is required to start using the basic features. You can upload resumes, process jobs, and download results immediately. However, session management allows you to track your history and improvements over time."
+          answer: "Yes, you need to create a free account to use the service. We offer multiple signup options including email, Google, LinkedIn, and GitHub. Creating an account allows you to track your usage, save your progress, and access all features based on your plan."
+        },
+        {
+          question: "What authentication options are available?",
+          answer: "You can sign up and login using your email address, Google account, LinkedIn profile, or GitHub account. All authentication methods provide the same access to features and are equally secure."
+        },
+        {
+          question: "How do I reset my password?",
+          answer: "If you signed up with email, you can reset your password by clicking 'Forgot Password' on the login page. We'll send you a secure reset link. If you signed up with a social provider (Google, LinkedIn, GitHub), you'll need to reset your password through that provider."
+        },
+        {
+          question: "What are the different plan tiers?",
+          answer: "We offer two plans: Free (3 resumes/month with basic features) and Pro ($19/month with unlimited resumes, advanced AI features, priority support, and cover letter generation). The Pro plan includes a 7-day free trial."
         }
       ]
     },

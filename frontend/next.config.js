@@ -1,6 +1,29 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  swcMinify: true,
+  
+  // Environment variables available to the client
+  env: {
+    // Feature flags
+    ENABLE_TESTING_SUITE: process.env.ENABLE_TESTING_SUITE || 'false',
+    
+    // API Configuration
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    
+    // Environment detection
+    NEXT_PUBLIC_ENVIRONMENT: process.env.NODE_ENV || 'development',
+  },
+
+  // API rewrites for proxying requests to backend
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/:path*`,
+      },
+    ];
+  },
   
   // Security headers for production
   async headers() {
@@ -27,18 +50,6 @@ const nextConfig = {
         ],
       },
     ]
-  },
-
-  // Environment variables available to the client
-  env: {
-    // Feature flags
-    ENABLE_TESTING_SUITE: process.env.ENABLE_TESTING_SUITE || 'false',
-    
-    // API Configuration
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    
-    // Environment detection
-    NEXT_PUBLIC_ENVIRONMENT: process.env.NODE_ENV || 'development',
   },
 
   // Optimize for production
