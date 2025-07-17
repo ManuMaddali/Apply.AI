@@ -113,16 +113,14 @@ Stop spending hours rewriting your resume for every job! ApplyAI is your AI-powe
 ### 🆓 **Free Plan** - Perfect to Get Started
 **$0/month** - No credit card required
 
-✅ **5 resume tailoring sessions per month**  
-✅ **All AI-powered features included**  
-✅ **Professional PDF downloads**  
-✅ **Cover letter generation**  
-✅ **ATS-optimized formatting**  
-✅ **Secure account management**  
+✅ **5 resume tailoring sessions per week** 
+✅ **No bulk processing**  
+✅ **Basic ATS optimization**  
+✅ **Professional PDF downloads**     
 ✅ **Email support**
 
 ### 🚀 **Pro Plan** - For Active Job Seekers
-**$19/month** - Cancel anytime
+**$9.99/month** - Cancel anytime
 
 ✅ **Unlimited resume tailoring**  
 ✅ **Bulk processing (up to 10 jobs)**  
@@ -131,17 +129,6 @@ Stop spending hours rewriting your resume for every job! ApplyAI is your AI-powe
 ✅ **Premium cover letter templates**  
 ✅ **Resume analytics & insights**  
 ✅ **Priority email support**
-
-### 💼 **Enterprise** - For Teams & Agencies
-**Custom pricing** - Contact us
-
-✅ **Everything in Pro**  
-✅ **Team collaboration features**  
-✅ **White-label options**  
-✅ **API access**  
-✅ **Dedicated account manager**  
-✅ **Custom integrations**  
-✅ **SLA guarantee**
 
 > 🎯 **Start free today!** No commitment, upgrade anytime as your job search grows.
 
@@ -196,8 +183,7 @@ Stop spending hours rewriting your resume for every job! ApplyAI is your AI-powe
 ### 📊 **Real Results**
 - **3.2x higher** interview callback rate
 - **85% time savings** on application prep  
-- **92% user satisfaction** rating
-- **50,000+** resumes tailored successfully
+- **99% user satisfaction** rating
 
 ## ❓ FAQ & Support
 
