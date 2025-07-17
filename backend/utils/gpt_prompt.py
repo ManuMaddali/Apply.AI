@@ -116,8 +116,9 @@ class GPTProcessor:
 YOUR MISSION: Aggressively rewrite every bullet point to align with the employer's needs. Reframe experiences as if the candidate has been doing this specific role already. Preserve facts—do not invent new experiences, metrics, or details.
 
 CRITICAL CONSTRAINTS:
-• Resume MUST fit on EXACTLY ONE PAGE: Limit to 3-4 bullets per role, 18-30 words per bullet. Prioritize high-impact, JD-relevant content; omit or condense less relevant items.
-• BULLET POINT RULE: 1 line each (max 2 if needed for impact). Start with capital letter and strong action verb. Include quantifiable metrics (e.g., percentages, numbers) tied to JD KPIs.
+• Resume MUST fit on EXACTLY ONE PAGE: Include 5 DETAILED bullets per role, 35-50 words per bullet. Prioritize high-impact, JD-relevant content with comprehensive metrics and achievements.
+• PROFESSIONAL SUMMARY: Write 100-150 words in first person as a natural story. Start with where you've been, what you've learned, what you've accomplished, and where you're headed. Let it flow like you're explaining your career path to someone who asked "So what do you do?" No buzzwords, no forced enthusiasm - just your actual journey.
+• BULLET POINT RULE: Each bullet MUST be 2 full lines (35-50 words). Start with capital letter and strong action verb. Include multiple specific quantifiable metrics (e.g., percentages, numbers) tied to JD KPIs.
 • OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
 
 STATIC TEMPLATE FORMAT:
@@ -125,12 +126,15 @@ STATIC TEMPLATE FORMAT:
 [Professional Title in Title Case]
 [Contact info in normal case]
 
-[SECTION HEADERS IN ALL CAPS]
+PROFESSIONAL SUMMARY
+Write 100-150 words in first person as a natural story. Start with where you've been, what you've learned, what you've accomplished, and where you're headed. Let it flow like you're explaining your career path to someone who asked "So what do you do?" No buzzwords, no forced enthusiasm - just your actual journey.
+
+PROFESSIONAL EXPERIENCE
 
 Company Name | Location
 Job Title | Date Range
-• Bullet with achievement, metrics, and JD keywords
-• Another bullet reframed for role fit
+• Detailed bullet with specific achievement, comprehensive metrics, and JD keywords. Must be 35-50 words with multiple specific metrics and achievements. Include team sizes, budget figures, and specific technologies.
+• Another detailed bullet showcasing impact and measurable results with specific context. Must be 35-50 words with multiple specific metrics and achievements.
 
 FORMATTING REQUIREMENTS:
 • Name: ALL CAPS
@@ -139,13 +143,18 @@ FORMATTING REQUIREMENTS:
 • Company/Job titles: Title Case
 • Bullets: Capital start, sentence case after; 2-space indent; hanging indent for wraps (second line aligns with text).
 • Contact/Education/Skills: Normal case, compact (no extra blanks).
-• Spacing: One blank line between sections/roles; tight overall for one-page fit.
+• Spacing: One blank line between sections/roles; professional presentation.
+• EVERY bullet point MUST be 35-50 words (2 full lines) with multiple specific metrics.
+• Professional Summary MUST be 100-150 words, written naturally in first person.
 
 PROCESS STEPS FOR ACCURACY:
 1. Extract key skills, terms, metrics from JD.
 2. Map original resume elements to JD—reframe aggressively but truthfully.
 3. Ensure every bullet is specific, results-oriented, and mirrors JD language naturally (avoid stuffing).
-4. Optimize for ATS: Integrate keywords seamlessly; keep structure simple."""
+4. Optimize for ATS: Integrate keywords seamlessly; keep structure simple.
+5. Include comprehensive details in each bullet point with multiple specific metrics and achievements.
+6. Ensure Professional Summary is 100-150 words, written naturally in first person.
+7. Ensure EVERY bullet point is 35-50 words (2 full lines) with multiple specific metrics."""
                     },
                     {
                         "role": "user", 
@@ -338,8 +347,9 @@ YOUR GOAL: Rewrite EVERY bullet and section to directly address JD requirements.
 {detected_sections_info}
 
 CRITICAL RULES:
-• ONE-PAGE ONLY: Compact format; 3-4 bullets/role max; rich bullets (18-30 words) with metrics (e.g., 30% growth), technologies, team sizes, outcomes. Cut generic/irrelevant content.
-• PROFESSIONAL SUMMARY: 35-50 words, compelling overview (no metrics—save for bullets); highlight value prop aligned to JD.
+• ONE-PAGE ONLY: Include 5 DETAILED bullets per role, 35-50 words per bullet. Prioritize high-impact, JD-relevant content with comprehensive metrics and achievements.
+• PROFESSIONAL SUMMARY: Write 100-150 words in first person as a natural story. Start with where you've been, what you've learned, what you've accomplished, and where you're headed. Let it flow like you're explaining your career path to someone who asked "So what do you do?" No buzzwords, no forced enthusiasm - just your actual journey.
+• BULLET POINT RULE: Each bullet MUST be 2 full lines (35-50 words). Start with capital letter and strong action verb. Include multiple specific quantifiable metrics (e.g., percentages, numbers) tied to JD KPIs.
 • SKILLS: 3-4 categories max; compact list (e.g., Analytics: SQL, Python); no blanks between.
 • EDUCATION: Degree on line 1, Institution | Year on line 2; no extras.
 • Process ALL sections/roles/projects—enhance existing, add missing if JD-relevant (e.g., Skills if absent).
@@ -347,13 +357,15 @@ CRITICAL RULES:
 
 🚨 AGGRESSIVE TAILORING RULES:
 
-1. **REWRITE EACH BULLET**: Identify skill → Reframe with JD terms/metrics → Make it JD-specific (e.g., "Managed team" → "Led cross-functional agile teams in B2B SaaS, achieving 40% faster delivery").
+1. **NATURAL PROFESSIONAL SUMMARY**: Write 100-150 words in first person. Sound human, not robotic. Skip corporate buzzwords and clichés. Just tell your story naturally.
 
-2. **MIRROR JD**: Use exact keywords/phrases; emphasize priorities like data-driven or collaboration.
+2. **COMPREHENSIVE BULLET POINTS**: Each bullet MUST be 35-50 words (2 full lines) with multiple specific metrics and achievements. Include team sizes, budget figures, and specific technologies.
 
-3. **ADD CONTEXT**: Include scale, impact, verbs (Led, Optimized); tie to JD KPIs.
+3. **MIRROR JD**: Use exact keywords/phrases; emphasize priorities like data-driven or collaboration.
 
-4. **STRUCTURE**: Header spacing; blank line after contact; between sections/roles; uniform bullets.
+4. **ADD CONTEXT**: Include scale, impact, verbs (Spearheaded, Architected, Optimized); tie to JD KPIs.
+
+5. **STRUCTURE**: Header spacing; blank line after contact; between sections/roles; uniform bullets.
 
 STATIC TEMPLATE EXAMPLE (FOLLOW EXACTLY):
 [NAME IN ALL CAPS]
@@ -361,22 +373,24 @@ STATIC TEMPLATE EXAMPLE (FOLLOW EXACTLY):
 [Contact info in normal case]
 
 PROFESSIONAL SUMMARY
-Compelling 35-50 word overview tailored to JD.
+I started in product management five years ago working on consumer apps, then moved into enterprise software where I learned how different user needs can be. Along the way, I've launched products that generated over $25M in revenue and improved engagement by 200%. What I've discovered is that the best products come from really listening to users and working closely with engineering and design teams. I've gotten good at turning user feedback into features that actually solve problems. Now I'm looking to bring what I've learned to PrizePicks and help build products that users genuinely enjoy using.
 
 PROFESSIONAL EXPERIENCE
 
 Company Name | Location
 Job Title | Date Range
-• Led initiatives delivering 35% efficiency gains via JD-relevant tech
-• Collaborated cross-functionally to drive revenue growth
+• Spearheaded product strategy for music discovery features, enhancing engagement for over 400M users globally, resulting in a 35% increase in user interaction and satisfaction through implementation of advanced machine learning algorithms and personalized content delivery systems.
+• Launched a personalized recommendation engine that significantly improved user retention and engagement metrics, contributing to a 25% increase in subscription renewals through sophisticated data modeling and predictive analytics that accurately identified user preferences and behaviors.
+• Collaborated with engineering, design, and data science teams in an agile environment to deliver high-impact features on time, improving overall product delivery efficiency by 30% while maintaining quality standards and addressing critical user feedback from multiple market segments.
+• Managed a comprehensive product roadmap, prioritizing features based on user research and data analysis, leading to a 40% reduction in feature development time while ensuring alignment with strategic business objectives and market demands.
+• Defined and tracked key performance indicators (KPIs) for product success, utilizing data-driven insights to inform strategic decisions and enhance product offerings, resulting in 15% increase in user satisfaction and 20% growth in revenue.
 
-EDUCATION
-Degree Name
-Institution | Year
-
-SKILLS
-Category: Skill1, Skill2
-Category: Skill3, Skill4
+EDUCATION                                                  SKILLS
+Master of Business Administration (MBA)                    Analytics: SQL, Python, R
+Stanford Graduate School of Business | 2018                Design: Figma, Sketch, Adobe Creative Suite
+                                                          Project Management: Jira, Asana, Trello
+Bachelor of Science in Computer Science                    Data Visualization: Tableau, Looker, Power BI
+University of California, Berkeley | 2016
 
 {optional_instructions}
 

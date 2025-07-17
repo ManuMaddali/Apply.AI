@@ -39,12 +39,20 @@ import {
   GitBranch,
   Play,
   Monitor,
-  Puzzle
+  Puzzle,
+  User,
+  LogOut
 } from "lucide-react"
 import { useState } from "react"
+import { useAuth } from '../contexts/AuthContext'
 
 export default function HowItWorksPage() {
   const [activeView, setActiveView] = useState('user')
+  const { isAuthenticated, user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+  }
 
   const userSteps = [
     {
@@ -198,9 +206,6 @@ export default function HowItWorksPage() {
           <span>ApplyAI</span>
         </Link>
         <nav className="hidden md:flex gap-6">
-          <Link className="text-sm font-medium hover:underline underline-offset-4" href="/">
-            Home
-          </Link>
           <Link className="text-sm font-medium hover:underline underline-offset-4" href="/features">
             Features
           </Link>
@@ -220,15 +225,33 @@ export default function HowItWorksPage() {
             Contact
           </Link>
         </nav>
-        <div className="flex gap-4">
-          <Link href="/app">
-            <Button variant="outline">Try Now</Button>
-          </Link>
-          <Link href="/app">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              Get Started
-            </Button>
-          </Link>
+        <div className="hidden md:flex gap-4">
+          {isAuthenticated ? (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm font-medium">{user?.full_name || user?.email}</span>
+              </div>
+              <Link href="/app">
+                <Button variant="outline">Dashboard</Button>
+              </Link>
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="outline">Log In</Button>
+              </Link>
+              <Link href="/register">
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">Sign Up Free</Button>
+              </Link>
+            </>
+          )}
         </div>
       </header>
 

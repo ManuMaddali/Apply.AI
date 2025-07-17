@@ -216,13 +216,20 @@ function Home() {
 
       if (file) {
         // Handle file upload
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const uploadResponse = await authenticatedRequest(`${API_BASE_URL}/resumes/upload`, {
+        // For file uploads, we need to use fetch directly without setting Content-Type
+        const token = localStorage.getItem('applyai_token');
+        
+        // Create a FormData object and append the file with the correct field name
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const uploadResponse = await fetch(`${API_BASE_URL}/api/resumes/upload`, {
           method: 'POST',
           body: formData,
-          headers: {} // Let authenticatedRequest handle headers
+          headers: {
+            // Don't set Content-Type header - browser will set it with boundary
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
         })
 
         const uploadData = await uploadResponse.json()
@@ -240,7 +247,7 @@ function Home() {
       setOriginalResumeText(processedResumeText)
 
       // Start batch processing with RAG and diff analysis enabled by default
-      const batchResponse = await authenticatedRequest(`${API_BASE_URL}/batch/process`, {
+      const batchResponse = await authenticatedRequest(`${API_BASE_URL}/api/batch/process`, {
         method: 'POST',
         body: JSON.stringify({
           resume_text: processedResumeText,
@@ -289,7 +296,7 @@ function Home() {
   const startStatusPolling = (jobId) => {
     const interval = setInterval(async () => {
       try {
-        const response = await authenticatedRequest(`${API_BASE_URL}/batch/status/${jobId}`)
+        const response = await authenticatedRequest(`${API_BASE_URL}/api/batch/status/${jobId}`)
         const data = await response.json()
         
         if (data.success) {
@@ -317,7 +324,7 @@ function Home() {
 
   const loadBatchResults = async (jobId) => {
     try {
-      const response = await authenticatedRequest(`${API_BASE_URL}/batch/results/${jobId}`)
+      const response = await authenticatedRequest(`${API_BASE_URL}/api/batch/results/${jobId}`)
       const data = await response.json()
       
       if (data.success) {
@@ -337,7 +344,7 @@ function Home() {
 
   const downloadIndividualResumePDF = async (result) => {
     try {
-      const response = await authenticatedRequest(`${API_BASE_URL}/batch/generate-pdf`, {
+      const response = await authenticatedRequest(`${API_BASE_URL}/api/batch/generate-pdf`, {
         method: 'POST',
         body: JSON.stringify({
           resume_text: result.tailored_resume,
@@ -367,7 +374,7 @@ function Home() {
 
   const downloadIndividualCoverLetterPDF = async (result) => {
     try {
-      const response = await authenticatedRequest(`${API_BASE_URL}/batch/generate-cover-letter-pdf`, {
+      const response = await authenticatedRequest(`${API_BASE_URL}/api/batch/generate-cover-letter-pdf`, {
         method: 'POST',
         body: JSON.stringify({
           cover_letter_text: result.cover_letter,
@@ -651,7 +658,7 @@ function Home() {
                         try {
                           setLoading(true)
                           
-                          const response = await authenticatedRequest(`${API_BASE_URL}/batch/generate-zip`, {
+                          const response = await authenticatedRequest(`${API_BASE_URL}/api/batch/generate-zip`, {
                             method: 'POST',
                             body: JSON.stringify({
                               resumes: successfulResults.map(result => ({

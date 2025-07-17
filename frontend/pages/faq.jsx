@@ -72,13 +72,15 @@ const FAQPage = () => {
       {/* Main Content */}
       <main className="flex-1 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <div className="container mx-auto px-4 py-12 md:py-24">
-          {/* Back Navigation */}
-          <div className="mb-8">
-            <Link href="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Home
-            </Link>
-          </div>
+          {/* Back Navigation removed for logged-in users */}
+          {!isAuthenticated && (
+            <div className="mb-8">
+              <Link href="/" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Home
+              </Link>
+            </div>
+          )}
 
           {/* FAQ Component */}
           <FAQ />

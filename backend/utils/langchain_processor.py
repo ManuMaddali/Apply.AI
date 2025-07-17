@@ -251,11 +251,11 @@ You are a resume transformation specialist. Your job is to DRAMATICALLY rewrite 
 
 ENHANCED RESUME FORMATTING RULES:
 • PROFESSIONAL PRESENTATION: Create a detailed, impactful resume that showcases expertise and achievements
-• PROFESSIONAL SUMMARY: 80-100 words, comprehensive overview that positions candidate as ideal for the role
-• BULLET POINTS: 4-5 detailed bullets per role, each 25-40 words with specific metrics and achievements
-• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count
+• PROFESSIONAL SUMMARY: Write 100-150 words in first person as a natural story. Start with where you've been, what you've learned, what you've accomplished, and where you're headed. Let it flow like you're explaining your career path to someone who asked "So what do you do?" No buzzwords, no forced enthusiasm - just your actual journey.
+• BULLET POINTS: EXACTLY 5 detailed bullets per role, each 35-50 words (2 full lines) with multiple specific metrics and achievements
+• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count with comprehensive details
 • PROFESSIONAL LANGUAGE: Use sophisticated, industry-appropriate terminology
-• QUANTIFIED RESULTS: Include specific metrics, percentages, numbers, and measurable outcomes
+• QUANTIFIED RESULTS: Include multiple specific metrics, percentages, numbers, and measurable outcomes in EVERY bullet
 • SKILLS INTEGRATION: Seamlessly incorporate job-relevant skills and technologies
 • OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
 
@@ -269,9 +269,9 @@ ENHANCED RESUME FORMATTING RULES:
    - Use power verbs (Spearheaded, Architected, Optimized, Delivered, Established)
    - Include team sizes, budget figures, time frames, and success metrics
 
-2. **DETAILED PROFESSIONAL SUMMARY**
-   - Write 80-100 words that tell a compelling story
-   - Position candidate as having deep expertise in the target role
+2. **NATURAL PROFESSIONAL SUMMARY**
+   - Write 100-150 words in first person as a natural story
+   - Start with where you've been, what you've learned, what you've accomplished, and where you're headed
    - Include specific industry context and relevant achievements
    - Use sophisticated language that demonstrates professionalism
 
@@ -361,7 +361,7 @@ DELIVER: A completely transformed, detailed resume that looks custom-written for
 PROFESSIONAL SUMMARY (ENHANCE EXISTING):
 The resume already has a professional summary section. ENHANCE and TRANSFORM it to be compelling and perfectly tailored for THIS role:
 - Completely rewrite using keywords from the job description and similar jobs
-- Make it 80-100 words for maximum impact and detail
+- Make it 100-150 words as a natural story
 - Write as a natural, flowing story about the candidate's journey and expertise
 - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
 - AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
@@ -375,7 +375,7 @@ The resume already has a professional summary section. ENHANCE and TRANSFORM it 
                 else:
                     optional_instructions += """
 PROFESSIONAL SUMMARY (ADD NEW):
-Add a compelling 80-100 word professional summary at the top that positions the candidate as perfect for THIS role:
+Add a compelling 100-150 word professional summary at the top that positions the candidate as perfect for THIS role:
 - Write as a natural, flowing story about the candidate's journey and expertise
 - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
 - AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
@@ -465,11 +465,11 @@ YOUR MISSION: Aggressively rewrite every bullet point to align with the employer
 
 ENHANCED RESUME FORMATTING RULES:
 • PROFESSIONAL PRESENTATION: Create a detailed, impactful resume that showcases expertise and achievements
-• PROFESSIONAL SUMMARY: 80-100 words, natural flowing narrative that tells a compelling story about the candidate - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
-• BULLET POINTS: 4-5 detailed bullets per role, each 25-40 words with specific metrics and achievements
-• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count
+• PROFESSIONAL SUMMARY: Write 100-150 words in first person as a natural story. Start with where you've been, what you've learned, what you've accomplished, and where you're headed. Let it flow like you're explaining your career path to someone who asked "So what do you do?" No buzzwords, no forced enthusiasm - just your actual journey.
+• BULLET POINTS: EXACTLY 5 detailed bullets per role, each 35-50 words (2 full lines) with multiple specific metrics and achievements
+• DETAILED CONTENT: Focus on impact, scale, and results - make every bullet count with comprehensive details
 • PROFESSIONAL LANGUAGE: Use sophisticated, industry-appropriate terminology
-• QUANTIFIED RESULTS: Include specific metrics, percentages, numbers, and measurable outcomes
+• QUANTIFIED RESULTS: Include multiple specific metrics, percentages, numbers, and measurable outcomes in EVERY bullet
 • SKILLS INTEGRATION: Seamlessly incorporate job-relevant skills and technologies
 • OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
 • EDUCATION FORMATTING: Always format as "Degree Name, Institution | Year (GPA: X.X/4.0 if applicable)" - never separate GPA
@@ -518,15 +518,15 @@ YOUR GOAL: Rewrite EVERY bullet and section to directly address JD requirements.
 
 🚨 ENHANCED TAILORING RULES:
 
-1. **COMPREHENSIVE BULLET REWRITE** (MANDATORY 4-5 BULLETS PER ROLE):
-   - Create EXACTLY 4-5 detailed bullets per role showing progression and impact
-   - Each bullet MUST be 30-45 words for fuller 2-line bullets with more content on second line
+1. **COMPREHENSIVE BULLET REWRITE** (MANDATORY 5 BULLETS PER ROLE):
+   - Create EXACTLY 5 detailed bullets per role showing progression and impact
+   - Each bullet MUST be 35-50 words for fuller 2-line bullets with multiple specific metrics and achievements
    - Use power verbs (Spearheaded, Architected, Optimized, Delivered, Established)
    - Include team sizes, budget figures, time frames, and success metrics with rich context
    - If original bullet is vague, ADD specific details that align with job requirements
 
-2. **NATURAL PROFESSIONAL SUMMARY** (MANDATORY 80-100 WORDS):
-   - Write EXACTLY 80-100 words as a compelling, authentic narrative - like telling your career story to a friend over coffee
+2. **NATURAL PROFESSIONAL SUMMARY** (MANDATORY 100-150 WORDS):
+   - Write EXACTLY 100-150 words as a comprehensive, detailed narrative that covers all aspects of professional background
    - Tell a compelling story about the candidate's journey and expertise
    - AVOID robotic formulas like "Results-driven [Role] with X years of experience"
    - AVOID choppy phrases like "Skilled in X, Y, and Z" or "Proven track record in..."
