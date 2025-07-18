@@ -560,8 +560,8 @@ function Home() {
 
           {/* Right Column - Results & Action */}
           <div className="xl:col-span-1 space-y-6">
-            {/* Sticky Action Card */}
-            <div className="sticky top-8 z-20 sticky-optimized">
+            {/* Action Card */}
+            <div className="z-20">
               <div className="bg-white/80 backdrop-light rounded-2xl shadow-lg border border-white/50 p-6 scroll-optimized">
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
