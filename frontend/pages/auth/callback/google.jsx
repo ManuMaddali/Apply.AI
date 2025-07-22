@@ -56,82 +56,27 @@ export default function GoogleCallback() {
         console.log('🔍 [GoogleCallback] OAuth callback response:', data);
         
         if (response.ok && data.success) {
-          // Clear any existing auth state first
-          console.log('🔍 [GoogleCallback] Clearing existing auth state...');
-          localStorage.removeItem('applyai_token');
-          localStorage.removeItem('applyai_user');
+          // Clear any existing auth state first to prevent conflicts
+          const { access_token, user } = data;
+        
+          // Store authentication data
+          localStorage.setItem('applyai_token', access_token);
+          localStorage.setItem('user', JSON.stringify(user));
           
-          // Small delay to ensure cleanup
-          await new Promise(resolve => setTimeout(resolve, 50));
-          
-          // Store token and user data
-          console.log('🔑 [GoogleCallback] Storing OAuth token:', data.access_token?.substring(0, 50) + '...');
-          localStorage.setItem('applyai_token', data.access_token);
-          
-          if (data.user) {
-            localStorage.setItem('applyai_user', JSON.stringify(data.user));
-          }
-          
-          // Verify token was stored properly
-          const storedToken = localStorage.getItem('applyai_token');
-          console.log('✅ [GoogleCallback] Token stored successfully:', !!storedToken);
-          console.log('✅ [GoogleCallback] Token length:', storedToken?.length);
-          
-          if (!storedToken) {
-            throw new Error('Failed to store authentication token');
-          }
-          
-          setStatus('success');
-          setMessage('Google authentication successful! Updating session...');
-          
-          // Trigger storage event manually to ensure AuthContext picks it up
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'applyai_token',
-            newValue: data.access_token,
-            url: window.location.href
+          // Dispatch custom event to notify AuthContext
+          window.dispatchEvent(new CustomEvent('authTokenChanged', { 
+            detail: { key: 'applyai_token' } 
           }));
-
-          // Also dispatch custom event
-          window.dispatchEvent(new CustomEvent('authTokenChanged', {
-            detail: { key: 'applyai_token', value: data.access_token }
-          }));
-          
-          // Give AuthContext time to update
-          console.log('🔄 [GoogleCallback] Triggering auth context update...');
-          let authUpdateSuccess = false;
-          
-          // Try multiple times with delays to ensure auth context updates
-          for (let i = 0; i < 5; i++) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-            try {
-              const authResult = await checkAuth();
-              console.log(`🔄 [GoogleCallback] Auth check attempt ${i + 1}:`, authResult);
-              if (authResult) {
-                authUpdateSuccess = true;
-                break;
-              }
-            } catch (error) {
-              console.error(`🔄 [GoogleCallback] Auth check attempt ${i + 1} failed:`, error);
-            }
+        
+          // Update auth context
+          if (checkAuth) {
+            await checkAuth();
           }
-          
-          if (!authUpdateSuccess) {
-            console.warn('⚠️ [GoogleCallback] Auth context update failed, but proceeding with redirect');
-          }
-          
-          setMessage('Google authentication successful! Redirecting...');
-          
-          // Get return URL from localStorage
-          const returnUrl = localStorage.getItem('oauth_return_url') || '/app';
-          localStorage.removeItem('oauth_return_url');
-          
-          // Clear OAuth redirect flag
-          sessionStorage.removeItem('oauth_redirect_in_progress');
-          
-          console.log('✅ [GoogleCallback] Redirecting to:', returnUrl);
-          
-          // Use Next.js router instead of window.location to avoid full page reload
-          await router.push(returnUrl);
+        
+          // Small delay to ensure auth context is updated
+          setTimeout(() => {
+            router.push('/app');
+          }, 100);
         } else {
           console.error('OAuth callback failed:', data);
           setStatus('error');

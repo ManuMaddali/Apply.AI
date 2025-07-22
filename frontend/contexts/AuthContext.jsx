@@ -43,10 +43,19 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      // Use much longer timeout (5 minutes) for batch processing requests
+      const timeoutDuration = url.includes('/api/batch/process') ? 300000 : 10000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+      
       const response = await fetch(url, {
         ...options,
         headers,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (response.status === 401) {
         // Token expired or invalid
@@ -58,6 +67,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.message === 'Authentication required') {
         throw error;
+      }
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out');
       }
       throw new Error(`Request failed: ${error.message}`);
     }

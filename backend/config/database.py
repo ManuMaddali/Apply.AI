@@ -1,7 +1,6 @@
 import os
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from typing import Generator
 import logging
 
@@ -35,8 +34,8 @@ else:
 # Create sessionmaker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for models
-Base = declarative_base()
+# Base class for models - using the one from models.user
+# Base = declarative_base()  # Removed - using DeclarativeBase from models.user instead
 
 # Database dependency for FastAPI
 def get_db() -> Generator:
@@ -50,13 +49,16 @@ def get_db() -> Generator:
 # Initialize database
 def init_db():
     """Initialize database tables"""
-    from models.user import Base as UserBase
+    from models.user import Base
     
     # Import all models to ensure they're registered
-    from models.user import User, UserSession, PasswordReset, EmailVerification
+    from models.user import (
+        User, UserSession, PasswordReset, EmailVerification,
+        Subscription, UsageTracking, PaymentHistory
+    )
     
     # Create all tables
-    UserBase.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     
     # Create default admin user for development
     if os.getenv("ENVIRONMENT", "development") == "development":

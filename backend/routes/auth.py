@@ -716,8 +716,12 @@ async def oauth_callback(request: Request, provider: str, callback_data: OAuthCa
         auth_provider = provider_map.get(provider.lower())
         user = db.query(User).filter(User.email == email).first()
         
+
+        
         if user:
             # Update existing user
+            user.last_login = datetime.utcnow()
+            
             if user.auth_provider != auth_provider:
                 user.auth_provider = auth_provider
                 user.provider_id = verified_user_data.get('provider_id')
@@ -728,7 +732,7 @@ async def oauth_callback(request: Request, provider: str, callback_data: OAuthCa
             if verified_user_data.get('full_name') and not user.full_name:
                 user.full_name = verified_user_data.get('full_name')
         else:
-            # Create new user
+            # Create new user with last_login already set
             user = User(
                 email=email,
                 full_name=verified_user_data.get('full_name'),
@@ -737,58 +741,34 @@ async def oauth_callback(request: Request, provider: str, callback_data: OAuthCa
                 provider_id=verified_user_data.get('provider_id'),
                 role=UserRole.FREE,
                 email_verified=verified_user_data.get('email_verified', True),
-                is_verified=True
+                is_verified=True,
+                is_active=True,
+                last_login=datetime.utcnow()  # Set last_login on creation
             )
             db.add(user)
         
-        # First commit the user to ensure it has a valid ID
-        db.commit()
-        db.refresh(user)
-        
-        print(f"User created/updated with ID: {user.id}")
-        
-        # Create a session for the user
-        client_info = get_client_info(request)
-        
-        # Create session directly without try-catch fallback
-        session = UserSession(
-            user_id=user.id,
-            session_token=secrets.token_urlsafe(32),
-            refresh_token=secrets.token_urlsafe(32),
-            user_agent=client_info["user_agent"],
-            ip_address=client_info["ip_address"],
-            device_type=client_info["device_type"],
-            expires_at=datetime.utcnow() + timedelta(days=30)
-        )
-        
-        # Add session to database
+        # Create session
+        session = create_user_session(user, request, True)
         db.add(session)
         
-        # Update last login
-        user.last_login = datetime.utcnow()
-        
-        # Commit all changes together
+        # Commit everything
         db.commit()
+        db.refresh(user)
         db.refresh(session)
         
-        print(f"Created session with ID: {session.id}")
-        
-        # Create JWT token with real session ID
+        # Create JWT token
         token_data = {
             "sub": str(user.id),
             "email": user.email,
             "session_id": str(session.id)
         }
-        jwt_token = AuthManager.create_access_token(token_data)
-        
-        print(f"🔑 Generated JWT token: {jwt_token[:50]}...")
-        print(f"🔑 Token data: {token_data}")
+        access_token = AuthManager.create_access_token(token_data)
         
         return AuthResponse(
             success=True,
             message="OAuth authentication successful",
             user=user.to_dict(),
-            access_token=jwt_token,
+            access_token=access_token,
             expires_in=1800
         )
         

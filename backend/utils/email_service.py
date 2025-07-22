@@ -124,6 +124,200 @@ class EmailService:
             <p>If you didn't request this password reset, please ignore this email.</p>
             <p>Best regards,<br>The ApplyAI Team</p>
             """
+        elif template_name == "payment_failure_reminder":
+            content = """
+            <h2>Payment Issue - Action Required</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>We encountered an issue processing your payment for your ApplyAI Pro subscription.</p>
+            <p>Your subscription is currently in a grace period and will expire on <strong>{{ period_end }}</strong> 
+            ({{ days_remaining }} days remaining) if payment is not resolved.</p>
+            <p>To continue enjoying Pro features, please update your payment method:</p>
+            <p><a href="{{ update_payment_url }}" class="button">Update Payment Method</a></p>
+            <p>If you have any questions, please contact our support team.</p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "final_grace_warning":
+            content = """
+            <h2>Final Notice - Subscription Cancellation</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>This is your final notice regarding the payment issue with your ApplyAI Pro subscription.</p>
+            <p>Your subscription will be canceled and downgraded to Free after <strong>{{ period_end }}</strong> 
+            if payment is not resolved immediately.</p>
+            <p><strong>Action Required:</strong> Update your payment method now to avoid service interruption:</p>
+            <p><a href="{{ update_payment_url }}" class="button">Update Payment Method Now</a></p>
+            <p>Once downgraded, you'll lose access to Pro features including unlimited resume processing, 
+            advanced formatting, and premium templates.</p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "subscription_welcome":
+            content = """
+            <h2>Welcome to Pro! 🚀</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>Congratulations! Your Pro subscription is now active. You now have access to all premium features:</p>
+            <ul>
+                {% for feature in features %}
+                <li>{{ feature }}</li>
+                {% endfor %}
+            </ul>
+            <p><strong>Subscription Details:</strong></p>
+            <ul>
+                <li>Plan: {{ subscription_tier }}</li>
+                <li>Billing: {{ billing_amount }} {{ billing_cycle }}</li>
+                <li>Next billing: {{ next_billing_date }}</li>
+            </ul>
+            <p><a href="{{ dashboard_url }}" class="button">Manage Subscription</a></p>
+            <p>Need help? <a href="{{ support_url }}">Contact our support team</a></p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "payment_failed":
+            content = """
+            <h2>Action Required: Payment Failed</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>We were unable to process your payment of {{ payment_amount }} for your Pro subscription.</p>
+            <p><strong>Reason:</strong> {{ failure_reason }}</p>
+            {% if retry_count > 0 %}
+            <p>This is attempt #{{ retry_count }}. {% if next_retry_date %}We'll try again on {{ next_retry_date }}.{% endif %}</p>
+            {% endif %}
+            <p>To avoid service interruption, please:</p>
+            <ul>
+                {% for action in suggested_actions %}
+                <li>{{ action }}</li>
+                {% endfor %}
+            </ul>
+            <p><a href="{{ update_payment_url }}" class="button">Update Payment Method</a></p>
+            <p>You have {{ grace_period_days }} days to resolve this before your account is downgraded to Free.</p>
+            <p>Questions? <a href="{{ support_url }}">Contact support</a></p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "usage_limit_warning":
+            content = """
+            <h2>You're Almost at Your Limit</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>You've used {{ current_usage }} of your {{ usage_limit }} weekly resume processing sessions.</p>
+            <p>You have {{ remaining_sessions }} sessions remaining until {{ reset_date }}.</p>
+            <p><strong>Upgrade to Pro for unlimited access:</strong></p>
+            <ul>
+                {% for benefit in pro_benefits %}
+                <li>{{ benefit }}</li>
+                {% endfor %}
+            </ul>
+            <p><a href="{{ upgrade_url }}" class="button">Upgrade to Pro</a></p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "usage_limit_exceeded":
+            content = """
+            <h2>Weekly Limit Reached</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>You've reached your weekly limit of {{ usage_limit }} resume processing sessions.</p>
+            <p>Your limit will reset on {{ reset_date }}.</p>
+            <p><strong>Don't wait - upgrade to Pro for {{ pro_price }}:</strong></p>
+            <ul>
+                {% for benefit in pro_benefits %}
+                <li>{{ benefit }}</li>
+                {% endfor %}
+            </ul>
+            <p><a href="{{ upgrade_url }}" class="button">Upgrade Now</a></p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "subscription_canceled":
+            content = """
+            <h2>Subscription Canceled</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>Your Pro subscription has been canceled.</p>
+            {% if not cancellation_immediate %}
+            <p>You'll continue to have Pro access until {{ access_until }}.</p>
+            {% else %}
+            <p>Your account has been downgraded to Free immediately.</p>
+            {% endif %}
+            <p><strong>You'll lose access to:</strong></p>
+            <ul>
+                {% for feature in features_lost %}
+                <li>{{ feature }}</li>
+                {% endfor %}
+            </ul>
+            <p>Changed your mind? <a href="{{ reactivate_url }}" class="button">Reactivate Subscription</a></p>
+            <p>We'd love your feedback: <a href="{{ feedback_url }}">Tell us why you canceled</a></p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "grace_period_warning":
+            content = """
+            <h2>Urgent: Update Your Payment Method</h2>
+            <p>Hello {{ user_name }},</p>
+            <p><strong>Your Pro subscription will be downgraded in {{ days_remaining }} day(s).</strong></p>
+            <p>We've been unable to process your payment of {{ payment_amount }}.</p>
+            <p>To keep your Pro features, please update your payment method immediately:</p>
+            <ul>
+                {% for feature in features_at_risk %}
+                <li>{{ feature }}</li>
+                {% endfor %}
+            </ul>
+            <p><a href="{{ update_payment_url }}" class="button">Update Payment Method</a></p>
+            <p>Your account will be downgraded on {{ downgrade_date }} if payment isn't resolved.</p>
+            <p>Need help? <a href="{{ support_url }}">Contact support immediately</a></p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "subscription_error":
+            content = """
+            <h2>Important: Issue with Your Subscription</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>We encountered an issue with your subscription:</p>
+            <p><strong>{{ error_message }}</strong></p>
+            {% if suggested_action %}
+            <p>Recommended action: {{ suggested_action }}</p>
+            {% endif %}
+            <p>We're working to resolve this automatically, but if you continue to experience issues, please contact our support team.</p>
+            <p><a href="mailto:{{ support_email }}" class="button">Contact Support</a></p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "downgrade_notification":
+            content = """
+            <h2>Account Downgraded to Free</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>Your ApplyAI Pro subscription has been downgraded to Free due to payment issues.</p>
+            <p>You now have access to:</p>
+            <ul>
+                <li>5 resume processing sessions per week</li>
+                <li>Basic formatting options</li>
+                <li>Standard templates</li>
+            </ul>
+            <p>To restore your Pro features, you can upgrade anytime:</p>
+            <p><a href="{{ upgrade_url }}" class="button">Upgrade to Pro</a></p>
+            <p>Thank you for using ApplyAI!</p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "subscription_expired":
+            content = """
+            <h2>Your Pro Subscription Has Expired</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>Your ApplyAI Pro subscription has expired and your account has been downgraded to Free.</p>
+            <p>You now have access to:</p>
+            <ul>
+                <li>5 resume processing sessions per week</li>
+                <li>Basic formatting options</li>
+                <li>Standard templates</li>
+            </ul>
+            <p>To restore unlimited access and Pro features:</p>
+            <p><a href="{{ upgrade_url }}" class="button">Upgrade to Pro</a></p>
+            <p>Thank you for using ApplyAI!</p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
+        elif template_name == "renewal_reminder":
+            content = """
+            <h2>Subscription Renewal Reminder</h2>
+            <p>Hello {{ user_name }},</p>
+            <p>Your ApplyAI Pro subscription will automatically renew on <strong>{{ renewal_date }}</strong>.</p>
+            <p>You'll continue to enjoy:</p>
+            <ul>
+                <li>Unlimited resume processing</li>
+                <li>Advanced formatting options</li>
+                <li>Premium templates and features</li>
+                <li>Priority support</li>
+            </ul>
+            <p>If you need to make any changes to your subscription:</p>
+            <p><a href="{{ manage_subscription_url }}" class="button">Manage Subscription</a></p>
+            <p>Thank you for being a valued Pro member!</p>
+            <p>Best regards,<br>The ApplyAI Team</p>
+            """
         else:
             content = "{{ content }}"
         
@@ -281,6 +475,99 @@ class EmailService:
             template_name="password_changed",
             template_data=template_data
         )
+    
+    # Subscription Lifecycle Email Methods
+    
+    def send_payment_failure_reminder(self, user_email: str, user_name: str, period_end: datetime) -> bool:
+        """Send payment failure reminder email"""
+        template_data = {
+            'user_name': user_name or user_email.split('@')[0],
+            'period_end': period_end.strftime("%B %d, %Y"),
+            'days_remaining': max(0, (period_end - datetime.utcnow()).days),
+            'update_payment_url': self._get_frontend_url() + "/subscription"
+        }
+        
+        return self.send_email(
+            to_email=user_email,
+            subject="Payment Issue - Action Required for Your ApplyAI Pro Subscription",
+            template_name="payment_failure_reminder",
+            template_data=template_data
+        )
+    
+    def send_final_grace_warning(self, user_email: str, user_name: str, period_end: datetime) -> bool:
+        """Send final grace period warning email"""
+        template_data = {
+            'user_name': user_name or user_email.split('@')[0],
+            'period_end': period_end.strftime("%B %d, %Y"),
+            'update_payment_url': self._get_frontend_url() + "/subscription"
+        }
+        
+        return self.send_email(
+            to_email=user_email,
+            subject="Final Notice - Your ApplyAI Pro Subscription Will Be Canceled",
+            template_name="final_grace_warning",
+            template_data=template_data
+        )
+    
+    def send_downgrade_notification(self, user_email: str, user_name: str) -> bool:
+        """Send downgrade notification email"""
+        template_data = {
+            'user_name': user_name or user_email.split('@')[0],
+            'upgrade_url': self._get_frontend_url() + "/pricing"
+        }
+        
+        return self.send_email(
+            to_email=user_email,
+            subject="Your ApplyAI Account Has Been Downgraded to Free",
+            template_name="downgrade_notification",
+            template_data=template_data
+        )
+    
+    def send_subscription_expired_notification(self, user_email: str, user_name: str) -> bool:
+        """Send subscription expired notification email"""
+        template_data = {
+            'user_name': user_name or user_email.split('@')[0],
+            'upgrade_url': self._get_frontend_url() + "/pricing"
+        }
+        
+        return self.send_email(
+            to_email=user_email,
+            subject="Your ApplyAI Pro Subscription Has Expired",
+            template_name="subscription_expired",
+            template_data=template_data
+        )
+    
+    def send_renewal_reminder(self, user_email: str, user_name: str, renewal_date: datetime, 
+                            days_before: int, reminder_type: str) -> bool:
+        """Send renewal reminder email"""
+        template_data = {
+            'user_name': user_name or user_email.split('@')[0],
+            'renewal_date': renewal_date.strftime("%B %d, %Y"),
+            'days_before': days_before,
+            'reminder_type': reminder_type,
+            'manage_subscription_url': self._get_frontend_url() + "/subscription"
+        }
+        
+        subject_map = {
+            "week_before": "Your ApplyAI Pro Subscription Renews in 7 Days",
+            "three_days": "Your ApplyAI Pro Subscription Renews in 3 Days", 
+            "one_day": "Your ApplyAI Pro Subscription Renews Tomorrow"
+        }
+        
+        return self.send_email(
+            to_email=user_email,
+            subject=subject_map.get(reminder_type, "ApplyAI Pro Subscription Renewal Reminder"),
+            template_name="renewal_reminder",
+            template_data=template_data
+        )
+    
+    def _get_frontend_url(self) -> str:
+        """Get frontend URL for email links"""
+        if self.settings.environment == "development":
+            return "http://localhost:3000"
+        else:
+            cors_origins = self.settings.get_cors_origins()
+            return cors_origins[0] if cors_origins else "http://localhost:3000"
 
 # Singleton instance
 _email_service = None

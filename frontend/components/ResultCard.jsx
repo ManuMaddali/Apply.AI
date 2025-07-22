@@ -1,6 +1,6 @@
 import React from 'react'
 
-const ResultCard = React.memo(({ result, onView, onDownloadPDF, onDownloadCoverLetter, onDownloadText, includeCoverLetter }) => {
+const ResultCard = React.memo(({ result, onView, onDownloadPDF, onDownloadCoverLetter, onDownloadText, includeCoverLetter, tailoringMode }) => {
 
   const getJobDetails = () => {
     let company = 'Company'
@@ -127,14 +127,28 @@ const ResultCard = React.memo(({ result, onView, onDownloadPDF, onDownloadCoverL
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 truncate">{company}</h3>
             <p className="text-sm text-gray-600 mt-1 truncate">{jobTitle}</p>
-            {hasCoverLetter && (
-              <div className="flex items-center gap-1 mt-1">
-                <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-                <span className="text-xs text-indigo-600 font-medium">Cover letter included</span>
-              </div>
-            )}
+            <div className="flex items-center gap-3 mt-1">
+              {hasCoverLetter && (
+                <div className="flex items-center gap-1">
+                  <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  <span className="text-xs text-indigo-600 font-medium">Cover letter</span>
+                </div>
+              )}
+              {tailoringMode && (
+                <div className="flex items-center gap-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    tailoringMode === 'heavy' ? 'bg-purple-500' : 'bg-blue-500'
+                  }`}></div>
+                  <span className={`text-xs font-medium ${
+                    tailoringMode === 'heavy' ? 'text-purple-600' : 'text-blue-600'
+                  }`}>
+                    {tailoringMode === 'heavy' ? 'Heavy tailoring' : 'Light tailoring'}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

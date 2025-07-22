@@ -11,6 +11,7 @@ load_dotenv()
 
 # Security imports
 from middleware.security import setup_security_middleware
+from middleware.feature_gate import setup_feature_gate_middleware
 from config.security import validate_security_environment, SecurityMonitoring, check_required_env_vars
 from utils.rate_limiter import limiter, custom_rate_limit_handler
 from utils.file_security import cleanup_temp_files
@@ -22,6 +23,15 @@ from routes.scrape_jobs import router as scrape_router
 from routes.generate_resumes import router as generate_router
 from routes.batch_processing import router as batch_router
 from routes.auth import router as auth_router
+from routes.webhooks import router as webhooks_router
+from routes.advanced_formatting import router as advanced_formatting_router
+from routes.job_specific_templates import router as job_templates_router
+from routes.analytics import router as analytics_router
+from routes.premium_cover_letters import router as premium_cover_letters_router
+from routes.analytics_privacy import router as analytics_privacy_router
+from routes.subscription import router as subscription_router
+from routes.admin_analytics import router as admin_analytics_router
+from routes.lifecycle_management import router as lifecycle_router
 
 # Database initialization
 from config.database import init_db, check_database_health
@@ -49,6 +59,9 @@ os.makedirs("outputs", exist_ok=True)
 # Setup comprehensive security middleware
 setup_security_middleware(app)
 
+# Setup feature gate middleware for subscription control
+setup_feature_gate_middleware(app)
+
 # Add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
@@ -59,6 +72,15 @@ app.include_router(upload_router, prefix="/api/resumes", tags=["resumes"])
 app.include_router(scrape_router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(generate_router, prefix="/api/resumes", tags=["resumes"])
 app.include_router(batch_router, prefix="/api/batch", tags=["batch"])
+app.include_router(webhooks_router, prefix="/api/webhooks", tags=["webhooks"])
+app.include_router(advanced_formatting_router, tags=["advanced-formatting"])
+app.include_router(job_templates_router, prefix="/api/job-templates", tags=["job-specific-templates"])
+app.include_router(analytics_router, tags=["analytics"])
+app.include_router(premium_cover_letters_router, tags=["premium-cover-letters"])
+app.include_router(analytics_privacy_router, tags=["analytics-privacy"])
+app.include_router(subscription_router, tags=["subscription"])
+app.include_router(admin_analytics_router, tags=["admin-analytics"])
+app.include_router(lifecycle_router, tags=["lifecycle-management"])
 
 # Mount static files
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
@@ -66,8 +88,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database and perform startup tasks"""
-    print("🚀 Starting ApplyAI Backend...")
+    """Application startup tasks"""
+    print(f"🚀 Apply.AI API starting up in {settings.environment} mode")
     
     # Initialize database
     try:
@@ -82,7 +104,38 @@ async def startup_event():
         print("❌ Database health check failed")
         raise Exception("Database connection failed")
     
-    print("✅ ApplyAI Backend startup completed")
+    # Validate security configuration
+    check_required_env_vars()
+    
+    # Initialize security monitoring
+    SecurityMonitoring.log_security_event(
+        "application_startup",
+        {
+            "version": "2.0.0",
+            "environment": settings.environment,
+            "security_features": [
+                "rate_limiting",
+                "file_validation",
+                "cors_configured",
+                "security_headers",
+                "input_sanitization"
+            ]
+        },
+        "info"
+    )
+    
+    # Start subscription lifecycle task scheduler - TEMPORARILY DISABLED
+    # TODO: Fix scheduler startup issue
+    try:
+        # from services.task_scheduler import start_scheduler
+        # await start_scheduler()
+        print("⚠️ Subscription lifecycle scheduler temporarily disabled")
+    except Exception as e:
+        print(f"⚠️ Failed to start lifecycle scheduler: {e}")
+        # Don't fail startup if scheduler fails
+    
+    print("✅ Security configuration validated")
+    print("✅ Application ready for requests")
 
 @app.get("/health")
 @limiter.limit("30/minute")
@@ -182,38 +235,18 @@ async def global_exception_handler(request: Request, exc: Exception):
             }
         )
 
-@app.on_event("startup")
-async def startup_event():
-    """Application startup tasks"""
-    print(f"🚀 Apply.AI API starting up in {settings.environment} mode")
-    
-    # Validate security configuration
-    check_required_env_vars()
-    
-    # Initialize security monitoring
-    SecurityMonitoring.log_security_event(
-        "application_startup",
-        {
-            "version": "2.0.0",
-            "environment": settings.environment,
-            "security_features": [
-                "rate_limiting",
-                "file_validation",
-                "cors_configured",
-                "security_headers",
-                "input_sanitization"
-            ]
-        },
-        "info"
-    )
-    
-    print("✅ Security configuration validated")
-    print("✅ Application ready for requests")
-
 @app.on_event("shutdown")
 async def shutdown_event():
     """Application shutdown tasks"""
     print("🔄 Apply.AI API shutting down...")
+    
+    # Stop subscription lifecycle scheduler
+    try:
+        from services.task_scheduler import stop_scheduler
+        await stop_scheduler()
+        print("✅ Subscription lifecycle scheduler stopped")
+    except Exception as e:
+        print(f"⚠️ Error stopping lifecycle scheduler: {e}")
     
     # Cleanup temporary files
     try:

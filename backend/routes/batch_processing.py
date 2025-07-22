@@ -20,6 +20,19 @@ from utils.langchain_processor import LangChainResumeProcessor
 from utils.gpt_prompt import GPTProcessor
 from utils.resume_diff import ResumeDiffAnalyzer
 from utils.resume_editor import ResumeEditor
+from models.user import TailoringMode, User
+from services.subscription_service import SubscriptionService, UsageType
+from config.database import get_db
+from utils.auth import get_current_user
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from services.advanced_formatting_service import (
+    AdvancedFormattingService,
+    FormattingOptions,
+    FormattingTemplate,
+    ColorScheme,
+    FontFamily
+)
 
 router = APIRouter()
 
@@ -29,6 +42,7 @@ langchain_processor = LangChainResumeProcessor()
 fallback_processor = GPTProcessor()
 diff_analyzer = ResumeDiffAnalyzer()
 resume_editor = ResumeEditor()
+advanced_formatting_service = AdvancedFormattingService()  # Advanced formatting service
 
 # In-memory storage for batch jobs (consider using Redis or a database for production)
 batch_jobs: Dict[str, Any] = {}
@@ -39,6 +53,7 @@ class BatchProcessRequest(BaseModel):
     job_urls: List[str]
     use_rag: Optional[bool] = True
     output_format: Optional[str] = "text"  # "text" or "files"
+    tailoring_mode: Optional[TailoringMode] = TailoringMode.LIGHT  # Default to Light mode
     optional_sections: Optional[Dict[str, Any]] = {
         "includeSummary": False,
         "includeSkills": False,
@@ -58,6 +73,12 @@ class BatchProcessRequest(BaseModel):
             "additionalInfo": ""
         }
     }
+    # Advanced formatting options (Pro only)
+    formatting_template: Optional[str] = FormattingTemplate.STANDARD.value
+    color_scheme: Optional[str] = ColorScheme.CLASSIC_BLUE.value
+    font_family: Optional[str] = FontFamily.HELVETICA.value
+    font_size: Optional[int] = 10
+    use_advanced_formatting: Optional[bool] = False
 
 class PDFGenerateRequest(BaseModel):
     resume_text: str
@@ -74,23 +95,50 @@ class ZIPGenerateRequest(BaseModel):
     batch_id: str
     include_cover_letters: Optional[bool] = False
 
-def generate_pdf_from_text(resume_text: str, job_title: str) -> BytesIO:
-    """Generate PDF using ResumeEditor for better formatting"""
+def generate_pdf_from_text(
+    resume_text: str, 
+    job_title: str, 
+    formatting_options: Optional[FormattingOptions] = None,
+    use_advanced_formatting: bool = False,
+    is_pro_user: bool = False
+) -> BytesIO:
+    """Generate PDF using advanced formatting service or ResumeEditor for better formatting"""
     try:
         # Create temporary file for PDF
         import tempfile
         temp_fd, temp_path = tempfile.mkstemp(suffix='.pdf')
         os.close(temp_fd)  # Close the file descriptor
         
-        # Use ResumeEditor to create the PDF with proper formatting
-        success = resume_editor.create_tailored_resume_pdf(
-            tailored_text=resume_text,
-            output_path=temp_path,
-            job_title=job_title
-        )
+        success = False
+        
+        # Use advanced formatting if requested and user is Pro
+        if use_advanced_formatting and is_pro_user and formatting_options:
+            # Use advanced formatting service
+            success = advanced_formatting_service.create_advanced_formatted_resume(
+                resume_text, formatting_options, temp_path, job_title
+            )
+            
+            # Fallback to standard advanced formatting if specific template fails
+            if not success:
+                success = advanced_formatting_service.create_standard_formatted_resume(
+                    resume_text, temp_path, job_title
+                )
+        elif use_advanced_formatting and is_pro_user:
+            # Use standard advanced formatting for Pro users without specific options
+            success = advanced_formatting_service.create_standard_formatted_resume(
+                resume_text, temp_path, job_title
+            )
+        
+        # Fallback to ResumeEditor if advanced formatting not used or failed
+        if not success:
+            success = resume_editor.create_tailored_resume_pdf(
+                tailored_text=resume_text,
+                output_path=temp_path,
+                job_title=job_title
+            )
         
         if not success:
-            raise Exception("Failed to create PDF with ResumeEditor")
+            raise Exception("Failed to create PDF with all available methods")
         
         # Read the PDF into a BytesIO buffer
         buffer = BytesIO()
@@ -105,7 +153,7 @@ def generate_pdf_from_text(resume_text: str, job_title: str) -> BytesIO:
         
     except Exception as e:
         print(f"PDF generation error: {e}")
-        # Fallback to basic PDF if ResumeEditor fails
+        # Fallback to basic PDF if all methods fail
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter)
         styles = getSampleStyleSheet()
@@ -210,7 +258,7 @@ def generate_cover_letter_pdf(cover_letter_text: str, job_title: str) -> BytesIO
         return buffer
 
 class BatchJobStatus:
-    def __init__(self, batch_id: str, total_jobs: int, optional_sections: Dict[str, Any] = None, cover_letter_options: Dict[str, Any] = None):
+    def __init__(self, batch_id: str, total_jobs: int, optional_sections: Optional[Dict[str, Any]] = None, cover_letter_options: Optional[Dict[str, Any]] = None):
         self.batch_id = batch_id
         self.state = "pending"  # pending, processing, completed, failed
         self.total = total_jobs
@@ -240,7 +288,7 @@ class BatchJobStatus:
             }
         }
 
-async def process_single_job(resume_text: str, job_url: str, use_rag: bool, optional_sections: Dict[str, Any], cover_letter_options: Dict[str, Any], batch_id: str, job_index: int) -> Dict[str, Any]:
+async def process_single_job(resume_text: str, job_url: str, use_rag: bool, optional_sections: Dict[str, Any], cover_letter_options: Dict[str, Any], batch_id: str, job_index: int, tailoring_mode: TailoringMode = TailoringMode.LIGHT) -> Dict[str, Any]:
     """Process a single job and return the result"""
     try:
         # Update current job in status
@@ -264,14 +312,15 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
         # Extract job title
         job_title = job_scraper.extract_job_title(job_url) or f"Job_{job_index + 1}"
 
-        # Tailor resume using RAG or fallback
+        # Tailor resume using RAG or fallback with tailoring mode
         if use_rag:
             langchain_processor.load_job_vectorstore()
             rag_result = langchain_processor.tailor_resume_with_rag(
                 resume_text=resume_text,
                 job_description=job_description,
                 job_title=job_title,
-                optional_sections=optional_sections
+                optional_sections=optional_sections,
+                tailoring_mode=tailoring_mode
             )
             
             if rag_result:
@@ -280,12 +329,12 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
             else:
                 # Fallback to standard processing
                 tailored_resume = fallback_processor.tailor_resume(
-                    resume_text, job_description, job_title, optional_sections
+                    resume_text, job_description, job_title, optional_sections, tailoring_mode
                 )
                 similar_jobs_found = 0
         else:
             tailored_resume = fallback_processor.tailor_resume(
-                resume_text, job_description, job_title, optional_sections
+                resume_text, job_description, job_title, optional_sections, tailoring_mode
             )
             similar_jobs_found = 0
 
@@ -368,7 +417,7 @@ async def process_single_job(resume_text: str, job_url: str, use_rag: bool, opti
             "cover_letter": None
         }
 
-async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str], use_rag: bool, output_format: str, optional_sections: Dict[str, Any], cover_letter_options: Dict[str, Any]):
+async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str], use_rag: bool, output_format: str, optional_sections: Dict[str, Any], cover_letter_options: Dict[str, Any], tailoring_mode: TailoringMode = TailoringMode.LIGHT):
     """Background task to process all jobs in a batch"""
     try:
         batch_jobs[batch_id].state = "processing"
@@ -378,7 +427,7 @@ async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str
         
         # Process jobs sequentially (could be made parallel for better performance)
         for i, job_url in enumerate(job_urls):
-            result = await process_single_job(resume_text, job_url, use_rag, optional_sections, cover_letter_options, batch_id, i)
+            result = await process_single_job(resume_text, job_url, use_rag, optional_sections, cover_letter_options, batch_id, i, tailoring_mode)
             results.append(result)
             
             # Update progress
@@ -406,7 +455,12 @@ async def process_batch_jobs(batch_id: str, resume_text: str, job_urls: List[str
             batch_jobs[batch_id].updated_at = datetime.now()
 
 @router.post("/process")
-async def start_batch_processing(request: BatchProcessRequest, background_tasks: BackgroundTasks):
+async def start_batch_processing(
+    request: BatchProcessRequest, 
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Start batch processing of multiple job URLs"""
     try:
         # Validate input
@@ -416,23 +470,35 @@ async def start_batch_processing(request: BatchProcessRequest, background_tasks:
         if len(request.job_urls) == 0:
             raise HTTPException(status_code=400, detail="At least one job URL is required")
         
+        # Check if user is requesting cover letters and enforce Pro-only access
+        subscription_service = SubscriptionService(db)
+        if request.cover_letter_options and request.cover_letter_options.get("includeCoverLetter", False):
+            can_use_cover_letters = await subscription_service.check_usage_limits(str(current_user.id), UsageType.COVER_LETTER)
+            if not can_use_cover_letters.can_use:
+                raise HTTPException(status_code=403, detail="Cover letters require Pro subscription")
+        
         # Generate batch ID
         batch_id = str(uuid.uuid4())
         
-        # Initialize batch status
-        batch_status = BatchJobStatus(batch_id, len(request.job_urls), request.optional_sections, request.cover_letter_options)
+        # Initialize batch status with default values for None parameters
+        batch_status = BatchJobStatus(
+            batch_id, 
+            len(request.job_urls), 
+            request.optional_sections or {},
+            request.cover_letter_options or {}
+        )
         batch_jobs[batch_id] = batch_status
         
-        # Start background processing
+        # Start background processing with default values for None parameters
         background_tasks.add_task(
             process_batch_jobs,
             batch_id,
             request.resume_text,
             request.job_urls,
-            request.use_rag,
-            request.output_format,
-            request.optional_sections,
-            request.cover_letter_options
+            request.use_rag or False,
+            request.output_format or "pdf",
+            request.optional_sections or {},
+            request.cover_letter_options or {}
         )
         
         return JSONResponse({
@@ -455,8 +521,14 @@ async def start_batch_processing(request: BatchProcessRequest, background_tasks:
 async def generate_single_pdf(request: PDFGenerateRequest):
     """Generate a single PDF from resume text"""
     try:
-        # Generate PDF
-        pdf_buffer = generate_pdf_from_text(request.resume_text, request.job_title)
+        # Generate PDF (using standard formatting for single PDF endpoint)
+        pdf_buffer = generate_pdf_from_text(
+            request.resume_text, 
+            request.job_title,
+            formatting_options=None,
+            use_advanced_formatting=False,
+            is_pro_user=False
+        )
         
         # Return PDF as response
         from fastapi.responses import Response
@@ -472,9 +544,19 @@ async def generate_single_pdf(request: PDFGenerateRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
 @router.post("/generate-cover-letter-pdf")
-async def generate_cover_letter_pdf_endpoint(request: CoverLetterPDFRequest):
-    """Generate a single cover letter PDF"""
+async def generate_cover_letter_pdf_endpoint(
+    request: CoverLetterPDFRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Generate a single cover letter PDF - Pro users only"""
     try:
+        # Check Pro subscription for cover letter access
+        subscription_service = SubscriptionService(db)
+        can_use_cover_letters = await subscription_service.check_usage_limits(str(current_user.id), UsageType.COVER_LETTER)
+        if not can_use_cover_letters.can_use:
+            raise HTTPException(status_code=403, detail="Cover letters require Pro subscription")
+        
         # Generate cover letter PDF
         pdf_buffer = generate_cover_letter_pdf(request.cover_letter_text, request.job_title)
         
@@ -492,10 +574,21 @@ async def generate_cover_letter_pdf_endpoint(request: CoverLetterPDFRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate cover letter PDF: {str(e)}")
 
 @router.post("/generate-zip")
-async def generate_zip_file(request: ZIPGenerateRequest):
+async def generate_zip_file(
+    request: ZIPGenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Generate a ZIP file containing multiple resume PDFs with improved error handling"""
     zip_path = None
     try:
+        # Check if user is requesting cover letters and enforce Pro-only access
+        subscription_service = SubscriptionService(db)
+        if request.include_cover_letters:
+            can_use_cover_letters = await subscription_service.check_usage_limits(str(current_user.id), UsageType.COVER_LETTER)
+            if not can_use_cover_letters.can_use:
+                raise HTTPException(status_code=403, detail="Cover letters require Pro subscription")
+        
         # Validate input
         if not request.resumes:
             raise HTTPException(status_code=400, detail="No resumes provided")
@@ -530,10 +623,13 @@ async def generate_zip_file(request: ZIPGenerateRequest):
                         safe_title = f"Resume_{i+1}"
                     safe_title = safe_title.replace(' ', '_')[:50]  # Limit length
                     
-                    # Generate Resume PDF
+                    # Generate Resume PDF (using standard formatting for ZIP generation)
                     pdf_buffer = generate_pdf_from_text(
                         resume_data['resume_text'], 
-                        resume_data['job_title']
+                        resume_data['job_title'],
+                        formatting_options=None,
+                        use_advanced_formatting=False,
+                        is_pro_user=False
                     )
                     
                     resume_filename = f"{i+1:02d}_{safe_title}_Resume.pdf"

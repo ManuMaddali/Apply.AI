@@ -1,7 +1,10 @@
 import os
 import re
-from typing import Optional, List, Dict, Any, Set
+from typing import Optional, List, Dict, Any, Set, TYPE_CHECKING
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    from models.user import TailoringMode
 
 # Try to import LangChain components, fallback if not available (Python 3.13 compatibility)
 LANGCHAIN_AVAILABLE = True
@@ -14,6 +17,7 @@ try:
     from langchain.text_splitter import RecursiveCharacterTextSplitter
     from langchain.chains import RetrievalQA
     from langchain.prompts import PromptTemplate
+    from langchain_core.output_parsers import StrOutputParser
 except ImportError as e:
     print(f"⚠️ LangChain not available: {e}")
     print("   Running in fallback mode - some features will be limited")
@@ -318,7 +322,7 @@ DELIVER: A completely transformed, detailed resume that looks custom-written for
 """
         return prompt
     
-    def tailor_resume_with_rag(self, resume_text: str, job_description: str, job_title: str = "Product Manager", optional_sections: dict = None) -> Optional[Dict[str, Any]]:
+    def tailor_resume_with_rag(self, resume_text: str, job_description: str, job_title: str = "Product Manager", optional_sections: dict = None, tailoring_mode: Optional['TailoringMode'] = None) -> Optional[Dict[str, Any]]:
         """Tailor resume using RAG with similar job descriptions"""
         try:
             if not self.job_vectorstore:
@@ -456,9 +460,174 @@ The original resume already contains these sections: {', '.join(existing_section
 
 """
             
+            # Handle tailoring mode instructions with enhanced differentiation
+            tailoring_instructions = ""
+            if tailoring_mode:
+                # Import here to avoid circular imports
+                from models.user import TailoringMode
+                
+                if tailoring_mode == TailoringMode.LIGHT:
+                    tailoring_instructions = """
+🎯 LIGHT TAILORING MODE - TARGETED KEYWORD OPTIMIZATION WITH RAG INSIGHTS:
+Focus on strategic, minimal changes that maximize ATS compatibility while preserving authenticity:
+
+KEYWORD INTEGRATION STRATEGY:
+- Identify 8-12 key terms from job description and similar jobs, integrate them naturally
+- Replace generic terms with job-specific terminology (e.g., "managed" → "orchestrated stakeholder relationships")
+- Adjust existing bullet points to include 2-3 relevant keywords per bullet without changing core meaning
+- Reorder skills section to prioritize job-relevant competencies first
+- Use RAG insights to identify commonly valued skills across similar roles
+- Maintain original sentence structure while enhancing with targeted keywords
+- Focus on natural terminology alignment rather than dramatic rewrites
+
+CONTENT PRESERVATION APPROACH:
+- Maintain original resume structure and flow completely
+- Keep existing accomplishments but enhance with job-relevant context from similar roles
+- Preserve candidate's authentic voice and writing style
+- Make subtle adjustments to professional summary (add 2-3 targeted keywords naturally)
+- Focus on surface-level optimizations that improve keyword density
+- Leverage similar job patterns to make natural enhancements
+- Preserve all original metrics and achievements exactly as stated
+- Maintain original bullet point count and structure
+
+LIGHT TAILORING CONSTRAINTS:
+- NO major restructuring of sections or content hierarchy
+- NO dramatic rewriting of experience descriptions
+- Minimal changes to bullet point structure (enhance existing, don't rewrite)
+- Preserve original metrics and achievements exactly as stated
+- Keep changes feeling natural and authentic to the candidate's experience
+- Use RAG context to validate keyword choices against industry standards
+- Maximum 25% content change from original resume
+- Focus on keyword optimization and terminology alignment
+- Maintain original professional summary length and tone
+
+LIGHT MODE BULLET POINT APPROACH:
+- Keep original bullet structure and flow intact
+- Add 1-2 job-relevant keywords per bullet naturally
+- Enhance existing action verbs with more specific alternatives from job description
+- Maintain original accomplishments and metrics exactly
+- Focus on terminology alignment rather than content restructuring
+- Use similar job insights to validate keyword choices
+- Preserve original bullet point count per role
+- Make changes that feel like natural improvements, not rewrites
+
+LIGHT MODE PROFESSIONAL SUMMARY:
+- Keep original summary structure and length if it exists
+- Add 2-3 job-relevant keywords naturally using RAG insights
+- Maintain candidate's authentic voice and tone
+- Focus on terminology enhancement rather than content restructuring
+- Preserve original achievements and experience mentions
+- If no summary exists, create a brief 50-75 word summary with light keyword integration
+
+"""
+                elif tailoring_mode == TailoringMode.HEAVY:
+                    tailoring_instructions = """
+🔥 HEAVY TAILORING MODE - COMPREHENSIVE TRANSFORMATION WITH RAG ENHANCEMENT:
+Perform aggressive, strategic restructuring for maximum job alignment using similar job insights:
+
+COMPREHENSIVE REWRITING STRATEGY:
+- Completely transform every bullet point to mirror job description priorities and language patterns from similar roles
+- Restructure entire resume to emphasize most job-relevant experiences first, informed by RAG insights
+- Reframe ALL accomplishments using exact terminology and success metrics from job posting and similar positions
+- Create compelling professional summary that positions candidate as perfect fit (100-150 words) using industry-standard language
+- Reorganize skills section with job-critical competencies prominently featured, validated by similar job requirements
+- Reorder work experience sections to highlight most relevant roles first
+- Transform job titles to align with target role terminology when appropriate
+
+ADVANCED OPTIMIZATION TECHNIQUES WITH RAG:
+- Transform passive descriptions into dynamic, results-oriented power statements using proven industry language
+- Integrate 15-25+ job-specific keywords throughout all sections naturally, validated against similar successful roles
+- Reorder work experience to highlight most relevant roles prominently based on similar job priorities
+- Enhance quantified achievements to align with job requirements (amplify existing metrics contextually using industry benchmarks)
+- Create compelling narrative thread that demonstrates perfect role alignment using proven success patterns
+- Restructure bullet points to emphasize job-relevant accomplishments first
+- Use industry-specific terminology and success metrics from job description and similar roles
+
+HEAVY TAILORING ENHANCEMENTS:
+- Restructure content hierarchy to put most relevant information first based on similar job analysis
+- Transform generic accomplishments into role-specific wins with targeted metrics from industry standards
+- Enhance professional summary with strategic storytelling that connects background to target role using proven narratives
+- Optimize every section for both ATS scanning and human reader engagement using RAG-informed best practices
+- Ensure every line demonstrates direct relevance to the specific job requirements and industry expectations
+- Create maximum differentiation from original while maintaining factual accuracy and industry credibility
+- Leverage similar job insights to anticipate hiring manager expectations and preferences
+- Allow up to 70% content transformation from original resume
+- Reframe experiences to show direct applicability to target role
+
+HEAVY MODE BULLET POINT APPROACH:
+- Completely rewrite bullets to emphasize job-relevant aspects and impact
+- Lead with accomplishments that directly match job requirements and success criteria
+- Transform generic tasks into strategic initiatives with measurable business impact
+- Use exact terminology and success metrics from job description and similar roles throughout
+- Restructure experience to tell a compelling story of perfect role fit
+- Amplify existing metrics to show greater impact and scale using industry context
+- Create bullets that read as if candidate has been doing target role already
+
+HEAVY MODE CONTENT RESTRUCTURING:
+- Reorder sections to prioritize most job-relevant information prominently
+- Move most applicable work experience to top positions for maximum impact
+- Restructure bullets within roles to lead with most relevant accomplishments
+- Transform job titles and descriptions to align with target role language
+- Create seamless narrative flow that positions candidate as ideal fit
+- Reorganize skills to match job requirements priority order
+- Restructure professional summary to lead with most relevant experience
+
+HEAVY MODE PROFESSIONAL SUMMARY:
+- Completely rewrite to position candidate as perfect fit for target role
+- Lead with most relevant experience and accomplishments
+- Use job-specific terminology and industry language throughout
+- Create compelling narrative that connects all experience to target role
+- Include specific achievements that align with job success metrics
+- Write as if candidate has been preparing for this exact role
+
+"""
+            else:
+                # Default to Light mode behavior for backward compatibility
+                tailoring_instructions = """
+🎯 STANDARD TAILORING MODE - BALANCED APPROACH:
+Apply moderate tailoring that balances optimization with authenticity:
+- Incorporate relevant keywords and phrases from job description
+- Adjust bullet points to highlight applicable experience and skills
+- Enhance professional summary to align with role requirements
+- Optimize existing content without dramatic restructuring
+- Maintain candidate's authentic voice while improving job relevance
+
+"""
+                tailoring_instructions = """
+🎯 STANDARD TAILORING MODE - BALANCED APPROACH:
+Apply moderate tailoring that balances optimization with authenticity:
+- Incorporate relevant keywords and phrases from job description
+- Adjust bullet points to highlight applicable experience and skills
+- Enhance professional summary to align with role requirements
+- Optimize existing content without dramatic restructuring
+- Maintain candidate's authentic voice while improving job relevance
+
+"""
+                tailoring_instructions = """
+🎯 STANDARD TAILORING MODE - BALANCED APPROACH:
+Apply moderate tailoring that balances optimization with authenticity:
+- Incorporate relevant keywords and phrases from job description
+- Adjust bullet points to highlight applicable experience and skills
+- Enhance professional summary to align with role requirements
+- Optimize existing content without dramatic restructuring
+- Maintain candidate's authentic voice while improving job relevance
+
+"""
+                tailoring_instructions = """
+🎯 STANDARD TAILORING MODE - BALANCED APPROACH:
+Apply moderate tailoring that balances optimization with authenticity:
+- Incorporate relevant keywords and phrases from job description and similar roles
+- Adjust bullet points to highlight applicable experience and skills
+- Enhance professional summary to align with role requirements
+- Optimize existing content without dramatic restructuring
+- Maintain candidate's authentic voice while improving job relevance
+- Use RAG insights to validate optimization choices
+
+"""
+            
             # Create enhanced prompt using similar jobs
             rag_prompt = PromptTemplate(
-                input_variables=["resume_text", "job_description", "job_title", "similar_jobs", "optional_instructions", "detected_sections_info"],
+                input_variables=["resume_text", "job_description", "job_title", "similar_jobs", "optional_instructions", "detected_sections_info", "tailoring_instructions"],
                 template="""You are an elite resume transformation specialist with 20+ years in design and software engineering. You dramatically rework resumes to perfectly match job descriptions, using exact language, metrics, and focus areas from the JD while preserving core truths from the original.
 
 YOUR MISSION: Aggressively rewrite every bullet point to align with the employer's needs. Reframe experiences as if the candidate has been doing this specific role already. Preserve facts—do not invent new experiences, metrics, or details.
@@ -502,6 +671,8 @@ PROCESS STEPS FOR ACCURACY:
 4. Optimize for ATS: Integrate keywords seamlessly; keep structure simple.
 
 {detected_sections_info}
+
+{tailoring_instructions}
 
 🎯 TRANSFORM THIS RESUME TO PERFECTLY MATCH THE JOB
 
@@ -625,7 +796,8 @@ Return ONLY the transformed resume in plain text, starting with name. Create a d
                 "job_title": job_title,
                 "similar_jobs": similar_jobs_context,
                 "optional_instructions": optional_instructions,
-                "detected_sections_info": detected_sections_info
+                "detected_sections_info": detected_sections_info,
+                "tailoring_instructions": tailoring_instructions
             })
             
             # Log the AI response for debugging

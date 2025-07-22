@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Check, ChevronRight, Menu, X, FileText, Target, Zap, Award, BarChart, Users, User, LogOut } from "lucide-react"
 import { useState } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import Layout from "../components/Layout"
 
 export default function LandingPage() {
   const { isAuthenticated, user, logout } = useAuth()
@@ -16,7 +17,8 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <Layout>
+      <div className="flex min-h-[100dvh] flex-col">
       <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b bg-white/80 backdrop-blur-sm">
         <Link className="flex items-center gap-2 font-semibold" href="#">
           <FileText className="h-6 w-6 text-blue-600" />
@@ -458,7 +460,8 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-    </div>
+      </div>
+    </Layout>
   )
 }
 

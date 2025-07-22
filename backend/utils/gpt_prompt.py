@@ -1,8 +1,11 @@
 import os
 import openai
 import re
-from typing import Optional, Dict, Any, Set
+from typing import Optional, Dict, Any, Set, TYPE_CHECKING
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    from models.user import TailoringMode
 
 load_dotenv()
 
@@ -99,19 +102,43 @@ class GPTProcessor:
         
         return existing_sections
 
-    def tailor_resume(self, resume_text: str, job_description: str, job_title: str = "Product Manager", optional_sections: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def tailor_resume(self, resume_text: str, job_description: str, job_title: str = "Product Manager", optional_sections: Optional[Dict[str, Any]] = None, tailoring_mode: Optional['TailoringMode'] = None) -> Optional[str]:
         """Tailor resume using direct OpenAI API call"""
         try:
             if optional_sections is None:
                 optional_sections = {}
-            prompt = self._create_tailoring_prompt(resume_text, job_description, job_title, optional_sections)
+            prompt = self._create_tailoring_prompt(resume_text, job_description, job_title, optional_sections, tailoring_mode)
             
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are an elite resume transformation specialist with 20+ years in design and software engineering. You dramatically rework resumes to perfectly match job descriptions, using exact language, metrics, and focus areas from the JD while preserving core truths from the original.
+            # Choose system prompt based on tailoring mode
+            if tailoring_mode and tailoring_mode.value == 'light':
+                system_content = """You are a professional resume optimizer focused on basic ATS compatibility. Your goal is to make minimal, conservative improvements to help resumes pass applicant tracking systems while preserving the original content and style.
+
+YOUR MISSION: Make subtle keyword optimizations and minor formatting improvements. Preserve the candidate's authentic voice and original accomplishments exactly as stated.
+
+LIGHT MODE CONSTRAINTS:
+• Keep original resume structure and length exactly as is
+• Make minimal keyword additions (5-8 keywords maximum)
+• Preserve all original metrics, achievements, and accomplishments unchanged
+• Maintain original bullet point count and approximate length
+• Focus on basic ATS optimization rather than comprehensive rewrites
+• Keep changes conservative and barely noticeable
+• Preserve candidate's original writing style and tone
+
+FORMATTING REQUIREMENTS:
+• Maintain original formatting style as much as possible
+• Keep original section headers and structure
+• Preserve original bullet point style and length
+• Make minimal formatting improvements only
+• Focus on keyword integration rather than style changes
+
+PROCESS STEPS:
+1. Identify 5-8 key terms from job description
+2. Add keywords naturally to existing content without major changes
+3. Make minimal terminology improvements
+4. Preserve all original accomplishments and metrics exactly
+5. Keep changes subtle and conservative"""
+            else:
+                system_content = """You are an elite resume transformation specialist with 20+ years in design and software engineering. You dramatically rework resumes to perfectly match job descriptions, using exact language, metrics, and focus areas from the JD while preserving core truths from the original.
 
 YOUR MISSION: Aggressively rewrite every bullet point to align with the employer's needs. Reframe experiences as if the candidate has been doing this specific role already. Preserve facts—do not invent new experiences, metrics, or details.
 
@@ -155,6 +182,13 @@ PROCESS STEPS FOR ACCURACY:
 5. Include comprehensive details in each bullet point with multiple specific metrics and achievements.
 6. Ensure Professional Summary is 100-150 words, written naturally in first person.
 7. Ensure EVERY bullet point is 35-50 words (2 full lines) with multiple specific metrics."""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_content
                     },
                     {
                         "role": "user", 
@@ -223,9 +257,9 @@ FORMATTING RULES:
             print(f"Error generating cover letter: {str(e)}")
             return None
     
-    def _create_tailoring_prompt(self, resume_text: str, job_description: str, job_title: str = "", optional_sections: Optional[Dict[str, Any]] = None) -> str:
+    def _create_tailoring_prompt(self, resume_text: str, job_description: str, job_title: str = "", optional_sections: Optional[Dict[str, Any]] = None, tailoring_mode: Optional['TailoringMode'] = None) -> str:
         """
-        Create a prompt for AGGRESSIVE resume transformation with intelligent section handling
+        Create a prompt for AGGRESSIVE resume transformation with intelligent section handling and tailoring mode differentiation
         """
         
         # Handle optional sections
@@ -339,10 +373,139 @@ The original resume already contains these sections: {', '.join(existing_section
 
 """
         
+        # Handle tailoring mode instructions with enhanced differentiation
+        tailoring_instructions = ""
+        if tailoring_mode:
+            # Import here to avoid circular imports
+            from models.user import TailoringMode
+            
+            if tailoring_mode == TailoringMode.LIGHT:
+                tailoring_instructions = """
+🎯 LIGHT TAILORING MODE - BASIC KEYWORD OPTIMIZATION (FREE TIER):
+Focus on minimal, essential changes for basic ATS compatibility while keeping the resume simple:
+
+BASIC KEYWORD INTEGRATION:
+- Identify 5-8 key terms from job description and add them naturally
+- Replace 2-3 generic terms with job-specific terminology
+- Add 1-2 relevant keywords per bullet point without major rewrites
+- Keep skills section mostly unchanged, just reorder top 3-5 skills
+- Make minimal terminology adjustments only
+- Focus on simple keyword additions rather than comprehensive rewrites
+
+MINIMAL CONTENT CHANGES:
+- Keep original resume structure exactly as is
+- Preserve all existing accomplishments and metrics unchanged
+- Maintain candidate's original writing style completely
+- Make only surface-level keyword additions
+- NO rewriting of bullet points - only minor keyword enhancements
+- Keep original bullet point count and length
+- Preserve original professional summary if it exists
+
+LIGHT TAILORING CONSTRAINTS (FREE TIER):
+- Maximum 15% content change from original resume
+- NO restructuring of any sections
+- NO rewriting of experience descriptions
+- NO dramatic improvements to bullet points
+- Keep all original metrics and achievements exactly as stated
+- Focus only on basic keyword optimization
+- Maintain original resume length and format
+- Make changes that are barely noticeable but ATS-friendly
+
+LIGHT MODE APPROACH:
+- Add keywords naturally without changing sentence structure
+- Keep original action verbs unless easy synonym available
+- Maintain all original accomplishments exactly
+- Focus on terminology alignment only
+- Preserve original bullet point structure completely
+- Make minimal, conservative changes only
+
+LIGHT MODE PROFESSIONAL SUMMARY:
+- If summary exists, add only 1-2 keywords naturally
+- If no summary exists, create basic 40-60 word summary
+- Keep it simple and straightforward
+- Focus on basic role alignment without dramatic positioning
+- Maintain conservative, authentic tone
+
+"""
+            elif tailoring_mode == TailoringMode.HEAVY:
+                tailoring_instructions = """
+🔥 HEAVY TAILORING MODE - COMPREHENSIVE TRANSFORMATION:
+Perform aggressive, strategic restructuring for maximum job alignment and impact:
+
+COMPREHENSIVE REWRITING STRATEGY:
+- Completely transform every bullet point to mirror job description priorities and language
+- Restructure entire resume to emphasize most job-relevant experiences first
+- Reframe ALL accomplishments using exact terminology and success metrics from job posting
+- Create compelling professional summary that positions candidate as perfect fit (100-150 words)
+- Reorganize skills section with job-critical competencies prominently featured
+- Reorder work experience sections to highlight most relevant roles first
+- Transform job titles to align with target role terminology when appropriate
+
+ADVANCED OPTIMIZATION TECHNIQUES:
+- Transform passive descriptions into dynamic, results-oriented power statements
+- Integrate 15-25+ job-specific keywords throughout all sections naturally
+- Reorder work experience to highlight most relevant roles prominently
+- Enhance quantified achievements to align with job requirements (amplify existing metrics contextually)
+- Create compelling narrative thread that demonstrates perfect role alignment
+- Restructure bullet points to emphasize job-relevant accomplishments first
+- Use industry-specific terminology and success metrics from job description
+
+HEAVY TAILORING ENHANCEMENTS:
+- Restructure content hierarchy to put most relevant information first
+- Transform generic accomplishments into role-specific wins with targeted metrics
+- Enhance professional summary with strategic storytelling that connects background to target role
+- Optimize every section for both ATS scanning and human reader engagement
+- Ensure every line demonstrates direct relevance to the specific job requirements
+- Create maximum differentiation from original while maintaining factual accuracy
+- Allow up to 70% content transformation from original resume
+- Reframe experiences to show direct applicability to target role
+
+HEAVY MODE BULLET POINT APPROACH:
+- Completely rewrite bullets to emphasize job-relevant aspects and impact
+- Lead with accomplishments that directly match job requirements and success criteria
+- Transform generic tasks into strategic initiatives with measurable business impact
+- Use exact terminology and success metrics from job description throughout
+- Restructure experience to tell a compelling story of perfect role fit
+- Amplify existing metrics to show greater impact and scale using industry context
+- Create bullets that read as if candidate has been doing target role already
+
+HEAVY MODE CONTENT RESTRUCTURING:
+- Reorder sections to prioritize most job-relevant information prominently
+- Move most applicable work experience to top positions for maximum impact
+- Restructure bullets within roles to lead with most relevant accomplishments
+- Transform job titles and descriptions to align with target role language
+- Create seamless narrative flow that positions candidate as ideal fit
+- Reorganize skills to match job requirements priority order
+- Restructure professional summary to lead with most relevant experience
+
+HEAVY MODE PROFESSIONAL SUMMARY:
+- Completely rewrite to position candidate as perfect fit for target role
+- Lead with most relevant experience and accomplishments
+- Use job-specific terminology and industry language throughout
+- Create compelling narrative that connects all experience to target role
+- Include specific achievements that align with job success metrics
+- Write as if candidate has been preparing for this exact role
+
+"""
+        else:
+            # Default to Light mode behavior for backward compatibility
+            tailoring_instructions = """
+🎯 STANDARD TAILORING MODE - BALANCED APPROACH:
+Apply moderate tailoring that balances optimization with authenticity:
+- Incorporate relevant keywords and phrases from job description
+- Adjust bullet points to highlight applicable experience and skills
+- Enhance professional summary to align with role requirements
+- Optimize existing content without dramatic restructuring
+- Maintain candidate's authentic voice while improving job relevance
+
+"""
+        
         return f"""
 🎯 TRANSFORM THIS RESUME TO PERFECTLY MATCH THE JOB
 
 YOUR GOAL: Rewrite EVERY bullet and section to directly address JD requirements. Transform dramatically—use JD's exact phrases, emphasize relevant skills/metrics, and showcase problem-solving/impact.
+
+{tailoring_instructions}
 
 {detected_sections_info}
 

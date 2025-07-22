@@ -11,7 +11,14 @@ from config.database import get_db
 from models.user import User, UserSession
 
 # Security configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-super-secure-secret-key-change-this-in-production")
+from config.security import get_security_settings
+
+def get_secret_key():
+    """Get the JWT secret key from settings"""
+    settings = get_security_settings()
+    return settings.jwt_secret_key
+
+SECRET_KEY = get_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -45,10 +52,7 @@ class AuthManager:
             user_id: str = payload.get("sub")
             session_id: str = payload.get("session_id")
             
-            print(f"🔍 Token validation - User ID: {user_id}, Session ID: {session_id}")
-            
             if user_id is None:
-                print("❌ Token validation failed: No user ID in token")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Could not validate credentials",
@@ -60,7 +64,6 @@ class AuthManager:
                 import uuid
                 user_uuid = uuid.UUID(user_id)
             except ValueError:
-                print(f"❌ Invalid UUID format: {user_id}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token format",
@@ -70,14 +73,11 @@ class AuthManager:
             # Verify user exists and is active
             user = db.query(User).filter(User.id == user_uuid).first()
             if not user or not user.is_active:
-                print(f"❌ User validation failed - User found: {user is not None}, Active: {user.is_active if user else 'N/A'}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid or inactive user",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            
-            print(f"✅ User validation passed - Email: {user.email}")
             
             # Verify session if session_id is provided
             if session_id:
@@ -85,7 +85,6 @@ class AuthManager:
                 try:
                     session_uuid = uuid.UUID(session_id)
                 except ValueError:
-                    print(f"❌ Invalid session UUID format: {session_id}")
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Invalid session format",
@@ -98,13 +97,7 @@ class AuthManager:
                     UserSession.is_active == True
                 ).first()
                 
-                print(f"🔍 Session lookup - Found: {session is not None}")
-                if session:
-                    print(f"🔍 Session details - Active: {session.is_active}, Expires: {session.expires_at}, Now: {datetime.utcnow()}")
-                    print(f"🔍 Session expired check: {session.is_expired()}")
-                
                 if not session:
-                    print("❌ Session validation failed: Session not found")
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Session not found",
@@ -112,14 +105,11 @@ class AuthManager:
                     )
                 
                 if session.is_expired():
-                    print("❌ Session validation failed: Session expired")
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Session expired",
                         headers={"WWW-Authenticate": "Bearer"},
                     )
-                
-                print("✅ Session validation passed")
                 
                 # Update last activity
                 session.last_activity = datetime.utcnow()
@@ -128,8 +118,6 @@ class AuthManager:
             return user
             
         except JWTError as e:
-            print(f"❌ JWT Error: {str(e)}")
-            print(f"❌ Token received: {credentials.credentials[:50]}...")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
@@ -169,6 +157,29 @@ def check_usage_limits(user: User, action: str = "resume_generation"):
                 detail=f"Monthly resume generation limit reached ({limits['resumes_per_month']}). Please upgrade to Pro plan."
             )
     return True
+
+def require_admin_access(user: User):
+    """Require admin access for admin-only endpoints"""
+    # Check if user is admin (you can implement this based on your admin logic)
+    # For now, we'll check if the user email is in admin list or has admin role
+    admin_emails = os.getenv("ADMIN_EMAILS", "").split(",")
+    admin_emails = [email.strip() for email in admin_emails if email.strip()]
+    
+    # Check if user email is in admin list
+    if user.email not in admin_emails:
+        # Alternative: check for admin role if you have role-based system
+        # if not hasattr(user, 'is_admin') or not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    return user
+
+async def require_admin(token: str = Depends(security)) -> User:
+    """Dependency to require admin access"""
+    user = await get_current_user(token)
+    return require_admin_access(user)
 
 # Backward compatibility for existing code
 def authenticate_user(email: str, password: str, db: Session):

@@ -1,0 +1,139 @@
+/* Theme-specific styles */
+
+/* Light theme (default) */
+.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --accent-color: #3b82f6;
+  --accent-hover: #2563eb;
+}
+
+/* Dark theme */
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-color: #475569;
+  --accent-color: #3b82f6;
+  --accent-hover: #60a5fa;
+}
+
+/* Tokyo Night theme */
+.tokyo {
+  --bg-primary: #1a1b26;
+  --bg-secondary: #24283b;
+  --bg-tertiary: #414868;
+  --text-primary: #c0caf5;
+  --text-secondary: #9aa5ce;
+  --text-muted: #565f89;
+  --border-color: #414868;
+  --accent-color: #7aa2f7;
+  --accent-hover: #bb9af7;
+}
+
+/* Global theme utilities */
+.theme-bg-primary {
+  background-color: var(--bg-primary);
+}
+
+.theme-bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.theme-bg-tertiary {
+  background-color: var(--bg-tertiary);
+}
+
+.theme-text-primary {
+  color: var(--text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+
+.theme-text-muted {
+  color: var(--text-muted);
+}
+
+.theme-border {
+  border-color: var(--border-color);
+}
+
+.theme-accent {
+  color: var(--accent-color);
+}
+
+.theme-accent-bg {
+  background-color: var(--accent-color);
+}
+
+.theme-accent-hover:hover {
+  background-color: var(--accent-hover);
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Tokyo theme specific gradients and effects */
+.tokyo .tokyo-gradient {
+  background: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
+}
+
+.tokyo .tokyo-glow {
+  box-shadow: 0 0 20px rgba(187, 154, 247, 0.3);
+}
+
+.tokyo .tokyo-border {
+  border: 1px solid rgba(187, 154, 247, 0.3);
+}
+
+/* Theme-aware scrollbar */
+.light ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.tokyo ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tokyo ::-webkit-scrollbar-track {
+  background: #24283b;
+}
+
+.tokyo ::-webkit-scrollbar-thumb {
+  background: #414868;
+  border-radius: 4px;
+}

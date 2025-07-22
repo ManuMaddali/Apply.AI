@@ -86,6 +86,14 @@ class RateLimits:
     
     # Job scraping limits
     JOB_SCRAPING = "20/minute"
+    
+    # Subscription management limits
+    SUBSCRIPTION_STATUS = "30/minute"
+    SUBSCRIPTION_UPGRADE = "3/minute"
+    SUBSCRIPTION_CANCEL = "2/minute"
+    SUBSCRIPTION_USAGE = "20/minute"
+    SUBSCRIPTION_INFO = "10/minute"
+    USER_PREFERENCES = "10/minute"
 
 # Security monitoring for rate limiting
 class RateLimitMonitor:

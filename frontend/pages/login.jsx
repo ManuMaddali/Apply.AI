@@ -119,6 +119,7 @@ export default function LoginPage() {
         // Redirect after successful login
         setTimeout(() => {
           const returnUrl = router.query.returnUrl || '/app';
+          console.log('return url :',router.query.returnUrl);
           console.log('Redirecting to:', returnUrl);
           router.push(returnUrl);
         }, 1500);

@@ -63,5 +63,12 @@ cryptography==41.0.7
 
 # Authentication & Database (added for user auth)
 email-validator==2.1.0
-SQLAlchemy==2.0.25
-alembic==1.13.1
+SQLAlchemy==2.0.36
+alembic==1.14.0
+
+# Payment Processing
+stripe==8.0.0
+
+# Testing
+pytest==8.4.1
+pytest-asyncio==1.1.0

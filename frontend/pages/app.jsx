@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { FileText, Menu, X, User, LogOut, Settings, Star, CreditCard } from "lucide-react"
+import { FileText, Menu, X, User, LogOut, Settings, Star } from "lucide-react"
 import FileUpload from '../components/FileUpload'
 import JobUrlsInput from '../components/JobUrlsInput'
 import OutputSettings from '../components/OutputSettings'
@@ -10,8 +10,16 @@ import CoverLetter from '../components/CoverLetter'
 import ResultCard from '../components/ResultCard'
 import ResumeModal from '../components/ResumeModal'
 import ProtectedRoute from '../components/ProtectedRoute'
+import SubscriptionStatus from '../components/SubscriptionStatus'
+import SubscriptionBadge from '../components/SubscriptionBadge'
+import UpgradePrompt from '../components/UpgradePrompt'
+import MobileSubscriptionStatus from '../components/MobileSubscriptionStatus'
+import TailoringModeSelector from '../components/TailoringModeSelector'
+import UsageLimitGuard, { UsageWarningBanner } from '../components/UsageLimitGuard'
 import { API_BASE_URL } from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
+import { useSubscription } from '../hooks/useSubscription'
+import Layout from '../components/Layout'
 
 function MobileNav() {
   const [isOpen, setIsOpen] = useState(false)
@@ -98,6 +106,22 @@ function MobileNav() {
 function Home() {
   const [file, setFile] = useState(null)
   const { user, authenticatedRequest, logout, isAuthenticated } = useAuth()
+  const { 
+    isProUser, 
+    hasExceededLimit, 
+    canUseFeature, 
+    trackUsage,
+    weeklyUsage,
+    weeklyLimit,
+    loading: subscriptionLoading,
+    error: subscriptionError
+  } = useSubscription()
+  
+  // Fallback values when subscription data is loading or failed
+  const safeWeeklyUsage = weeklyUsage || user?.weekly_usage_count || 0
+  const safeWeeklyLimit = weeklyLimit || 5
+  const safeIsProUser = isProUser || user?.subscription_tier === 'pro'
+  const safeHasExceededLimit = hasExceededLimit || (!safeIsProUser && safeWeeklyUsage >= safeWeeklyLimit)
   
   const handleLogout = async () => {
     await logout()
@@ -137,6 +161,7 @@ function Home() {
       additionalInfo: ''
     }
   })
+  const [tailoringMode, setTailoringMode] = useState('light')
 
   // Clean up polling on component unmount
   useEffect(() => {
@@ -146,6 +171,17 @@ function Home() {
       }
     }
   }, [pollingInterval])
+
+  // Listen for subscription changes and update UI immediately
+  useEffect(() => {
+    const handleSubscriptionChange = () => {
+      // Force refresh of subscription data
+      window.location.reload()
+    }
+
+    window.addEventListener('subscriptionChanged', handleSubscriptionChange)
+    return () => window.removeEventListener('subscriptionChanged', handleSubscriptionChange)
+  }, [])
 
   const handleFileUpload = useCallback((event) => {
     const selectedFile = event.target.files[0]
@@ -174,6 +210,16 @@ function Home() {
     if (lines.length === 0) {
       return { valid: false, message: 'Please enter at least one job URL' }
     }
+    
+    // Enforce single job limit for Free users
+    if (!isProUser && lines.length > 1) {
+      return { 
+        valid: true, 
+        urls: [lines[0].trim()], // Only process first URL for Free users
+        warning: `Free plan limitation: Only processing the first job URL. Upgrade to Pro for bulk processing of all ${lines.length} jobs.`
+      }
+    }
+    
     if (lines.length > 10) {
       return { valid: false, message: 'Maximum 10 job URLs allowed' }
     }
@@ -195,8 +241,22 @@ function Home() {
   }
 
   const startBatchProcessing = async () => {
+    console.log('🔍 [startBatchProcessing] Button clicked!');
+    console.log('🔍 [startBatchProcessing] canSubmit:', canSubmit);
+    console.log('🔍 [startBatchProcessing] file:', file);
+    console.log('🔍 [startBatchProcessing] resumeText length:', resumeText.length);
+    console.log('🔍 [startBatchProcessing] jobUrls length:', jobUrls.length);
+    console.log('🔍 [startBatchProcessing] canUseFeature:', canUseFeature('resume_processing'));
+    
     if (!file && !resumeText.trim()) {
+      console.log('❌ [startBatchProcessing] No resume provided');
       setError('Please upload a resume file or enter resume text')
+      return
+    }
+
+    // Check usage limits before processing
+    if (!canUseFeature('resume_processing')) {
+      setError('Weekly usage limit reached. Please upgrade to Pro for unlimited access.')
       return
     }
 
@@ -204,6 +264,12 @@ function Home() {
     if (!validation.valid) {
       setError(validation.message)
       return
+    }
+
+    // Show warning for Free users with multiple URLs
+    if (validation.warning) {
+      setSuccess(validation.warning)
+      setTimeout(() => setSuccess(''), 8000) // Show warning longer
     }
 
     setLoading(true)
@@ -247,6 +313,11 @@ function Home() {
       setOriginalResumeText(processedResumeText)
 
       // Start batch processing with RAG and diff analysis enabled by default
+      console.log('🔍 [startBatchProcessing] Starting batch processing...');
+      console.log('🔍 [startBatchProcessing] Resume text length:', processedResumeText.length);
+      console.log('🔍 [startBatchProcessing] Job URLs:', validation.urls);
+      console.log('🔍 [startBatchProcessing] Tailoring mode:', tailoringMode);
+      
       const batchResponse = await authenticatedRequest(`${API_BASE_URL}/api/batch/process`, {
         method: 'POST',
         body: JSON.stringify({
@@ -255,12 +326,22 @@ function Home() {
           use_rag: true, // Always enabled
           compare_versions: true, // Always enabled
           output_format: outputFormat,
+          tailoring_mode: tailoringMode, // Include tailoring mode selection
           optional_sections: optionalSections, // Include the optional sections preferences
           cover_letter_options: coverLetterOptions // Include cover letter options
         })
       })
 
+      console.log('🔍 [startBatchProcessing] Batch response status:', batchResponse.status);
+      
+      if (!batchResponse.ok) {
+        const errorText = await batchResponse.text();
+        console.error('❌ [startBatchProcessing] Batch request failed:', batchResponse.status, errorText);
+        throw new Error(`Batch processing failed: ${batchResponse.status} - ${errorText}`);
+      }
+
       const batchData = await batchResponse.json()
+      console.log('🔍 [startBatchProcessing] Batch response data:', batchData);
 
       if (batchData.success) {
         setBatchJobId(batchData.batch_job_id)
@@ -273,7 +354,7 @@ function Home() {
         })
         
         // Initialize results with processing state
-        const initialResults = validation.urls.map((url, index) => ({
+        const initialResults = validation.urls.map((url) => ({
           job_url: url,
           status: 'processing',
           job_title: 'Processing...'
@@ -286,40 +367,128 @@ function Home() {
       }
 
     } catch (error) {
-      setError(error.message)
-      setProcessing(false)
+      console.error('❌ [startBatchProcessing] Error occurred:', error);
+      console.error('❌ [startBatchProcessing] Error message:', error.message);
+      console.error('❌ [startBatchProcessing] Error stack:', error.stack);
+      
+      // Handle timeout errors with retry logic
+      if (error.message === 'Request timed out') {
+        // Set a more informative message but don't stop processing yet
+        setError('Processing is taking longer than expected. We\'ll continue trying in the background.');
+        
+        // Create a background retry mechanism
+        setTimeout(async () => {
+          try {
+            console.log('🔄 [startBatchProcessing] Retrying batch status check after timeout...');
+            
+            // Instead of retrying the whole batch, check if a job was already created
+            const statusResponse = await authenticatedRequest(`${API_BASE_URL}/api/batch/list-jobs`);
+            const statusData = await statusResponse.json();
+            
+            if (statusResponse.ok && statusData.success && statusData.jobs && statusData.jobs.length > 0) {
+              // Find the most recent job
+              const latestJob = statusData.jobs[0];
+              console.log('✅ [startBatchProcessing] Found existing job:', latestJob.batch_job_id);
+              
+              // Resume monitoring this job
+              setBatchJobId(latestJob.batch_job_id);
+              setBatchStatus({
+                state: 'processing',
+                total: latestJob.total_jobs || 1,
+                completed: latestJob.completed_jobs || 0,
+                failed: latestJob.failed_jobs || 0,
+                current_job: 'Resuming batch processing...'
+              });
+              
+              startStatusPolling(latestJob.batch_job_id);
+              setError(null); // Clear the error since we recovered
+              return;
+            }
+            
+            // If no job was found or status check failed, show final error
+            setError('Processing timed out. The job may still be running in the background. Please check your results in a few minutes or try again with a shorter resume or fewer job URLs.');
+            setProcessing(false);
+          } catch (retryError) {
+            console.error('❌ [startBatchProcessing] Retry attempt failed:', retryError);
+            setError('Processing timed out and recovery failed. Please try again with a shorter resume or fewer job URLs.');
+            setProcessing(false);
+          }
+        }, 5000); // Wait 5 seconds before checking
+      } else {
+        // For non-timeout errors, show the error message and stop processing
+        setError(error.message || 'An error occurred while processing your request');
+        setProcessing(false);
+      }
     } finally {
       setLoading(false)
     }
   }
 
   const startStatusPolling = (jobId) => {
-    const interval = setInterval(async () => {
+    // Use a variable polling interval that starts fast and slows down over time
+    let pollCount = 0;
+    let currentInterval = 1000; // Start with 1 second
+    
+    // Clear any existing interval
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    
+    const doPoll = async () => {
       try {
-        const response = await authenticatedRequest(`${API_BASE_URL}/api/batch/status/${jobId}`)
-        const data = await response.json()
+        console.log(`🔍 [startStatusPolling] Polling job status (attempt ${pollCount + 1})...`);
+        const response = await authenticatedRequest(`${API_BASE_URL}/api/batch/status/${jobId}`);
+        const data = await response.json();
         
         if (data.success) {
-          setBatchStatus(data.status)
+          setBatchStatus(data.status);
+          console.log(`🔍 [startStatusPolling] Status update: ${data.status.state}, completed: ${data.status.completed}/${data.status.total}`);
           
           if (data.status.state === 'completed' || data.status.state === 'failed') {
-            clearInterval(interval)
-            setPollingInterval(null)
-            setProcessing(false)
+            clearTimeout(pollingInterval);
+            setPollingInterval(null);
+            setProcessing(false);
             
             if (data.status.state === 'completed') {
-              loadBatchResults(jobId)
+              loadBatchResults(jobId);
+              // Track usage after successful completion
+              trackUsage('resume_processing');
             } else {
-              setError('Batch processing failed. Please try again.')
+              setError('Batch processing failed. Please try again.');
             }
+            return;
           }
+          
+          // Adjust polling interval based on progress
+          pollCount++;
+          if (pollCount < 5) {
+            currentInterval = 1000; // First 5 polls: every 1 second
+          } else if (pollCount < 15) {
+            currentInterval = 2000; // Next 10 polls: every 2 seconds
+          } else if (pollCount < 30) {
+            currentInterval = 5000; // Next 15 polls: every 5 seconds
+          } else {
+            currentInterval = 10000; // After that: every 10 seconds
+          }
+          
+          // Schedule next poll
+          setPollingInterval(setTimeout(doPoll, currentInterval));
         }
       } catch (error) {
-        console.error('Error polling status:', error)
+        console.error('Error polling status:', error);
+        
+        // If we get an error, slow down polling but don't stop
+        pollCount++;
+        currentInterval = Math.min(currentInterval * 2, 10000); // Double interval up to 10 seconds max
+        setPollingInterval(setTimeout(doPoll, currentInterval));
       }
-    }, 1500)
+    };
     
-    setPollingInterval(interval)
+    // Start polling immediately
+    doPoll();
+    
+    // Store the timeout ID
+    setPollingInterval(setTimeout(doPoll, currentInterval));
   }
 
   const loadBatchResults = async (jobId) => {
@@ -420,7 +589,7 @@ function Home() {
     }
   }
 
-  const canSubmit = (file || resumeText.trim()) && jobUrls.trim() && !loading && !processing
+  const canSubmit = (file || resumeText.trim()) && jobUrls.trim() && !loading && !processing && (canUseFeature('resume_processing') || (!safeHasExceededLimit && safeWeeklyUsage < safeWeeklyLimit))
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
@@ -454,6 +623,12 @@ function Home() {
           {/* User profile and logout for desktop */}
           {isAuthenticated && (
             <>
+              <SubscriptionBadge 
+                onClick={() => window.open('/pricing', '_blank')}
+                compact={true}
+                showUsage={true}
+                className="mr-2"
+              />
               <div className="flex items-center gap-2 mr-2">
                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                   <User className="h-4 w-4 text-white" />
@@ -524,42 +699,87 @@ function Home() {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Mobile Subscription Status */}
+          <div className="xl:hidden mb-6">
+            <MobileSubscriptionStatus 
+              onUpgradeClick={() => window.open('/pricing', '_blank')}
+            />
+          </div>
+          
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           
           {/* Left Column - Inputs (Takes 2/3 of space) */}
           <div className="xl:col-span-2 space-y-6">
-            <FileUpload 
-              file={file} 
-              onFileChange={handleFileUpload}
-              resumeText={resumeText}
-              onResumeTextChange={handleResumeTextChange}
+            {/* Usage Warning Banner */}
+            <UsageWarningBanner 
+              onUpgradeClick={() => window.open('/pricing', '_blank')}
             />
-            
-            <JobUrlsInput 
-              jobUrls={jobUrls} 
-              onJobUrlsChange={setJobUrls} 
-            />
-            
-            <CoverLetter 
-              options={coverLetterOptions}
-              onOptionsChange={setCoverLetterOptions}
-            />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <OptionalSections 
-                options={optionalSections}
-                onOptionsChange={setOptionalSections}
+
+            <UsageLimitGuard 
+              feature="resume_processing"
+              showWarnings={false} // We show warnings separately above
+              blockWhenExceeded={false} // We handle blocking in the submit button
+            >
+              <FileUpload 
+                file={file} 
+                onFileChange={handleFileUpload}
+                resumeText={resumeText}
+                onResumeTextChange={handleResumeTextChange}
               />
               
-              <OutputSettings 
-                outputFormat={outputFormat} 
-                onFormatChange={setOutputFormat} 
+              <JobUrlsInput 
+                jobUrls={jobUrls} 
+                onJobUrlsChange={setJobUrls} 
               />
-            </div>
+              
+              {/* Only show Cover Letter for Pro users */}
+              {safeIsProUser && (
+                <CoverLetter 
+                  options={coverLetterOptions}
+                  onOptionsChange={setCoverLetterOptions}
+                />
+              )}
+              
+              <TailoringModeSelector 
+                selectedMode={tailoringMode}
+                onModeChange={setTailoringMode}
+                disabled={loading || processing}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <OptionalSections 
+                  options={optionalSections}
+                  onOptionsChange={setOptionalSections}
+                />
+                
+                <OutputSettings 
+                  outputFormat={outputFormat} 
+                  onFormatChange={setOutputFormat} 
+                />
+              </div>
+            </UsageLimitGuard>
           </div>
 
           {/* Right Column - Results & Action */}
           <div className="xl:col-span-1 space-y-6">
+            {/* Subscription Status */}
+            <SubscriptionStatus 
+              onUpgradeClick={() => window.open('/pricing', '_blank')}
+              showUpgradePrompt={true}
+            />
+            
+
+
+            {/* Usage Limit Warning */}
+            {safeHasExceededLimit && (
+              <UpgradePrompt
+                feature="resume_processing"
+                usageStatus="exceeded"
+                onUpgradeClick={() => window.open('/pricing', '_blank')}
+                compact={false}
+              />
+            )}
+
             {/* Action Card */}
             <div className="z-20">
               <div className="bg-white/80 backdrop-light rounded-2xl shadow-lg border border-white/50 p-6 scroll-optimized">
@@ -575,7 +795,25 @@ function Home() {
 
                 {/* Submit Button */}
                 <button
-                  onClick={startBatchProcessing}
+                  onClick={(e) => {
+                    console.log('🔍 [Button] Click event fired, canSubmit:', canSubmit);
+                    if (canSubmit) {
+                      startBatchProcessing();
+                    } else {
+                      console.log('❌ [Button] Button disabled, canSubmit is false');
+                      console.log('❌ [Button] Debug info:', {
+                        file: !!file,
+                        resumeTextLength: resumeText.length,
+                        jobUrlsLength: jobUrls.length,
+                        loading,
+                        processing,
+                        canUseFeature: canUseFeature('resume_processing'),
+                        safeHasExceededLimit,
+                        safeWeeklyUsage,
+                        safeWeeklyLimit
+                      });
+                    }
+                  }}
                   disabled={!canSubmit}
                   className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-300 transform ${
                     canSubmit
@@ -589,17 +827,49 @@ function Home() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      Tailoring Your Resume...
+                      <span className="flex flex-col">
+                        <span>Tailoring Your Resume...</span>
+                        <span className="text-xs opacity-80 mt-1">This may take up to 5 minutes for complex resumes</span>
+                        {batchStatus && (
+                          <span className="text-xs mt-1">
+                            {batchStatus.completed > 0 ? 
+                              `Completed ${batchStatus.completed} of ${batchStatus.total} jobs` : 
+                              'Analyzing job descriptions...'}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  ) : safeHasExceededLimit ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Weekly Limit Reached - Upgrade to Continue
                     </span>
                   ) : (
                     <span className="flex items-center justify-center">
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      Tailor My Resume
+                      {safeIsProUser ? 'Tailor My Resume' : `Tailor My Resume (${safeWeeklyLimit - safeWeeklyUsage} left)`}
                     </span>
                   )}
                 </button>
+
+                {/* Upgrade Button for Exceeded Users */}
+                {safeHasExceededLimit && (
+                  <button
+                    onClick={() => window.open('/pricing', '_blank')}
+                    className="w-full mt-3 py-3 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    <span className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Upgrade to Pro - $9.99/month
+                    </span>
+                  </button>
+                )}
 
                 {/* Status Indicators */}
                 <div className="mt-4 space-y-2">
@@ -611,10 +881,49 @@ function Home() {
                     <div className={`w-2 h-2 rounded-full mr-2 ${jobUrls.trim() ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                     Job URLs {jobUrls.trim() ? 'added' : 'required'}
                   </div>
-                  {coverLetterOptions.includeCoverLetter && (
+                  
+                  {/* Debug Info - Remove this after fixing */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+                      <div>File: {file ? file.name : 'None'}</div>
+                      <div>Resume text length: {resumeText.length}</div>
+                      <div>Job URLs length: {jobUrls.length}</div>
+                      <div>Can use feature: {canUseFeature('resume_processing') ? 'Yes' : 'No'}</div>
+                      <div>Safe exceeded limit: {safeHasExceededLimit ? 'Yes' : 'No'}</div>
+                      <div>Safe usage: {safeWeeklyUsage}/{safeWeeklyLimit}</div>
+                      <div>Loading: {loading ? 'Yes' : 'No'}</div>
+                      <div>Processing: {processing ? 'Yes' : 'No'}</div>
+                      <div>Can submit: {canSubmit ? 'Yes' : 'No'}</div>
+                    </div>
+                  )}
+                  <div className={`flex items-center text-sm ${
+                    safeIsProUser ? 'text-purple-600' : 
+                    safeHasExceededLimit ? 'text-red-600' : 
+                    'text-blue-600'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full mr-2 ${
+                      safeIsProUser ? 'bg-purple-500' : 
+                      safeHasExceededLimit ? 'bg-red-500' : 
+                      'bg-blue-500'
+                    }`}></div>
+                    {safeIsProUser ? 'Pro: Unlimited sessions' : 
+                     safeHasExceededLimit ? 'Weekly limit reached' : 
+                     `${safeWeeklyLimit - safeWeeklyUsage} sessions remaining`}
+                  </div>
+                  {safeIsProUser && coverLetterOptions.includeCoverLetter && (
                     <div className="flex items-center text-sm text-indigo-600">
                       <div className="w-2 h-2 rounded-full mr-2 bg-indigo-500"></div>
                       Cover letter enabled
+                    </div>
+                  )}
+                  {tailoringMode && (
+                    <div className={`flex items-center text-sm ${
+                      tailoringMode === 'heavy' ? 'text-purple-600' : 'text-blue-600'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full mr-2 ${
+                        tailoringMode === 'heavy' ? 'bg-purple-500' : 'bg-blue-500'
+                      }`}></div>
+                      {tailoringMode === 'heavy' ? 'Heavy tailoring mode' : 'Light tailoring mode'}
                     </div>
                   )}
                 </div>
@@ -691,7 +1000,7 @@ function Home() {
                           } else {
                             throw new Error('Failed to generate ZIP file')
                           }
-                        } catch (error) {
+                        } catch {
                           setError('Failed to download ZIP file. Please try downloading individual PDFs instead.')
                         } finally {
                           setLoading(false)
@@ -720,6 +1029,7 @@ function Home() {
                       onDownloadCoverLetter={downloadIndividualCoverLetterPDF}
                       onDownloadText={downloadIndividualResumeText}
                       includeCoverLetter={coverLetterOptions.includeCoverLetter}
+                      tailoringMode={tailoringMode}
                     />
                   ))}
                 </div>
@@ -850,7 +1160,9 @@ function Home() {
 export default function AppPage() {
   return (
     <ProtectedRoute>
-      <Home />
+      <Layout>
+        <Home />
+      </Layout>
     </ProtectedRoute>
   )
 }
