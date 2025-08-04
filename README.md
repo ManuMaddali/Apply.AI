@@ -7,98 +7,143 @@ Transform your job search with intelligent resume customization that matches eve
 
 ## What is ApplyAI?
 
-ApplyAI is an intelligent resume optimization platform that automatically tailors your resume to match specific job requirements. Upload your resume once, paste job URLs, and receive professionally formatted, ATS-optimized resumes customized for each position.
+ApplyAI is a Next.js and FastAPI-powered resume optimization platform that automatically tailors your resume to match specific job requirements. Upload your resume once, paste job URLs, and receive professionally formatted, ATS-optimized resumes customized for each position.
 
 ![Resume Transformation Process](./assets/transformation-process.gif)
 *Before and after comparison showing resume optimization*
 
-## Core Features
+## Current Features
 
 **AI-Powered Resume Tailoring**
-- Intelligent content optimization using advanced language models
+- OpenAI GPT integration for intelligent content optimization
+- LangChain processing for advanced language understanding
+- Multiple tailoring modes: Light and Heavy customization
 - Automatic keyword matching and ATS optimization
-- Context-aware experience highlighting
 
-**Batch Processing Capabilities**
-- Process up to 10 job applications simultaneously
-- Bulk download all tailored resumes as ZIP archive
-- Concurrent processing for maximum efficiency
+**Dual Processing Modes**
+- **Batch Mode**: Process multiple job applications simultaneously
+- **Precision Mode**: Detailed single-job optimization
+- Legacy mode support for backwards compatibility
 
-**Multiple Authentication Options**
-- Secure email registration with verification
-- OAuth integration with Google, LinkedIn, and GitHub
-- JWT-based session management
+**Authentication System**
+- Email registration with verification
+- OAuth integration with Google, GitHub, and Microsoft
+- JWT-based session management with refresh tokens
+- Password reset and account recovery
 
-**Advanced Formatting Options**
-- Professional PDF generation with consistent styling
-- Multiple template designs and color schemes
-- Custom font selection and layout optimization
+**Subscription Management**
+- Free tier with usage limits
+- Pro tier with unlimited processing
+- Stripe integration for payment processing
+- Real-time usage tracking and limits
 
-**Cover Letter Generation**
-- Automatically generated cover letters matching resume content
-- Job-specific customization and tone adjustment
-- Professional formatting aligned with resume design
+**Advanced Formatting Options (Pro)**
+- Multiple professional templates (Modern, Executive, Creative, Minimal, Academic, Technical)
+- Custom color schemes and font selection
+- Two-column layouts and decorative borders
+- ATS-optimized formatting with validation
+- Custom spacing and margin controls
+
+**Premium Cover Letter Generation (Pro)**
+- AI-generated cover letters matching resume content
+- Multiple templates and tone options
+- Company-specific customization
+- Quantifiable achievement emphasis
+- Custom instruction integration
+
+**Analytics and Insights (Pro)**
+- Resume performance tracking
+- Keyword optimization analysis
+- Success rate monitoring
+- Template performance metrics
+- Usage trends and recommendations
+
+**Job-Specific Templates (Pro)**
+- Industry-specific resume templates
+- Job category suggestions based on titles
+- Specialized formatting for different roles
+- Template validation and optimization
+
+**File Processing**
+- Support for PDF, DOCX, and TXT resume uploads
+- Intelligent text extraction from various formats
+- File validation and security measures
+- Automatic cleanup after processing
 
 ![Feature Overview Dashboard](./assets/features-dashboard.gif)
 *Interactive feature demonstration*
 
 ## How It Works
 
-### Step 1: Account Creation
-Create your secure account using email registration or social authentication. Email verification ensures account security and enables password recovery.
+### Step 1: Account Setup
+Register with email or use OAuth (Google, GitHub, Microsoft). Email verification is required for account activation and security.
 
 ![Account Creation Flow](./assets/account-creation.gif)
-*Account setup and verification process*
+*Account registration and email verification process*
 
-### Step 2: Resume Upload
-Upload your existing resume in PDF, DOCX, or TXT format. The AI system extracts and analyzes your professional experience, skills, and achievements.
+### Step 2: Choose Your Mode
+Select between two processing modes:
+- **Batch Mode**: Upload resume and process multiple job URLs at once
+- **Precision Mode**: Focus on single job optimization with detailed analysis
+
+![Mode Selection Interface](./assets/mode-selection.gif)
+*Batch vs Precision mode selection*
+
+### Step 3: Resume Upload
+Upload your resume in PDF, DOCX, or TXT format (up to 10MB). The system extracts text and prepares it for AI processing.
 
 ![Resume Upload Interface](./assets/resume-upload.gif)
-*Drag-and-drop upload with file validation*
+*File upload with format validation*
 
-### Step 3: Job URL Input
-Add job posting URLs from supported platforms. The system can process multiple URLs simultaneously for batch optimization.
+### Step 4: Job Input
+**Batch Mode**: Paste multiple job URLs for simultaneous processing
+**Precision Mode**: Enter a single job URL or paste job description directly
 
-![Job URL Processing](./assets/job-url-input.gif)
-*Multiple job URL input and validation*
+![Job Input Methods](./assets/job-input.gif)
+*Different input methods for job requirements*
 
-### Step 4: AI Processing
-Advanced AI analyzes job requirements and optimizes your resume content accordingly. The system matches keywords, emphasizes relevant experience, and ensures ATS compatibility.
+### Step 5: AI Processing
+Choose your tailoring intensity:
+- **Light Mode**: Quick keyword optimization
+- **Heavy Mode**: Comprehensive content restructuring
+
+The system uses OpenAI GPT and LangChain for intelligent content analysis and optimization.
 
 ![AI Processing Visualization](./assets/ai-processing.gif)
-*Real-time processing status and optimization*
+*Real-time processing with tailoring mode selection*
 
-### Step 5: Download Results
-Download individually tailored resumes or bulk download all results. Optional cover letters are generated automatically for each position.
+### Step 6: Download Results
+Download your tailored resumes as PDF files. Batch processing provides a ZIP archive with all results.
 
 ![Download Interface](./assets/download-results.gif)
-*Results dashboard with download options*
+*Results display and download options*
 
-## Supported Platforms
+## Supported Job Sources
 
-The platform integrates with major job boards and applicant tracking systems:
+The platform works with job postings from various sources through URL scraping:
 
-![Supported Job Boards](./assets/supported-platforms.gif)
-*Compatible job board logos and integration status*
+![Supported Job Sources](./assets/supported-platforms.gif)
+*Job posting sources and compatibility*
 
-**Major Job Boards**
+**Web Scraping Capabilities**
+- Any publicly accessible job posting URL
+- Automatic job title and description extraction
+- Content cleaning and formatting
+- Error handling for inaccessible pages
+
+**Commonly Tested Platforms**
 - LinkedIn Jobs
 - Indeed
-- Glassdoor
-- ZipRecruiter
-- Monster
+- Company career pages
+- Greenhouse postings
+- Lever job boards
+- General job posting websites
 
-**ATS Platforms**
-- Greenhouse
-- Lever
-- Workday
-- BambooHR
-- Taleo
-
-**Company Career Pages**
-- Direct company postings
-- Custom ATS implementations
-- Standard job posting formats
+**Input Methods**
+- Direct job posting URLs
+- Manual job description paste
+- Bulk URL processing (up to 10 URLs)
+- Single job precision mode
 
 ## Security and Privacy
 
@@ -126,37 +171,42 @@ The platform integrates with major job boards and applicant tracking systems:
 ## Subscription Plans
 
 ![Pricing Comparison](./assets/pricing-plans.gif)
-*Interactive pricing plan comparison*
+*Current subscription tiers and features*
 
-### Free Plan
+### Free Tier
 **No cost, no commitment**
 
-- 5 resume tailoring sessions per week
-- Basic ATS optimization
+- Limited resume processing per week
+- Basic tailoring modes (Light/Heavy)
 - Standard PDF downloads
 - Email support
-- Single resume processing
+- Single job processing
 
-### Professional Plan
-**$9.99/month - Cancel anytime**
+### Pro Tier
+**Monthly subscription via Stripe**
 
-- Unlimited resume tailoring
+- Unlimited resume processing
 - Batch processing up to 10 jobs
-- Advanced formatting options
-- Premium cover letter templates
-- Priority processing
-- Analytics and insights
-- Priority support
+- Advanced formatting templates (Modern, Executive, Creative, etc.)
+- Premium cover letter generation with custom tones
+- Analytics dashboard with performance insights
+- Job-specific templates for different industries
+- Custom color schemes and layout options
+- Priority processing and support
 
-### Enterprise Plan
-**Custom pricing for teams**
+**Advanced Pro Features**
+- Multiple professional templates beyond standard formatting
+- AI-powered cover letter generation with company research
+- Resume performance analytics and optimization insights
+- Industry-specific templates and formatting
+- Custom branding and advanced layout controls
 
-- Team collaboration features
-- Custom branding options
-- API access
-- Advanced analytics
-- Dedicated support
-- Custom integrations
+**Current Implementation**
+- Stripe payment integration
+- Real-time usage tracking and enforcement
+- Feature gating for Pro-only capabilities
+- Automatic tier upgrades/downgrades
+- Subscription status monitoring
 
 ## Performance Metrics
 
@@ -180,21 +230,25 @@ The platform integrates with major job boards and applicant tracking systems:
 ![Quick Start Tutorial](./assets/quick-start.gif)
 *Step-by-step getting started guide*
 
-**Immediate Setup Process**
+**Setup Process**
 
-1. **Account Registration** - Sign up with email or social login
-2. **Email Verification** - Confirm your account via email link
-3. **Resume Upload** - Upload your current resume file
-4. **Job Selection** - Add target job posting URLs
-5. **AI Processing** - Let the system optimize your resume
-6. **Download Results** - Get your tailored resumes instantly
+1. **Create Account** - Register with email or OAuth (Google/GitHub/Microsoft)
+2. **Verify Email** - Check your inbox and click verification link
+3. **Choose Mode** - Select Batch or Precision processing mode
+4. **Upload Resume** - Drop your PDF, DOCX, or TXT file
+5. **Add Jobs** - Paste job URLs or descriptions
+6. **Select Tailoring** - Choose Light or Heavy processing mode
+7. **Process & Download** - Get your optimized resumes
 
-**First-Time User Tips**
-- Ensure your original resume is comprehensive and up-to-date
-- Use specific job URLs rather than general company pages
-- Review generated resumes before submission
-- Take advantage of cover letter generation
-- Utilize batch processing for multiple applications
+**Tips for Best Results**
+- Use a comprehensive, well-formatted original resume
+- Provide specific job posting URLs when possible
+- Try both Light and Heavy modes to see the difference
+- Review generated content before submitting applications
+- Use Batch mode for multiple similar positions
+- Pro users: Experiment with different formatting templates
+- Pro users: Generate matching cover letters for better application packages
+- Pro users: Use analytics to track which templates perform best
 
 ## User Success Stories
 
@@ -223,26 +277,35 @@ The platform integrates with major job boards and applicant tracking systems:
 ![Technology Stack](./assets/tech-stack.gif)
 *System architecture and technology overview*
 
-**Backend Infrastructure**
-- FastAPI framework for high-performance API
-- OpenAI GPT integration for content optimization
+**Frontend (Next.js)**
+- React 18 with Next.js 14 framework
+- TypeScript for type safety
+- Tailwind CSS for styling
+- Framer Motion for animations
+- Zustand for state management
+- Stripe integration for payments
+
+**Backend (FastAPI)**
+- Python FastAPI for high-performance API
+- SQLAlchemy ORM with SQLite database
+- OpenAI GPT-4 integration for content optimization
 - LangChain for advanced language processing
-- Vector databases for semantic matching
-- PostgreSQL for user data management
+- FAISS for vector similarity search
+- Sentence Transformers for embeddings
 
-**AI and Machine Learning**
-- Advanced language models for content analysis
-- Semantic similarity matching
-- Keyword extraction and optimization
-- ATS compatibility scoring
-- Natural language generation
+**AI Processing Pipeline**
+- OpenAI GPT models for content generation
+- LangChain processors for structured analysis
+- Resume difference analysis and optimization
+- Multiple tailoring modes (Light/Heavy)
+- Fallback processing for reliability
 
-**Security Implementation**
+**Security & Infrastructure**
 - JWT authentication with refresh tokens
-- OAuth2 integration with major providers
-- Rate limiting and DDoS protection
-- Input validation and sanitization
-- Automated security monitoring
+- OAuth2 integration (Google, GitHub, Microsoft)
+- Rate limiting and request validation
+- Automatic file cleanup and security
+- CORS protection and security headers
 
 ## Support and Documentation
 
@@ -270,32 +333,41 @@ The platform integrates with major job boards and applicant tracking systems:
 ## Frequently Asked Questions
 
 ![FAQ Interface](./assets/faq-interface.gif)
-*Interactive FAQ with search functionality*
+*Common questions about the platform*
 
 **File and Processing Questions**
 
 **Q: What file formats are supported for resume upload?**
-A: PDF, DOCX, and TXT files up to 10MB in size are supported.
+A: PDF, DOCX, and TXT files up to 10MB are supported with automatic text extraction.
 
-**Q: How many job URLs can be processed simultaneously?**
-A: Up to 10 job URLs can be processed in a single batch operation.
+**Q: How many jobs can I process at once?**
+A: Batch mode supports up to 10 job URLs simultaneously. Precision mode focuses on one job at a time.
 
-**Q: What is the typical processing time?**
-A: Most resumes are processed and optimized within 30 seconds.
+**Q: What's the difference between Light and Heavy tailoring modes?**
+A: Light mode does quick keyword optimization, while Heavy mode provides comprehensive content restructuring.
 
-**Q: Which job boards are compatible with the platform?**
-A: LinkedIn, Indeed, Greenhouse, Workday, and 100+ other major platforms.
+**Q: How does the job URL scraping work?**
+A: The system extracts job descriptions from publicly accessible URLs and can handle most job posting formats.
 
-**Account and Security Questions**
+**Q: What Pro features are available?**
+A: Pro users get advanced formatting templates, premium cover letter generation, analytics dashboard, job-specific templates, and unlimited processing.
 
-**Q: How is my personal data protected?**
-A: All data is encrypted, processed securely, and automatically deleted after 24 hours.
+**Q: Can I generate cover letters automatically?**
+A: Yes, Pro users can generate AI-powered cover letters with custom tones, company research, and matching resume content.
 
-**Q: Can I use social login instead of creating a new account?**
-A: Yes, Google, LinkedIn, and GitHub authentication are supported.
+**Account and Technical Questions**
 
-**Q: What happens if I forget my password?**
-A: Self-service password reset is available through email verification.
+**Q: Which authentication methods are supported?**
+A: Email registration with verification, plus OAuth with Google, GitHub, and Microsoft.
+
+**Q: How is my data protected?**
+A: Files are automatically cleaned up after processing, with JWT-based authentication and secure API endpoints.
+
+**Q: What happens if I exceed my usage limits?**
+A: Free users hit weekly limits, while Pro users have unlimited processing. The system tracks usage in real-time.
+
+**Q: Can I cancel my subscription anytime?**
+A: Yes, Pro subscriptions are managed through Stripe and can be cancelled at any time.
 
 ## Platform Roadmap
 
