@@ -14,11 +14,11 @@ ApplyAI automatically customizes your resume to match any job posting. Instead o
 - Works with any job posting URL
 
 **Two Ways to Apply**
-- **Batch Mode**: Process up to 25 jobs at once (Pro users)
+- **Batch Mode**: Process up to 10 jobs at once (25 for Pro users)
 - **Precision Mode**: Focus on one perfect application
 
 **Professional Output**
-- Download in multiple formats (PDF, Word, RTF)
+- Download in multiple formats (PDF, Word, Txt)
 - ATS-optimized formatting
 - Multiple template styles (Pro)
 
@@ -52,6 +52,7 @@ Works with job postings from:
 
 **Free Plan**
 - 3 tailored resumes per week
+- Batch processing (up to 10 jobs)
 - Basic templates
 - Standard processing
 
@@ -61,7 +62,6 @@ Works with job postings from:
 - Premium templates and formatting
 - AI cover letter generation
 - Performance analytics
-- Multiple download formats
 
 ## Roadmap
 
