@@ -212,6 +212,11 @@ export const UsageWarningBanner = ({
   onDismiss,
   className = ''
 }) => {
+  // Temporarily disable to fix infinite loop issue
+  // TODO: Fix the useUsageLimits hook dependency issue
+  return null;
+  
+  /* DISABLED DUE TO INFINITE LOOP:
   const { 
     shouldShowWarning, 
     weeklyUsage, 
@@ -233,6 +238,7 @@ export const UsageWarningBanner = ({
       />
     </div>
   );
+  */
 };
 
 export default UsageLimitGuard;

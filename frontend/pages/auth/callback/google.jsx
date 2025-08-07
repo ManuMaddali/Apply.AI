@@ -41,7 +41,7 @@ export default function GoogleCallback() {
         console.log("🔍 [GoogleCallback] Using redirect URI:", redirectUri);
         console.log("🔍 [GoogleCallback] Exchanging code for token...");
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/oauth/callback/google`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/auth/oauth/callback/google`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -43,17 +43,37 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
+      console.log('🌐 [AuthContext] Starting authenticated request to:', url);
+      console.log('🌐 [AuthContext] Request options:', options);
+      console.log('🌐 [AuthContext] Headers:', headers);
+      
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
-      // Use much longer timeout (5 minutes) for batch processing requests
-      const timeoutDuration = url.includes('/api/batch/process') ? 300000 : 10000;
-      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+      // Use appropriate timeouts based on endpoint
+      let timeoutDuration = 30000; // Default 30 seconds
       
+      if (url.includes('/api/batch/process')) {
+        timeoutDuration = 900000; // 15 minutes for batch processing
+      } else if (url.includes('/api/batch/status') || url.includes('/api/batch/results')) {
+        timeoutDuration = 10000; // 10 seconds for status checks
+      } else if (url.includes('/api/resumes/generate') || url.includes('/api/resumes/tailor')) {
+        timeoutDuration = 120000; // 2 minutes for single resume generation
+      }
+      
+      console.log(`⏱️ [AuthContext] Setting ${timeoutDuration/1000}s timeout for:`, url);
+      
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ [AuthContext] Request timeout reached after', timeoutDuration/1000, 'seconds for:', url);
+        controller.abort();
+      }, timeoutDuration);
+      
+      console.log('🚀 [AuthContext] About to call fetch...');
       const response = await fetch(url, {
         ...options,
         headers,
         signal: controller.signal,
       });
+      console.log('✅ [AuthContext] Fetch completed with status:', response.status);
       
       clearTimeout(timeoutId);
 
@@ -61,6 +81,35 @@ export const AuthProvider = ({ children }) => {
         // Token expired or invalid
         await logout();
         throw new Error('Authentication required');
+      }
+
+      // Handle subscription/payment errors
+      if (response.status === 402 || response.status === 403) {
+        let errorMessage = 'Access denied';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (e) {
+          // If we can't parse the error response, use default message
+          if (response.status === 402) {
+            errorMessage = 'This feature requires a Pro subscription';
+          } else if (response.status === 403) {
+            errorMessage = 'Access denied - subscription required';
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Handle other HTTP errors
+      if (!response.ok) {
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (e) {
+          // If we can't parse the error response, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       return response;
@@ -120,7 +169,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const authUrl = `${API_BASE_URL}/api/auth/me`;
+      const authUrl = `${API_BASE_URL}/api/auth/auth/me`;
       console.log('🔍 [AuthContext] Making auth check request to:', authUrl);
       console.log('🔍 [AuthContext] Using token:', token.substring(0, 50) + '...');
       

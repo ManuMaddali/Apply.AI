@@ -1,273 +1,339 @@
 import React, { useState } from 'react';
-import { getUpgradePromptMessage } from '../utils/subscriptionUtils';
-import UpgradeModal from './UpgradeModal';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Zap, 
+  ArrowUp, 
+  X, 
+  Crown, 
+  Star, 
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  Sparkles
+} from 'lucide-react';
+import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { TierBadge } from './ui/tier-badge';
 
-const UpgradePrompt = ({ 
-  feature, 
-  usageStatus = 'blocked', 
+/**
+ * UpgradePrompt Component
+ * Contextual upgrade prompts based on usage and tier status
+ */
+export function UpgradePrompt({ 
+  context = 'general',
+  usageStatus = 'normal',
+  weeklyUsage = 0,
+  weeklyLimit = 5,
+  remainingSessions = 5,
   onUpgradeClick,
   onDismiss,
-  compact = false,
-  showDismiss = true,
-  className = ''
-}) => {
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const message = getUpgradePromptMessage(usageStatus, feature);
+  showDismiss = false,
+  size = 'default',
+  variant = 'card',
+  className = '',
+  ...props 
+}) {
+  const [isDismissed, setIsDismissed] = useState(false);
 
-  const handleUpgradeClick = () => {
-    if (onUpgradeClick) {
-      onUpgradeClick();
-    } else {
-      setShowUpgradeModal(true);
+  if (isDismissed) return null;
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    onDismiss?.();
+  };
+
+  // Context-specific configurations
+  const contextConfig = {
+    general: {
+      title: 'Upgrade to Pro',
+      description: 'Unlock unlimited features and advanced capabilities',
+      icon: Zap,
+      features: ['Unlimited sessions', 'Advanced formatting', 'Premium templates']
+    },
+    limit_reached: {
+      title: 'Weekly Limit Reached!',
+      description: 'You\'ve used all your free sessions this week',
+      icon: Clock,
+      features: ['Unlimited sessions', 'No weekly limits', 'Process anytime']
+    },
+    approaching_limit: {
+      title: 'Almost at Your Limit',
+      description: `Only ${remainingSessions} session${remainingSessions === 1 ? '' : 's'} remaining this week`,
+      icon: TrendingUp,
+      features: ['Unlimited sessions', 'Never worry about limits', 'Premium features']
+    },
+    feature_locked: {
+      title: 'Pro Feature',
+      description: 'This feature requires a Pro subscription',
+      icon: Crown,
+      features: ['Advanced formatting', 'Cover letters', 'Analytics dashboard']
+    },
+    bulk_processing: {
+      title: 'Bulk Processing Available',
+      description: 'Process multiple resumes at once with Pro',
+      icon: Sparkles,
+      features: ['Bulk processing', 'Batch operations', 'Time-saving automation']
     }
   };
-  
-  const getPromptStyles = () => {
+
+  const config = contextConfig[context] || contextConfig.general;
+  const Icon = config.icon;
+
+  // Status-based styling
+  const getStatusStyles = () => {
     switch (usageStatus) {
       case 'exceeded':
         return {
           container: 'border-red-300 bg-red-50',
-          text: 'text-red-800',
-          subtext: 'text-red-600',
-          button: 'bg-red-600 hover:bg-red-700 text-white',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          )
+          button: 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800',
+          accent: 'text-red-700',
+          iconBg: 'bg-red-100'
         };
       case 'warning':
         return {
-          container: 'border-yellow-300 bg-yellow-50',
-          text: 'text-yellow-800',
-          subtext: 'text-yellow-600',
-          button: 'bg-yellow-600 hover:bg-yellow-700 text-white',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          )
+          container: 'border-amber-300 bg-amber-50',
+          button: 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700',
+          accent: 'text-amber-700',
+          iconBg: 'bg-amber-100'
         };
-      case 'blocked':
       default:
         return {
-          container: 'border-blue-300 bg-blue-50',
-          text: 'text-blue-800',
-          subtext: 'text-blue-600',
-          button: 'bg-blue-600 hover:bg-blue-700 text-white',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          )
+          container: 'border-purple-300 bg-purple-50',
+          button: 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700',
+          accent: 'text-purple-700',
+          iconBg: 'bg-purple-100'
         };
     }
   };
 
-  const styles = getPromptStyles();
+  const styles = getStatusStyles();
 
-  if (compact) {
+  // Size variants
+  const sizeConfig = {
+    sm: {
+      container: 'p-3',
+      title: 'text-sm font-semibold',
+      description: 'text-xs',
+      button: 'text-xs px-3 py-1.5',
+      icon: 'w-4 h-4'
+    },
+    default: {
+      container: 'p-4',
+      title: 'text-base font-semibold',
+      description: 'text-sm',
+      button: 'text-sm px-4 py-2',
+      icon: 'w-5 h-5'
+    },
+    lg: {
+      container: 'p-6',
+      title: 'text-lg font-bold',
+      description: 'text-base',
+      button: 'text-base px-6 py-3',
+      icon: 'w-6 h-6'
+    }
+  };
+
+  const sizeStyles = sizeConfig[size];
+
+  // Render variants
+  if (variant === 'banner') {
     return (
-      <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed ${styles.container} ${className}`}>
-        <div className={styles.text}>
-          {styles.icon}
-        </div>
-        <span className={`text-sm font-medium ${styles.text}`}>
-          {feature === 'resume_processing' && usageStatus === 'exceeded' ? 'Limit reached!' : 'Pro Feature'}
-        </span>
-        <button
-          onClick={handleUpgradeClick}
-          className={`px-3 py-1 rounded text-xs font-semibold transition-all duration-200 ${styles.button}`}
-        >
-          Upgrade
-        </button>
-        {showDismiss && onDismiss && (
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className={`relative flex items-center justify-between ${sizeStyles.container} rounded-lg border-2 border-dashed ${styles.container} ${className}`}
+        {...props}
+      >
+        {showDismiss && (
           <button
-            onClick={onDismiss}
-            className={`p-1 rounded hover:bg-black/10 ${styles.text}`}
+            onClick={handleDismiss}
+            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Dismiss upgrade prompt"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         )}
-      </div>
+        
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${styles.iconBg}`}>
+            <Icon className={`${sizeStyles.icon} ${styles.accent}`} />
+          </div>
+          <div>
+            <h4 className={`${sizeStyles.title} ${styles.accent}`}>
+              {config.title}
+            </h4>
+            <p className={`${sizeStyles.description} text-gray-600 mt-1`}>
+              {config.description}
+            </p>
+          </div>
+        </div>
+        
+        <Button
+          onClick={onUpgradeClick}
+          className={`${sizeStyles.button} ${styles.button} text-white shadow-lg hover:shadow-xl transition-all`}
+        >
+          <ArrowUp className="w-4 h-4 mr-2" />
+          Upgrade Now
+        </Button>
+      </motion.div>
     );
   }
 
+  if (variant === 'inline') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className={`inline-flex items-center gap-2 ${className}`}
+        {...props}
+      >
+        <TierBadge tier="pro" size="sm" />
+        <span className="text-sm text-gray-600">required</span>
+        <Button
+          onClick={onUpgradeClick}
+          variant="outline"
+          size="sm"
+          className="border-purple-300 text-purple-700 hover:bg-purple-50"
+        >
+          Upgrade
+        </Button>
+      </motion.div>
+    );
+  }
+
+  // Default card variant
   return (
-    <div className={`p-4 rounded-xl border-2 border-dashed ${styles.container} ${className}`}>
-      <div className="flex items-start gap-3">
-        <div className={styles.text}>
-          {styles.icon}
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className={`relative border-2 border-dashed ${styles.container} ${className}`} {...props}>
+        {showDismiss && (
+          <button
+            onClick={handleDismiss}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors z-10"
+            aria-label="Dismiss upgrade prompt"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
         
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h4 className={`text-sm font-semibold ${styles.text}`}>
-              {usageStatus === 'exceeded' ? 'Usage Limit Reached' :
-               usageStatus === 'warning' ? 'Approaching Limit' :
-               'Pro Feature Required'}
-            </h4>
-            {showDismiss && onDismiss && (
-              <button
-                onClick={onDismiss}
-                className={`p-1 rounded hover:bg-black/10 ${styles.text}`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-          
-          <p className={`text-sm mt-1 ${styles.subtext}`}>
-            {message}
-          </p>
-          
-          <div className="flex items-center gap-3 mt-3">
-            <button
-              onClick={handleUpgradeClick}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 shadow-lg hover:shadow-xl ${styles.button}`}
-            >
-              Upgrade to Pro - $9.99/month
-            </button>
-            
-            {/* Feature highlights */}
-            <div className="hidden sm:flex items-center gap-4 text-xs text-gray-600">
-              <div className="flex items-center gap-1">
-                <span>⚡</span>
-                <span>Unlimited</span>
+        <CardContent className={sizeStyles.container}>
+          <div className="text-center space-y-4">
+            {/* Icon and Title */}
+            <div className="space-y-3">
+              <div className={`inline-flex p-3 rounded-full ${styles.iconBg}`}>
+                <Icon className={`${sizeStyles.icon} ${styles.accent}`} />
               </div>
-              <div className="flex items-center gap-1">
-                <span>🎨</span>
-                <span>Advanced</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span>📊</span>
-                <span>Analytics</span>
+              <div>
+                <h3 className={`${sizeStyles.title} ${styles.accent}`}>
+                  {config.title}
+                </h3>
+                <p className={`${sizeStyles.description} text-gray-600 mt-2`}>
+                  {config.description}
+                </p>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        feature={feature}
-      />
-    </div>
-  );
-};
-
-// Specific upgrade prompts for common scenarios
-export const UsageLimitPrompt = ({ weeklyUsage, weeklyLimit, onUpgradeClick, onDismiss }) => {
-  const remaining = weeklyLimit - weeklyUsage;
-  const isExceeded = remaining <= 0;
-  const isWarning = remaining <= 1;
-  
-  return (
-    <UpgradePrompt
-      feature="resume_processing"
-      usageStatus={isExceeded ? 'exceeded' : isWarning ? 'warning' : 'normal'}
-      onUpgradeClick={onUpgradeClick}
-      onDismiss={onDismiss}
-    />
-  );
-};
-
-export const FeatureBlockedPrompt = ({ feature, onUpgradeClick, onDismiss, compact = false }) => {
-  return (
-    <UpgradePrompt
-      feature={feature}
-      usageStatus="blocked"
-      onUpgradeClick={onUpgradeClick}
-      onDismiss={onDismiss}
-      compact={compact}
-    />
-  );
-};
-
-export const BulkProcessingPrompt = ({ onUpgradeClick, onDismiss }) => {
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-
-  const handleUpgradeClick = () => {
-    if (onUpgradeClick) {
-      onUpgradeClick();
-    } else {
-      setShowUpgradeModal(true);
-    }
-  };
-
-  return (
-    <>
-      <div className="p-6 rounded-xl border-2 border-dashed border-purple-300 bg-purple-50">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-purple-100 rounded-lg">
-            <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </div>
-          
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-purple-800">
-                Bulk Processing Available
-              </h3>
-              {onDismiss && (
-                <button
-                  onClick={onDismiss}
-                  className="p-1 rounded hover:bg-purple-200 text-purple-600"
+            {/* Features List */}
+            <div className="space-y-2">
+              {config.features.map((feature, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 + (index * 0.1) }}
+                  className="flex items-center gap-2 text-sm text-gray-600"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>{feature}</span>
+                </motion.div>
+              ))}
             </div>
-            
-            <p className="text-purple-600 mt-2">
-              Process up to 10 job applications simultaneously with Pro subscription. 
-              Save time and apply to more positions efficiently.
-            </p>
-            
-            <div className="flex items-center gap-4 mt-4">
-              <button
-                onClick={handleUpgradeClick}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Upgrade to Pro - $9.99/month
-              </button>
-              
-              <div className="flex items-center gap-4 text-sm text-purple-600">
-                <div className="flex items-center gap-1">
-                  <span>📊</span>
-                  <span>Up to 10 jobs</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span>⚡</span>
-                  <span>Parallel processing</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span>💌</span>
-                  <span>Cover letters included</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        feature="bulk_processing"
-      />
-    </>
+            {/* Action Button */}
+            <Button
+              onClick={onUpgradeClick}
+              className={`w-full ${sizeStyles.button} ${styles.button} text-white shadow-lg hover:shadow-xl transition-all`}
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Upgrade to Pro
+            </Button>
+
+            {/* Additional Info */}
+            <p className="text-xs text-gray-500">
+              Cancel anytime • No commitment required
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
-};
+}
+
+/**
+ * ContextualUpgradePrompt Component
+ * Automatically determines the appropriate upgrade prompt based on context
+ */
+export function ContextualUpgradePrompt({ 
+  weeklyUsage = 0,
+  weeklyLimit = 5,
+  isProUser = false,
+  hasExceededLimit = false,
+  isApproachingLimit = false,
+  onUpgradeClick,
+  ...props 
+}) {
+  if (isProUser) return null;
+
+  let context = 'general';
+  let usageStatus = 'normal';
+
+  if (hasExceededLimit) {
+    context = 'limit_reached';
+    usageStatus = 'exceeded';
+  } else if (isApproachingLimit) {
+    context = 'approaching_limit';
+    usageStatus = 'warning';
+  }
+
+  const remainingSessions = Math.max(0, weeklyLimit - weeklyUsage);
+
+  return (
+    <UpgradePrompt
+      context={context}
+      usageStatus={usageStatus}
+      weeklyUsage={weeklyUsage}
+      weeklyLimit={weeklyLimit}
+      remainingSessions={remainingSessions}
+      onUpgradeClick={onUpgradeClick}
+      {...props}
+    />
+  );
+}
+
+/**
+ * FeatureLockedPrompt Component
+ * Specific prompt for locked features
+ */
+export function FeatureLockedPrompt({ 
+  featureName = 'feature',
+  onUpgradeClick,
+  ...props 
+}) {
+  return (
+    <UpgradePrompt
+      context="feature_locked"
+      variant="inline"
+      onUpgradeClick={onUpgradeClick}
+      {...props}
+    />
+  );
+}
 
 export default UpgradePrompt;

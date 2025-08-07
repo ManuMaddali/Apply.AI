@@ -1,6 +1,7 @@
 import os
 import openai
 import re
+import time
 from typing import Optional, Dict, Any, Set, TYPE_CHECKING
 from dotenv import load_dotenv
 
@@ -12,26 +13,48 @@ load_dotenv()
 class GPTProcessor:
     """Fallback GPT processor when LangChain is not available"""
     def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         
-        # Initialize OpenAI client with custom HTTP client to avoid proxies issue
+        # Defer actual initialization until first use
+        self.client = None
+        self._initialized = False
+    
+    def _lazy_init(self):
+        """Initialize OpenAI client on first use to avoid blocking at import time"""
+        if self._initialized:
+            return
+        
+        self._initialized = True
+        
+        # Initialize OpenAI client with timeout configuration
         try:
             import httpx
-            # Create HTTP client without proxies parameter
-            http_client = httpx.Client(timeout=60.0)
-            self.client = openai.OpenAI(api_key=api_key, http_client=http_client)
-            print("✅ OpenAI client initialized successfully with custom HTTP client")
+            # Create HTTP client with reasonable timeout (60 seconds for OpenAI API)
+            http_client = httpx.Client(
+                timeout=httpx.Timeout(60.0, connect=10.0),
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            )
+            self.client = openai.OpenAI(
+                api_key=self.api_key,
+                http_client=http_client,
+                timeout=60.0  # 60 second timeout for API calls
+            )
+            print("✅ OpenAI client initialized with 60s timeout")
         except Exception as e:
             print(f"❌ OpenAI client initialization failed: {e}")
-            # Fallback to basic initialization
+            # Create a minimal working client for development
             try:
-                self.client = openai.OpenAI(api_key=api_key)
-                print("✅ OpenAI client initialized with basic configuration")
+                import httpx
+                # Create basic HTTP client without any proxy settings
+                http_client = httpx.Client()
+                self.client = openai.OpenAI(api_key=self.api_key, http_client=http_client)
+                print("✅ OpenAI client initialized with fallback HTTP client")
             except Exception as e2:
-                print(f"❌ Both OpenAI initialization methods failed: {e2}")
-                raise e2
+                print(f"❌ All OpenAI initialization methods failed: {e2}")
+                print("⚠️ GPT processing will not be available")
+                self.client = None
     
     def _detect_existing_sections(self, resume_text: str) -> Set[str]:
         """
@@ -111,93 +134,140 @@ class GPTProcessor:
             
             # Choose system prompt based on tailoring mode
             if tailoring_mode and tailoring_mode.value == 'light':
-                system_content = """You are a professional resume optimizer focused on basic ATS compatibility. Your goal is to make minimal, conservative improvements to help resumes pass applicant tracking systems while preserving the original content and style.
+                system_content = """You are a professional resume optimizer focused on minimal ATS keyword optimization. Your goal is to make ONLY subtle keyword additions while preserving ALL original content, structure, and factual information exactly as provided.
 
-YOUR MISSION: Make subtle keyword optimizations and minor formatting improvements. Preserve the candidate's authentic voice and original accomplishments exactly as stated.
+YOUR MISSION: Add 3-5 relevant keywords naturally within existing bullet points. Make NO structural changes, NO content removal, NO metric changes, NO voice changes.
+
+CRITICAL PRESERVATION REQUIREMENTS (NEVER CHANGE):
+• ALL job titles exactly as written (Senior Product Manager, Product Manager, etc.)
+• ALL company names and locations exactly as provided
+• ALL employment dates exactly as provided
+• ALL education details (degrees, schools, dates, GPA) exactly as provided
+• ALL certifications exactly as provided
+• ALL original metrics and percentages exactly as provided
+• ALL section headers and structure exactly as provided
+• ALL bullet points must remain (no removal or consolidation)
+• Professional summary voice and style exactly as provided
+• ALL achievements and accomplishments exactly as provided
 
 LIGHT MODE CONSTRAINTS:
-• Keep original resume structure and length exactly as is
-• Make minimal keyword additions (5-8 keywords maximum)
-• Preserve all original metrics, achievements, and accomplishments unchanged
-• Maintain original bullet point count and approximate length
-• Focus on basic ATS optimization rather than comprehensive rewrites
-• Keep changes conservative and barely noticeable
-• Preserve candidate's original writing style and tone
+• Maximum 3-5 keyword additions total across entire resume
+• Keywords must be naturally integrated within existing sentences
+• NO new bullet points, NO removed bullet points
+• NO structural changes to any sections
+• NO changes to professional summary beyond 1-2 keyword additions
+• NO changes to formatting, spacing, or organization
+• NO changes to writing style or voice
+• Word count increase should be under 50 words total
 
-FORMATTING REQUIREMENTS:
-• Maintain original formatting style as much as possible
-• Keep original section headers and structure
-• Preserve original bullet point style and length
-• Make minimal formatting improvements only
-• Focus on keyword integration rather than style changes
+ALLOWED CHANGES ONLY:
+• Add 1-2 relevant keywords within existing bullet points
+• Add 1-2 keywords to professional summary if space allows
+• Minor terminology alignment (e.g., "user experience" → "user experience (UX)")
+• Nothing else is permitted
 
 PROCESS STEPS:
-1. Identify 5-8 key terms from job description
-2. Add keywords naturally to existing content without major changes
-3. Make minimal terminology improvements
-4. Preserve all original accomplishments and metrics exactly
-5. Keep changes subtle and conservative"""
+1. Identify 3-5 most critical keywords from job description
+2. Find natural places within existing sentences to add keywords
+3. Integrate keywords without changing sentence structure or meaning
+4. Verify ALL original content is preserved exactly
+5. Ensure total changes are minimal and barely noticeable"""
             else:
-                system_content = """You are an elite resume transformation specialist with 20+ years in design and software engineering. You dramatically rework resumes to perfectly match job descriptions, using exact language, metrics, and focus areas from the JD while preserving core truths from the original.
+                system_content = """You are an elite resume transformation specialist focused on aggressive content reframing while maintaining absolute factual accuracy. You dramatically rewrite bullet points and enhance content to align with job requirements, but you NEVER change factual information.
 
-YOUR MISSION: Aggressively rewrite every bullet point to align with the employer's needs. Reframe experiences as if the candidate has been doing this specific role already. Preserve facts—do not invent new experiences, metrics, or details.
+YOUR MISSION: Aggressively reframe and enhance existing experiences to show perfect alignment with the target role. Rewrite bullet points with job-relevant keywords and context while preserving ALL factual information exactly as provided.
 
-CRITICAL CONSTRAINTS:
-• Resume MUST fit on EXACTLY ONE PAGE: Include 5 DETAILED bullets per role, 35-50 words per bullet. Prioritize high-impact, JD-relevant content with comprehensive metrics and achievements.
-• PROFESSIONAL SUMMARY: Write 100-150 words in first person as a natural story. Start with where you've been, what you've learned, what you've accomplished, and where you're headed. Let it flow like you're explaining your career path to someone who asked "So what do you do?" No buzzwords, no forced enthusiasm - just your actual journey.
-• BULLET POINT RULE: Each bullet MUST be 2 full lines (35-50 words). Start with capital letter and strong action verb. Include multiple specific quantifiable metrics (e.g., percentages, numbers) tied to JD KPIs.
-• OUTPUT: Plain text only. No markdown, asterisks, or special formatting. Follow the STATIC TEMPLATE exactly.
+CRITICAL PRESERVATION REQUIREMENTS (NEVER CHANGE):
+• ALL job titles exactly as written (Senior Product Manager, Product Manager, etc.)
+• ALL company names and locations exactly as provided
+• ALL employment dates exactly as provided
+• ALL education details (degrees, schools, dates, GPA) exactly as provided
+• ALL certifications exactly as provided
+• ALL original metrics and percentages exactly as provided (do NOT invent new metrics)
+• ALL section headers and structure exactly as provided
+• ALL achievements must be based on original content (no fabrication)
 
-STATIC TEMPLATE FORMAT:
-[NAME IN ALL CAPS]
-[Professional Title in Title Case]
-[Contact info in normal case]
-
-PROFESSIONAL SUMMARY
-Write 100-150 words in first person as a natural story. Start with where you've been, what you've learned, what you've accomplished, and where you're headed. Let it flow like you're explaining your career path to someone who asked "So what do you do?" No buzzwords, no forced enthusiasm - just your actual journey.
-
-PROFESSIONAL EXPERIENCE
-
-Company Name | Location
-Job Title | Date Range
-• Detailed bullet with specific achievement, comprehensive metrics, and JD keywords. Must be 35-50 words with multiple specific metrics and achievements. Include team sizes, budget figures, and specific technologies.
-• Another detailed bullet showcasing impact and measurable results with specific context. Must be 35-50 words with multiple specific metrics and achievements.
+HEAVY MODE TRANSFORMATION APPROACH:
+• Aggressively rewrite bullet points with job-relevant keywords and context
+• Enhance professional summary to show strong alignment with target role
+• Emphasize transferable skills and relevant aspects of existing experience
+• Add industry-specific terminology and context to existing achievements
+• Reframe accomplishments to highlight job-relevant impact
+• Expand bullet points to 35-50 words with enhanced detail and context
+• Maintain all original sections but enhance content within them
 
 FORMATTING REQUIREMENTS:
-• Name: ALL CAPS
-• Professional title: Title Case
+• Name: ALL CAPS (preserve exactly as provided)
+• Professional title: Use ORIGINAL title exactly as provided
 • Section headers: ALL CAPS (e.g., PROFESSIONAL SUMMARY, PROFESSIONAL EXPERIENCE)
-• Company/Job titles: Title Case
-• Bullets: Capital start, sentence case after; 2-space indent; hanging indent for wraps (second line aligns with text).
-• Contact/Education/Skills: Normal case, compact (no extra blanks).
-• Spacing: One blank line between sections/roles; professional presentation.
-• EVERY bullet point MUST be 35-50 words (2 full lines) with multiple specific metrics.
-• Professional Summary MUST be 100-150 words, written naturally in first person.
+• Company/Job titles: Use ORIGINAL titles and companies exactly as provided
+• Bullets: Capital start, sentence case after; 2-space indent; 35-50 words each
+• Contact/Education/Skills: Normal case, preserve all original information
+• Spacing: One blank line between sections/roles; professional presentation
 
-PROCESS STEPS FOR ACCURACY:
-1. Extract key skills, terms, metrics from JD.
-2. Map original resume elements to JD—reframe aggressively but truthfully.
-3. Ensure every bullet is specific, results-oriented, and mirrors JD language naturally (avoid stuffing).
-4. Optimize for ATS: Integrate keywords seamlessly; keep structure simple.
-5. Include comprehensive details in each bullet point with multiple specific metrics and achievements.
-6. Ensure Professional Summary is 100-150 words, written naturally in first person.
-7. Ensure EVERY bullet point is 35-50 words (2 full lines) with multiple specific metrics."""
+PROFESSIONAL SUMMARY ENHANCEMENT:
+• Rewrite to show strong alignment with target role and industry
+• Maintain original career progression and achievements
+• Add relevant keywords and industry context
+• Show enthusiasm for target role without false claims
+• Keep factual career timeline and accomplishments
+• 100-150 words, written naturally
 
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_content
-                    },
-                    {
-                        "role": "user", 
-                        "content": prompt
-                    }
-                ],
-                max_tokens=8000,
-                temperature=0.1
-            )
+BULLET POINT ENHANCEMENT RULES:
+• Rewrite each bullet to 35-50 words with job-relevant keywords
+• Emphasize aspects of achievements that align with job requirements
+• Add industry context and terminology to existing accomplishments
+• Highlight transferable skills and relevant impact
+• Use original metrics exactly - do NOT invent new percentages or numbers
+• Frame existing experience to show relevance to target role
+
+PROCESS STEPS FOR ETHICAL TRANSFORMATION:
+1. Extract key skills, terms, and requirements from job description
+2. Identify transferable aspects of each original experience
+3. Rewrite bullet points with job-relevant keywords while preserving facts
+4. Enhance professional summary to show alignment without false claims
+5. Ensure all original factual information remains unchanged
+6. Verify no new metrics or achievements have been invented
+7. Confirm all job titles, companies, and dates are preserved exactly"""
+
+            self._lazy_init()  # Initialize OpenAI client if needed
+            
+            # Add timeout protection for OpenAI API call
+            import asyncio
+            import concurrent.futures
+            
+            print(f"🤖 Making OpenAI API call with 60s timeout...")
+            start_time = time.time()
+            
+            # Use ThreadPoolExecutor to add timeout to synchronous OpenAI call
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    self.client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": system_content
+                        },
+                        {
+                            "role": "user", 
+                            "content": prompt
+                        }
+                    ],
+                    max_tokens=8000,
+                    temperature=0.1,
+                    timeout=60  # 60 second timeout
+                )
+                
+                try:
+                    # Wait for completion with timeout
+                    response = future.result(timeout=65)  # 65s total timeout (5s buffer)
+                    elapsed = time.time() - start_time
+                    print(f"✅ OpenAI API call completed in {elapsed:.1f}s")
+                except concurrent.futures.TimeoutError:
+                    print(f"⏱️ OpenAI API call timed out after 65 seconds")
+                    future.cancel()
+                    return None
             
             ai_response = response.choices[0].message.content
             
@@ -225,6 +295,7 @@ PROCESS STEPS FOR ACCURACY:
                 cover_letter_options = {}
             prompt = self._create_cover_letter_prompt(resume_text, job_description, job_title, cover_letter_options)
             
+            self._lazy_init()  # Initialize OpenAI client if needed
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[

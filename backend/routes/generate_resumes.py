@@ -88,11 +88,15 @@ async def generate_tailored_resumes(request: GenerateRequest, user: User = Depen
     Generate tailored resumes for multiple job descriptions with tailoring mode support
     """
     try:
-        # Validate input
-        if len(request.jobs) > 10:
+        # Validate input - check batch size limits based on subscription tier
+        user_limits = user.get_usage_limits_new()
+        max_batch_jobs = user_limits.get("bulk_jobs", 10)
+        
+        if len(request.jobs) > max_batch_jobs:
+            tier_name = "Pro" if user.is_pro_active() else "Free"
             raise HTTPException(
                 status_code=400,
-                detail="Maximum 10 jobs allowed"
+                detail=f"Maximum {max_batch_jobs} jobs allowed for {tier_name} users. Upgrade to Pro for up to 25 jobs per batch."
             )
         
         if request.output_format not in ["pdf", "docx"]:
@@ -246,16 +250,19 @@ async def generate_tailored_resumes(request: GenerateRequest, user: User = Depen
                             )
                     else:
                         # Use standard PDF generation for Free users or when advanced formatting not requested
-                        if user.is_pro_active() and request.use_advanced_formatting:
-                            # Pro user requested advanced formatting but with standard template
-                            success = advanced_formatting_service.create_standard_formatted_resume(
-                                tailored_resume_text, output_path, job_title
-                            )
-                        else:
-                            # Use existing resume editor for Free users
+                        if user.is_pro_active():
+                            # FORCE USE OF UPDATED REFERENCE FORMAT - bypass advanced formatting
+                            # Use our updated ResumeEditor method that matches the reference format
                             success = resume_editor.create_tailored_resume_pdf(
                                 tailored_resume_text, output_path, job_title
                             )
+                            
+                            # Only use advanced formatting as fallback if our method fails
+                            if not success and request.use_advanced_formatting:
+                                # Pro user requested advanced formatting but with standard template
+                                success = advanced_formatting_service.create_standard_formatted_resume(
+                                    tailored_resume_text, output_path, job_title
+                                )
                 else:  # docx
                     success = resume_editor.create_tailored_resume_docx(
                         tailored_resume_text, output_path, job_title

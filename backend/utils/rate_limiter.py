@@ -131,7 +131,7 @@ def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
         "retry_after": retry_after
     }
     
-    return HTTPException(
+    raise HTTPException(
         status_code=429,
         detail=response,
         headers={"Retry-After": str(retry_after)}

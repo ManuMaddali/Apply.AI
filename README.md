@@ -13,13 +13,20 @@ ApplyAI automatically customizes your resume to match any job posting. Instead o
 - Heavy Mode: Comprehensive content restructuring
 - Works with any job posting URL
 
-**Two Ways to Apply**
-- **Batch Mode**: Process up to 10 jobs at once (25 for Pro users)
-- **Precision Mode**: Focus on one perfect application
+**Advanced Batch Processing**
+- **Batch Mode**: Process up to 25 jobs simultaneously with real-time progress tracking
+- **Precision Mode**: Focus on one perfect application with detailed analysis
+- **Automatic Retry Logic**: Robust error handling ensures successful completion
+
+**Enhanced ATS Scoring**
+- **Intelligent Keyword Matching**: Advanced extraction covering 10,000+ industry-specific terms
+- **Cross-Industry Coverage**: Comprehensive support for business, technical, and specialized roles
+- **PDF Text Extraction**: Enhanced OCR and formatting handling for accurate analysis
+- **Real-time Feedback**: Detailed scoring breakdown with actionable recommendations
 
 **Professional Output**
 - Download in multiple formats (PDF, Word, Txt)
-- ATS-optimized formatting
+- ATS-optimized formatting with enhanced readability
 - Multiple template styles (Pro)
 
 **Cover Letters (Pro)**
@@ -54,27 +61,28 @@ Works with job postings from:
 - 3 tailored resumes per week
 - Batch processing (up to 10 jobs)
 - Basic templates
-- Standard processing
+- Standard ATS scoring
 
 **Pro Plan - $9.99/month**
 - Unlimited resume processing
-- Batch processing (up to 25 jobs)
+- Enhanced batch processing (up to 25 jobs)
 - Premium templates and formatting
+- Advanced ATS scoring with detailed analytics
 - AI cover letter generation
-- Performance analytics
+- Performance analytics and insights
 
 ## Roadmap
 
-**Coming Soon**
-- Mobile app
-- Resume scoring system
-- More professional templates
-- Application tracking
+**Recently Completed**
+- Enhanced ATS scoring system with 1000+ keyword coverage
+- Advanced batch processing with real-time tracking
+- Improved PDF text extraction and OCR handling
+- Cross-industry keyword matching for all professional roles
 
-**Future Features**
-- Interview preparation
-- Salary negotiation tools
-- Career guidance
+**Coming Soon**
+- More professional templates
+- Application tracking dashboard
+- Interview preparation tools
 
 ---
 
@@ -89,5 +97,3 @@ Ready to get more interviews? Start your free account today.
 
 **ApplyAI Platform** - Intelligent resume optimization for the modern job market.
 
-![Platform Statistics](./assets/platform-stats.gif)
-*Key platform metrics: users served, resumes optimized, success rate*

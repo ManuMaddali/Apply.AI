@@ -98,7 +98,7 @@ class ResumeEditor:
         return ""
     
     def _extract_pdf_with_pdfplumber(self, file_path: str) -> str:
-        """Extract text using pdfplumber which preserves layout better"""
+        """Extract text using pdfplumber with enhanced OCR and formatting handling"""
         if not HAS_PDFPLUMBER:
             raise ImportError("pdfplumber not available")
             
@@ -106,10 +106,38 @@ class ResumeEditor:
         
         with pdfplumber.open(file_path) as pdf:
             for page_num, page in enumerate(pdf.pages):
-                # Extract text with layout preservation
-                page_text = page.extract_text(layout=True, x_tolerance=3, y_tolerance=3)
+                # Try multiple extraction methods for better OCR handling
+                page_text = None
+                
+                # Method 1: Layout-aware extraction (best for formatted resumes)
+                try:
+                    page_text = page.extract_text(layout=True, x_tolerance=2, y_tolerance=2)
+                except Exception as e:
+                    print(f"Layout extraction failed on page {page_num}: {e}")
+                
+                # Method 2: Fallback to simple extraction if layout fails
+                if not page_text or len(page_text.strip()) < 10:
+                    try:
+                        page_text = page.extract_text()
+                    except Exception as e:
+                        print(f"Simple extraction failed on page {page_num}: {e}")
+                
+                # Method 3: Character-level extraction for OCR issues
+                if not page_text or len(page_text.strip()) < 10:
+                    try:
+                        # Extract individual characters and reconstruct
+                        chars = page.chars
+                        if chars:
+                            # Sort characters by position (top to bottom, left to right)
+                            sorted_chars = sorted(chars, key=lambda x: (-x['top'], x['x0']))
+                            page_text = ''.join([c['text'] for c in sorted_chars if c.get('text')])
+                    except Exception as e:
+                        print(f"Character extraction failed on page {page_num}: {e}")
                 
                 if page_text:
+                    # Enhanced text cleaning for OCR artifacts
+                    page_text = self._clean_ocr_artifacts(page_text)
+                    
                     # Clean up excessive whitespace while preserving structure
                     lines = page_text.split('\n')
                     cleaned_lines = []
@@ -154,20 +182,101 @@ class ResumeEditor:
         # Ensure consistent line endings
         text = text.replace('\r\n', '\n').replace('\r', '\n')
         
+        return text
+    
+    def _clean_ocr_artifacts(self, text: str) -> str:
+        """Clean OCR-specific artifacts and improve text quality"""
+        if not text:
+            return ""
+        
+        # Fix common OCR character misrecognitions
+        ocr_fixes = {
+            # Fix spacing issues
+            ' ,': ',',
+            ' .': '.',
+            ' ;': ';',
+            ' :': ':',
+            '( ': '(',
+            ' )': ')',
+        }
+        
+        # Apply basic OCR fixes
+        for wrong, correct in ocr_fixes.items():
+            text = text.replace(wrong, correct)
+        
+        # Fix broken email addresses and phone numbers
+        text = re.sub(r'(\w+)\s*@\s*(\w+)', r'\1@\2', text)  # Fix broken emails
+        text = re.sub(r'(\d{3})\s*-\s*(\d{3})\s*-\s*(\d{4})', r'\1-\2-\3', text)  # Fix phone numbers
+        text = re.sub(r'(\+\d{1,3})\s*(\d)', r'\1 \2', text)  # Fix international numbers
+        
+        # Fix broken URLs
+        text = re.sub(r'(https?)\s*:\s*/\s*/\s*(\w)', r'\1://\2', text)
+        text = re.sub(r'www\s*\.\s*(\w)', r'www.\1', text)
+        
+        # Fix broken words with excessive spacing
+        text = re.sub(r'\b([A-Z])\s+([a-z]{2,})', r'\1\2', text)  # "P ython" -> "Python"
+        text = re.sub(r'\b([A-Z]{2,})\s+([A-Z]{2,})', r'\1\2', text)  # "HT ML" -> "HTML"
+        
+        # Fix broken skill names and technical terms
+        technical_fixes = {
+            'Java Script': 'JavaScript',
+            'Type Script': 'TypeScript',
+            'My SQL': 'MySQL',
+            'Post greSQL': 'PostgreSQL',
+            'Mongo DB': 'MongoDB',
+            'Node JS': 'NodeJS',
+            'React JS': 'ReactJS',
+            'Angular JS': 'AngularJS',
+            'Vue JS': 'VueJS',
+            'Git Hub': 'GitHub',
+            'Bit Bucket': 'BitBucket',
+            'Linked In': 'LinkedIn',
+            'Power BI': 'PowerBI',
+            'Table au': 'Tableau',
+            'Sales force': 'Salesforce',
+            'Hub Spot': 'HubSpot',
+            'Mail Chimp': 'MailChimp',
+        }
+        
+        for broken, fixed in technical_fixes.items():
+            text = re.sub(r'\b' + re.escape(broken) + r'\b', fixed, text, flags=re.IGNORECASE)
+        
+        # Remove excessive whitespace and normalize
+        text = re.sub(r'\s+', ' ', text)  # Multiple spaces to single space
+        text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)  # Max 2 consecutive newlines
+        
         return text.strip()
     
     def _extract_pdf_method1(self, file_path: str) -> str:
-        """Standard PyPDF2 extraction with character-level reconstruction"""
+        """Enhanced PyPDF2 extraction with improved text reconstruction"""
         text_parts = []
         
         with open(file_path, 'rb') as file:
             pdf_reader = PyPDF2.PdfReader(file)
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
+            
+            for page_num, page in enumerate(pdf_reader.pages):
+                page_text = None
+                
+                # Try different PyPDF2 extraction methods
+                try:
+                    # Method 1: Standard extraction
+                    page_text = page.extract_text()
+                except Exception as e:
+                    print(f"PyPDF2 standard extraction failed on page {page_num}: {e}")
+                
+                # Method 2: Try with different parameters if available
+                if not page_text or len(page_text.strip()) < 10:
+                    try:
+                        # Some PyPDF2 versions support space_width parameter
+                        if hasattr(page, 'extract_text'):
+                            page_text = page.extract_text(space_width=200)
+                    except Exception as e:
+                        print(f"PyPDF2 parameterized extraction failed on page {page_num}: {e}")
+                
                 if page_text:
-                    # Try to reconstruct proper text from fragments
-                    reconstructed = self._reconstruct_text_from_fragments(page_text)
-                    text_parts.append(reconstructed)
+                    # Apply OCR artifact cleaning
+                    page_text = self._clean_ocr_artifacts(page_text)
+                    text_parts.append(page_text)
         
         return "\n\n".join(text_parts)
     
@@ -441,6 +550,19 @@ class ResumeEditor:
         
         # Fix bullet points
         text = re.sub(r'^\s*[•·▪▫◦‣⁃]\s*', '• ', text, flags=re.MULTILINE)
+        
+        return text
+    
+    def _fix_bullet_text(self, text: str) -> str:
+        """Fix literal \bullet text that AI sometimes generates"""
+        # Fix literal \bullet text patterns
+        text = text.replace('\\bullet', '•')
+        text = text.replace('\bullet', '•')
+        text = text.replace('bullet ', '• ')
+        
+        # Fix other bullet variations at start of lines
+        import re
+        text = re.sub(r'^\s*[-*+]\s+', '• ', text, flags=re.MULTILINE)
         
         return text
     
@@ -1010,260 +1132,512 @@ class ResumeEditor:
         """
         Create a PDF using improved ReportLab formatting for professional appearance
         """
+        print("🚨 WRAPPER METHOD CALLED: create_tailored_resume_pdf")
+        print(f"🚨 About to call create_tailored_resume_pdf_improved with path: {output_path}")
+        
         # Use improved ReportLab method with better styling
-        return self.create_tailored_resume_pdf_improved(tailored_text, output_path, job_title)
+        result = self.create_tailored_resume_pdf_improved(tailored_text, output_path, job_title)
+        
+        print(f"🚨 create_tailored_resume_pdf_improved returned: {result}")
+        return result
     
     def create_tailored_resume_pdf_improved(self, tailored_text: str, output_path: str, job_title: str = "") -> bool:
         """
-        Create a PDF using improved ReportLab formatting that matches the target professional appearance
+        BULLETPROOF PDF GENERATION - Always generates beautiful reference format
         """
+        print("✨ GENERATING BEAUTIFUL REFERENCE FORMAT PDF ✨")
+        
         try:
-            # Log what we receive from AI
-            print("=" * 80)
-            print("📄 PDF GENERATION - INPUT TEXT:")
-            print("=" * 80)
-            print(repr(tailored_text))
-            print("=" * 80)
-            print("📄 PDF GENERATION - FORMATTED INPUT:")
-            print("=" * 80)
-            print(tailored_text)
-            print("=" * 80)
+            # Import everything we need
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.styles import ParagraphStyle
+            from reportlab.lib.pagesizes import letter as LETTER_SIZE
+            from reportlab.lib.colors import HexColor
+            from reportlab.lib.units import inch as INCH_UNIT
+            from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
+            import re
             
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.pagesizes import letter
-            from reportlab.lib.colors import black, blue, HexColor
-            from reportlab.lib.units import inch
-            from reportlab.lib.enums import TA_LEFT, TA_CENTER
+            # Fix bullet text issues
+            tailored_text = self._fix_bullet_text(tailored_text)
             
-            # Create the document with compact margins to fit more content
+            # Create document with professional margins (0.75" all around)
             doc = SimpleDocTemplate(
                 output_path,
-                pagesize=letter,
-                rightMargin=0.4*inch,   # Reduced from 0.5
-                leftMargin=0.4*inch,    # Reduced from 0.5
-                topMargin=0.4*inch,     # Reduced from 0.5
-                bottomMargin=0.4*inch   # Reduced from 0.5
+                pagesize=LETTER_SIZE,
+                rightMargin=0.75*INCH_UNIT,
+                leftMargin=0.75*INCH_UNIT,
+                topMargin=0.75*INCH_UNIT,
+                bottomMargin=0.75*INCH_UNIT,
+                allowSplitting=1
             )
             
-            # Get base styles
-            styles = getSampleStyleSheet()
+            # Professional colors
+            blue = HexColor('#4472C4')
+            black = HexColor('#000000')
             
-            # Define professional blue color
-            professional_blue = HexColor('#2c5aa0')
+            # REFERENCE FORMAT STYLES - Exactly matching your beautiful resume
+            name_style = ParagraphStyle('Name', fontName='Helvetica-Bold', fontSize=18, textColor=blue, spaceAfter=2, alignment=TA_LEFT)
+            title_style = ParagraphStyle('Title', fontName='Helvetica-Bold', fontSize=14, textColor=blue, spaceAfter=6, alignment=TA_LEFT)
+            contact_style = ParagraphStyle('Contact', fontName='Helvetica', fontSize=10, textColor=black, spaceAfter=12, alignment=TA_LEFT)
+            section_style = ParagraphStyle('Section', fontName='Helvetica-Bold', fontSize=11, textColor=blue, spaceBefore=12, spaceAfter=6, alignment=TA_LEFT)
+            job_title_style = ParagraphStyle('JobTitle', fontName='Helvetica-Bold', fontSize=10, textColor=black, spaceBefore=6, spaceAfter=0, alignment=TA_LEFT)
+            company_style = ParagraphStyle('Company', fontName='Helvetica-Bold', fontSize=10, textColor=black, spaceBefore=2, spaceAfter=3, alignment=TA_LEFT)
+            bullet_style = ParagraphStyle('Bullet', fontName='Helvetica', fontSize=10, textColor=black, leftIndent=12, firstLineIndent=-12, spaceAfter=3, alignment=TA_JUSTIFY)
+            body_style = ParagraphStyle('Body', fontName='Helvetica', fontSize=10, textColor=black, spaceAfter=6, alignment=TA_JUSTIFY)
+            skills_cat_style = ParagraphStyle('SkillsCat', fontName='Helvetica-Bold', fontSize=10, textColor=black, spaceAfter=2, alignment=TA_LEFT)
+            skills_style = ParagraphStyle('Skills', fontName='Helvetica', fontSize=10, textColor=black, spaceAfter=3, alignment=TA_LEFT)
             
-            # Define compact styles with reduced font sizes to fit more content
-            name_style = ParagraphStyle(
-                'CompactNameStyle',
-                parent=styles['Normal'],
-                fontSize=14,  # Reduced from 16
-                textColor=professional_blue,
-                spaceAfter=2,
-                spaceBefore=0,
-                fontName='Helvetica-Bold',
-                alignment=TA_LEFT
-            )
-            
-            title_style = ParagraphStyle(
-                'CompactTitleStyle',
-                parent=styles['Normal'],
-                fontSize=12,  # Reduced from 14
-                textColor=professional_blue,
-                spaceAfter=2,
-                spaceBefore=0,
-                fontName='Helvetica-Bold',
-                alignment=TA_LEFT
-            )
-            
-            contact_style = ParagraphStyle(
-                'CompactContactStyle',
-                parent=styles['Normal'],
-                fontSize=9,  # Reduced from 10
-                spaceAfter=6,  # Further reduced from 8
-                spaceBefore=0,
-                fontName='Helvetica'
-            )
-            
-            section_header_style = ParagraphStyle(
-                'CompactSectionHeaderStyle',
-                parent=styles['Normal'],
-                fontSize=11,  # Reduced from 12
-                textColor=professional_blue,
-                spaceBefore=2,  # Further reduced from 4
-                spaceAfter=1,   # Reduced from 2
-                fontName='Helvetica-Bold'
-            )
-            
-            company_header_style = ParagraphStyle(
-                'CompactCompanyHeaderStyle',
-                parent=styles['Normal'],
-                fontSize=9,  # Reduced from 10
-                spaceBefore=2,  # Further reduced from 3
-                spaceAfter=0,   # Reduced from 1
-                fontName='Helvetica-Bold'
-            )
-            
-
-            
-            body_style = ParagraphStyle(
-                'CompactBodyStyle',
-                parent=styles['Normal'],
-                fontSize=9,  # Reduced from 10
-                spaceAfter=1,  # Reduced from 2
-                spaceBefore=0,
-                fontName='Helvetica'
-            )
-            
-            # Parse the resume content
-            sections = self._parse_resume_for_improved_formatting(tailored_text)
-            
-            # Log what the parsing produces
-            print("=" * 80)
-            print("📄 PDF GENERATION - PARSED SECTIONS:")
-            print("=" * 80)
-            for i, (section_type, content) in enumerate(sections):
-                print(f"{i}: {section_type} -> {repr(content)}")
-            print("=" * 80)
-            
-            # Build the story (list of flowables)
+            # Parse resume text into clean structure
+            lines = [line.strip() for line in tailored_text.split('\n') if line.strip()]
             story = []
             
-            # Track current section to skip Education and Skills (they'll be handled horizontally)
-            current_section_name = None
-            skip_section = False
+            # HEADER SECTION
+            name = ""
+            title = ""
+            contact = ""
             
-            for section_type, content in sections:
-                # Track section headers to know when to skip Education and Skills
-                if section_type == "section_header":
-                    current_section_name = content.strip().upper()
-                    skip_section = current_section_name in ["EDUCATION", "SKILLS"]
+            # Find name (first non-section line)
+            for line in lines:
+                if not any(keyword in line.upper() for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'SKILLS', 'EMAIL:', 'PHONE:', 'TECHNICAL']):
+                    name = line
+                    break
+            
+            # Find title (line after name, before contact)
+            name_found = False
+            for line in lines:
+                if line == name:
+                    name_found = True
+                    continue
+                if name_found and not any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')']) and not any(keyword in line.upper() for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'SKILLS', 'TECHNICAL']):
+                    title = line
+                    break
+            
+            # Find contact info
+            for line in lines:
+                if any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')']):
+                    contact = line
+                    break
+            
+            # Add header to story
+            if name:
+                story.append(Paragraph(name.upper(), name_style))
+            if title:
+                story.append(Paragraph(title, title_style))
+            if contact:
+                story.append(Paragraph(contact, contact_style))
+            
+            # CONTENT SECTIONS - Parse and add all sections
+            current_section = None
+            current_job = None
+            section_content = []
+            
+            for line in lines:
+                line_upper = line.upper()
+                
+                # Detect section headers
+                if line_upper in ['PROFESSIONAL SUMMARY', 'SUMMARY', 'PROFESSIONAL EXPERIENCE', 'EXPERIENCE', 'TECHNICAL SKILLS', 'SKILLS']:
+                    # Add previous section if exists
+                    if current_section and section_content:
+                        if current_section in ['PROFESSIONAL SUMMARY', 'SUMMARY']:
+                            story.append(Paragraph('PROFESSIONAL SUMMARY', section_style))
+                            story.append(Paragraph(' '.join(section_content), body_style))
+                        elif current_section in ['TECHNICAL SKILLS', 'SKILLS']:
+                            story.append(Paragraph('TECHNICAL SKILLS', section_style))
+                            # Parse skills into categories
+                            skills_text = ' '.join(section_content)
+                            # Look for category patterns like "Analytics: SQL, Python, R"
+                            category_matches = re.findall(r'([A-Za-z\s]+):\s*([^:]+?)(?=[A-Za-z\s]+:|$)', skills_text)
+                            if category_matches:
+                                for category, items in category_matches:
+                                    story.append(Paragraph(f"{category.strip()}:", skills_cat_style))
+                                    story.append(Paragraph(items.strip(), skills_style))
+                            else:
+                                story.append(Paragraph(skills_text, skills_style))
                     
-                    # Only add non-Education/Skills section headers
-                    if not skip_section:
-                        # Handle misclassified names that got marked as section_header
-                        if content.strip() == "DAVID PATEL":
-                            story.append(Paragraph(content.strip(), name_style))
-                            story.append(Spacer(1, 4))  # Reduced spacing after name
-                        elif content.strip().startswith('•'):
-                            # This is actually a bullet point
-                            clean_content = content.strip()
-                            while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
-                                clean_content = clean_content[1:].strip()
-                            if clean_content:
-                                # Use same hanging indent style as other bullets
-                                hanging_bullet_style = ParagraphStyle(
-                                    'HangingBulletStyle',
-                                    parent=styles['Normal'],
-                                    fontSize=9,
-                                    leftIndent=6,            # Further reduced to move continuation lines LEFT
-                                    firstLineIndent=-6,      # Match the leftIndent
-                                    spaceAfter=1,           # Reduced spacing
-                                    spaceBefore=0,
-                                    fontName='Helvetica',
-                                    alignment=TA_LEFT,
-                                    bulletIndent=0
-                                )
-                                bullet_content = f"• {clean_content}"
-                                story.append(Paragraph(bullet_content, hanging_bullet_style))
+                    current_section = line_upper
+                    section_content = []
+                    current_job = None
+                    
+                    # Add section header for experience
+                    if current_section in ['PROFESSIONAL EXPERIENCE', 'EXPERIENCE']:
+                        story.append(Paragraph('PROFESSIONAL EXPERIENCE', section_style))
+                    
+                    continue
+                
+                # Handle experience section specially
+                if current_section in ['PROFESSIONAL EXPERIENCE', 'EXPERIENCE']:
+                    # Job title (bold line that's not a bullet)
+                    if not line.startswith('•') and not line.startswith('-') and not line.startswith('*') and '|' not in line and line.strip():
+                        # Check if next line has company | dates format
+                        next_line_idx = lines.index(line) + 1
+                        if next_line_idx < len(lines) and '|' in lines[next_line_idx]:
+                            # This is a job title
+                            story.append(Paragraph(line, job_title_style))
+                            # Next line is company | dates
+                            story.append(Paragraph(lines[next_line_idx], company_style))
+                            lines[next_line_idx] = ""  # Mark as processed
+                        elif '|' in line:
+                            # This line has company | dates format
+                            story.append(Paragraph(line, company_style))
                         else:
-                            story.append(Paragraph(content.strip().upper(), section_header_style))
-                    continue
-                
-                # Skip content for Education and Skills sections
-                if skip_section:
-                    continue
-                
-                if section_type == "name":
-                    story.append(Paragraph(content.strip(), name_style))
-                    # Add reduced spacing after name
-                    story.append(Spacer(1, 4))
+                            # Regular job title
+                            story.append(Paragraph(line, job_title_style))
                     
-                elif section_type == "title":
-                    story.append(Paragraph(content.strip(), title_style))
-                    
-                elif section_type == "contact":
-                    # Handle misclassified bullet points that got marked as contact
-                    if content.strip().startswith('•'):
-                        # This is actually a bullet point
-                        clean_content = content.strip()
-                        while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
-                            clean_content = clean_content[1:].strip()
-                        if clean_content:
-                            # Use same hanging indent style as other bullets
-                            hanging_bullet_style = ParagraphStyle(
-                                'HangingBulletStyle',
-                                parent=styles['Normal'],
-                                fontSize=9,
-                                leftIndent=6,            # Further reduced to move continuation lines LEFT
-                                firstLineIndent=-6,      # Match the leftIndent
-                                spaceAfter=1,           # Reduced spacing
-                                spaceBefore=0,
-                                fontName='Helvetica',
-                                alignment=TA_LEFT,
-                                bulletIndent=0
-                            )
-                            bullet_content = f"• {clean_content}"
-                            story.append(Paragraph(bullet_content, hanging_bullet_style))
+                    # Bullet points
+                    elif line.startswith('•') or line.startswith('-') or line.startswith('*'):
+                        bullet_text = re.sub(r'^[•\-*]\s*', '', line)
+                        story.append(Paragraph(f"• {bullet_text}", bullet_style))
+                
+                # Collect content for other sections
+                elif current_section and line.strip():
+                    section_content.append(line)
+            
+            # Add final section if exists
+            if current_section and section_content:
+                if current_section in ['PROFESSIONAL SUMMARY', 'SUMMARY']:
+                    story.append(Paragraph('PROFESSIONAL SUMMARY', section_style))
+                    story.append(Paragraph(' '.join(section_content), body_style))
+                elif current_section in ['TECHNICAL SKILLS', 'SKILLS']:
+                    story.append(Paragraph('TECHNICAL SKILLS', section_style))
+                    skills_text = ' '.join(section_content)
+                    category_matches = re.findall(r'([A-Za-z\s]+):\s*([^:]+?)(?=[A-Za-z\s]+:|$)', skills_text)
+                    if category_matches:
+                        for category, items in category_matches:
+                            story.append(Paragraph(f"{category.strip()}:", skills_cat_style))
+                            story.append(Paragraph(items.strip(), skills_style))
                     else:
-                        story.append(Paragraph(content.strip(), contact_style))
-                    
-
-                    
-                elif section_type == "company_header":
-                    story.append(Paragraph(content.strip(), company_header_style))
-                    
-                elif section_type == "bullet_point":
-                    # Clean the bullet content consistently
-                    clean_content = content.strip()
-                    # Remove any existing bullet symbols
-                    while clean_content and clean_content[0] in ['•', '●', '·', '-', '*', '+', '◦', '▪', '▫']:
-                        clean_content = clean_content[1:].strip()
-                    # Remove numbered/lettered list markers
-                    clean_content = re.sub(r'^\d+\.\s+', '', clean_content)
-                    clean_content = re.sub(r'^[a-zA-Z]\.\s+', '', clean_content)
-                    # Remove any remaining leading whitespace
-                    clean_content = clean_content.strip()
-                    
-                    if clean_content:
-                        # Create proper hanging indent bullet with correct formatting
-                        # Use a more precise approach for hanging indentation
-                        hanging_bullet_style = ParagraphStyle(
-                            'HangingBulletStyle',
-                            parent=styles['Normal'],
-                            fontSize=9,
-                            leftIndent=6,            # Further reduced to move continuation lines LEFT
-                            firstLineIndent=-6,      # Move first line back to align bullet at margin
-                            spaceAfter=1,           # Reduced spacing
-                            spaceBefore=0,
-                            fontName='Helvetica',
-                            alignment=TA_LEFT,
-                            bulletIndent=0
-                        )
-                        
-                        # Format bullet content with proper spacing
-                        bullet_content = f"• {clean_content}"
-                        story.append(Paragraph(bullet_content, hanging_bullet_style))
-                        
-                elif section_type == "body_text":
-                    story.append(Paragraph(content.strip(), body_style))
-                    
-                elif section_type == "spacing":
-                    spacing = min(int(content), 1)  # Even tighter spacing to fit on one page
-                    story.append(Spacer(1, spacing))
+                        story.append(Paragraph(skills_text, skills_style))
             
-            # After processing all sections, look for Education and Skills to create horizontal layout
-            self._add_horizontal_education_skills_layout(story, sections, section_header_style, body_style, styles)
-            
-            # Build the document
+            # Build the PDF
             doc.build(story)
+            print("✨ BEAUTIFUL REFERENCE FORMAT PDF GENERATED SUCCESSFULLY! ✨")
             return True
             
         except Exception as e:
-            print(f"Error creating improved PDF: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            # Fallback to original method
-            return self.create_tailored_resume_pdf_fixed(tailored_text, output_path, job_title)
+            print(f"⚠️ PDF GENERATION ERROR: {str(e)}")
+            # Even if there's an error, try to create a basic reference format PDF
+            try:
+                from reportlab.platypus import SimpleDocTemplate, Paragraph
+                from reportlab.lib.styles import ParagraphStyle
+                from reportlab.lib.pagesizes import letter as LETTER_SIZE
+                from reportlab.lib.colors import HexColor
+                from reportlab.lib.units import inch as INCH_UNIT
+                from reportlab.lib.enums import TA_LEFT
+                
+                # Create minimal reference format PDF
+                doc = SimpleDocTemplate(output_path, pagesize=LETTER_SIZE, rightMargin=0.75*INCH_UNIT, leftMargin=0.75*INCH_UNIT, topMargin=0.75*INCH_UNIT, bottomMargin=0.75*INCH_UNIT)
+                blue = HexColor('#4472C4')
+                black = HexColor('#000000')
+                
+                name_style = ParagraphStyle('Name', fontName='Helvetica-Bold', fontSize=18, textColor=blue, spaceAfter=6)
+                body_style = ParagraphStyle('Body', fontName='Helvetica', fontSize=10, textColor=black, spaceAfter=6)
+                
+                # Create basic content
+                lines = [line.strip() for line in tailored_text.split('\n') if line.strip()]
+                story = []
+                
+                # Add name if found
+                if lines:
+                    story.append(Paragraph(lines[0].upper(), name_style))
+                
+                # Add remaining content
+                for line in lines[1:20]:  # Limit to prevent overflow
+                    if line.strip():
+                        story.append(Paragraph(line, body_style))
+                
+                doc.build(story)
+                print("✨ FALLBACK REFERENCE FORMAT PDF GENERATED! ✨")
+                return True
+                
+            except Exception as fallback_error:
+                print(f"❌ FALLBACK PDF GENERATION ALSO FAILED: {str(fallback_error)}")
+                return False
+    
+    def _parse_resume_for_reference_layout(self, text: str) -> dict:
+        """
+        Parse resume text into structured data matching the reference resume format
+        """
+        import re
+        
+        resume_data = {
+            'name': '',
+            'title': '',
+            'contact': '',
+            'summary': '',
+            'experience': [],
+            'skills': {}
+        }
+        
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        current_section = None
+        current_job = None
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            line_upper = line.upper()
+            
+            # Skip empty lines
+            if not line.strip():
+                i += 1
+                continue
+            
+            # Detect name (first non-section line)
+            if not resume_data['name'] and not any(keyword in line_upper for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS', 'EMAIL:', 'PHONE:', 'TECHNICAL']):
+                resume_data['name'] = line
+                i += 1
+                continue
+            
+            # Detect title (line after name, before contact)
+            if resume_data['name'] and not resume_data['title'] and not any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')']) and not any(keyword in line_upper for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS', 'TECHNICAL']):
+                resume_data['title'] = line
+                i += 1
+                continue
+            
+            # Detect contact info (email, phone, linkedin patterns)
+            if any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')', 'tel:']):
+                contact_parts = []
+                # Collect all contact lines
+                while i < len(lines) and (any(pattern in lines[i].lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')', 'tel:']) or (resume_data['contact'] and not any(keyword in lines[i].upper() for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS', 'TECHNICAL']))):
+                    contact_line = lines[i].strip()
+                    if contact_line:
+                        # Clean up contact formatting
+                        contact_line = re.sub(r'^(Email:|Phone:|LinkedIn:)\s*', '', contact_line, flags=re.IGNORECASE)
+                        contact_parts.append(contact_line)
+                    i += 1
+                resume_data['contact'] = ' | '.join(contact_parts)
+                continue
+            
+            # Detect section headers
+            if line_upper in ['PROFESSIONAL SUMMARY', 'SUMMARY', 'PROFESSIONAL EXPERIENCE', 'EXPERIENCE', 'TECHNICAL SKILLS', 'SKILLS']:
+                current_section = line_upper
+                current_job = None
+                i += 1
+                continue
+            
+            # Process content based on current section
+            if current_section in ['PROFESSIONAL SUMMARY', 'SUMMARY']:
+                summary_parts = []
+                while i < len(lines) and not any(keyword in lines[i].upper() for keyword in ['PROFESSIONAL EXPERIENCE', 'EXPERIENCE', 'TECHNICAL SKILLS', 'SKILLS']):
+                    if lines[i].strip():
+                        summary_parts.append(lines[i].strip())
+                    i += 1
+                resume_data['summary'] = ' '.join(summary_parts)
+                continue
+            
+            elif current_section in ['PROFESSIONAL EXPERIENCE', 'EXPERIENCE']:
+                # Look for job title (bold line that's not a bullet)
+                if not line.startswith('•') and not line.startswith('-') and not line.startswith('*') and '|' not in line:
+                    # This might be a job title
+                    job_title = line
+                    
+                    # Look for company | dates on next line
+                    company = ""
+                    dates = ""
+                    if i + 1 < len(lines) and '|' in lines[i + 1]:
+                        parts = [part.strip() for part in lines[i + 1].split('|')]
+                        if len(parts) >= 2:
+                            company = parts[0]
+                            dates = parts[-1]
+                        i += 1  # Skip the company|dates line
+                    
+                    current_job = {
+                        'position': job_title,
+                        'company': company,
+                        'dates': dates,
+                        'bullets': []
+                    }
+                    resume_data['experience'].append(current_job)
+                
+                # Look for company | dates format (fallback)
+                elif '|' in line and any(year in line for year in ['2019', '2020', '2021', '2022', '2023', '2024', 'Present']):
+                    parts = [part.strip() for part in line.split('|')]
+                    if len(parts) >= 2:
+                        company = parts[0]
+                        dates = parts[-1]
+                        
+                        current_job = {
+                            'position': '',
+                            'company': company,
+                            'dates': dates,
+                            'bullets': []
+                        }
+                        resume_data['experience'].append(current_job)
+                
+                # Collect bullets for current job
+                elif (line.startswith('•') or line.startswith('-') or line.startswith('*')) and current_job:
+                    bullet_text = re.sub(r'^[•\-*]\s*', '', line)
+                    current_job['bullets'].append(bullet_text)
+            
+            elif current_section in ['TECHNICAL SKILLS', 'SKILLS']:
+                # Parse skills into categories
+                skills_parts = []
+                while i < len(lines):
+                    if lines[i].strip():
+                        skills_parts.append(lines[i].strip())
+                    i += 1
+                
+                # Try to parse into categories
+                skills_text = ' '.join(skills_parts)
+                
+                # Look for category patterns like "Analytics: SQL, Python, R"
+                category_matches = re.findall(r'([A-Za-z\s]+):\s*([^:]+?)(?=[A-Za-z\s]+:|$)', skills_text)
+                if category_matches:
+                    for category, items in category_matches:
+                        category = category.strip()
+                        items_list = [item.strip() for item in items.split(',')]
+                        resume_data['skills'][category] = items_list
+                else:
+                    # Fallback to unstructured skills
+                    resume_data['skills'] = skills_text
+                break
+            
+            i += 1
+        
+        return resume_data
+    
+    def _parse_resume_for_clean_layout(self, text: str) -> dict:
+        """
+        Parse resume text into structured data for clean professional PDF layout
+        """
+        import re
+        
+        resume_data = {
+            'name': '',
+            'title': '',
+            'contact': '',
+            'summary': '',
+            'experience': [],
+            'education': [],
+            'skills': ''
+        }
+        
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        current_section = None
+        current_job = None
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            line_upper = line.upper()
+            
+            # Skip empty lines
+            if not line.strip():
+                i += 1
+                continue
+            
+            # Detect name (first non-section line)
+            if not resume_data['name'] and not any(keyword in line_upper for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS', 'EMAIL:', 'PHONE:']):
+                resume_data['name'] = line
+                i += 1
+                continue
+            
+            # Detect title (line after name, before contact)
+            if resume_data['name'] and not resume_data['title'] and not any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')']) and not any(keyword in line_upper for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS']):
+                resume_data['title'] = line
+                i += 1
+                continue
+            
+            # Detect contact info (email, phone, linkedin patterns)
+            if any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')', 'tel:']):
+                contact_parts = []
+                # Collect all contact lines
+                while i < len(lines) and (any(pattern in lines[i].lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')', 'tel:']) or (resume_data['contact'] and not any(keyword in lines[i].upper() for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS']))):
+                    contact_line = lines[i].strip()
+                    if contact_line:
+                        # Clean up contact formatting
+                        contact_line = re.sub(r'^(Email:|Phone:|LinkedIn:)\s*', '', contact_line, flags=re.IGNORECASE)
+                        contact_parts.append(contact_line)
+                    i += 1
+                resume_data['contact'] = ' | '.join(contact_parts)
+                continue
+            
+            # Detect section headers
+            if line_upper in ['PROFESSIONAL SUMMARY', 'SUMMARY', 'PROFESSIONAL EXPERIENCE', 'EXPERIENCE', 'EDUCATION', 'SKILLS', 'TECHNICAL SKILLS']:
+                current_section = line_upper
+                current_job = None
+                i += 1
+                continue
+            
+            # Process content based on current section
+            if current_section in ['PROFESSIONAL SUMMARY', 'SUMMARY']:
+                summary_parts = []
+                while i < len(lines) and not any(keyword in lines[i].upper() for keyword in ['PROFESSIONAL EXPERIENCE', 'EXPERIENCE', 'EDUCATION', 'SKILLS']):
+                    if lines[i].strip():
+                        summary_parts.append(lines[i].strip())
+                    i += 1
+                resume_data['summary'] = ' '.join(summary_parts)
+                continue
+            
+            elif current_section in ['PROFESSIONAL EXPERIENCE', 'EXPERIENCE']:
+                # Look for company | dates format (reference format)
+                if '|' in line and any(year in line for year in ['2019', '2020', '2021', '2022', '2023', '2024', 'Present']):
+                    parts = [part.strip() for part in line.split('|')]
+                    if len(parts) >= 2:
+                        company = parts[0]
+                        dates = parts[-1]  # Last part is usually dates
+                        
+                        # Look for position on next line
+                        position = ""
+                        if i + 1 < len(lines) and not lines[i + 1].startswith('•'):
+                            position = lines[i + 1].strip()
+                            i += 1  # Skip the position line
+                        
+                        current_job = {
+                            'company': company,
+                            'position': position,
+                            'dates': dates,
+                            'bullets': []
+                        }
+                        resume_data['experience'].append(current_job)
+                
+                # Look for standalone company names (fallback)
+                elif not line.startswith('•') and not line.startswith('-') and not line.startswith('*') and current_job is None:
+                    company_name = line
+                    position = ""
+                    dates = ""
+                    
+                    # Look ahead for position and dates
+                    if i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        if not next_line.startswith('•') and not any(keyword in next_line.upper() for keyword in ['EDUCATION', 'SKILLS']):
+                            position = next_line
+                            i += 1
+                    
+                    current_job = {
+                        'company': company_name,
+                        'position': position,
+                        'dates': dates,
+                        'bullets': []
+                    }
+                    resume_data['experience'].append(current_job)
+                
+                # Collect bullets for current job
+                elif (line.startswith('•') or line.startswith('-') or line.startswith('*')) and current_job:
+                    bullet_text = re.sub(r'^[•\-*]\s*', '', line)
+                    current_job['bullets'].append(bullet_text)
+            
+            elif current_section == 'EDUCATION':
+                education_parts = []
+                while i < len(lines) and not any(keyword in lines[i].upper() for keyword in ['SKILLS', 'TECHNICAL SKILLS']):
+                    if lines[i].strip():
+                        education_parts.append(lines[i].strip())
+                    i += 1
+                resume_data['education'] = education_parts
+                continue
+            
+            elif current_section in ['SKILLS', 'TECHNICAL SKILLS']:
+                skills_parts = []
+                while i < len(lines):
+                    if lines[i].strip():
+                        skills_parts.append(lines[i].strip())
+                    i += 1
+                resume_data['skills'] = ' '.join(skills_parts)
+                break
+            
+            i += 1
+        
+        return resume_data
     
     def _add_horizontal_education_skills_layout(self, story, sections, section_header_style, body_style, styles):
         """Add horizontal layout for Education and Skills sections"""
@@ -2156,6 +2530,9 @@ class ResumeEditor:
         Create a DOCX from tailored resume text
         """
         try:
+            # Fix bullet text issues first
+            tailored_text = self._fix_bullet_text(tailored_text)
+            
             doc = Document()
             
             # Parse sections

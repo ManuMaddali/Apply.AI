@@ -14,11 +14,19 @@ export const dispatchUsageUpdate = () => {
 };
 
 // Custom event to notify components of subscription changes
-export const dispatchSubscriptionChange = () => {
+export const dispatchSubscriptionChange = (changeData = {}) => {
   const event = new CustomEvent('subscriptionChanged', {
-    detail: { timestamp: new Date().toISOString() }
+    detail: { 
+      timestamp: new Date().toISOString(),
+      ...changeData
+    }
   });
   window.dispatchEvent(event);
+
+  // Also emit through the event manager if available
+  if (typeof window !== 'undefined' && window.subscriptionEventManager) {
+    window.subscriptionEventManager.emit('subscriptionStatusChanged', changeData);
+  }
 };
 
 // Fetch current subscription status
@@ -81,6 +89,14 @@ export const createSubscription = async (authenticatedRequest, paymentMethodId) 
       throw new Error(result.detail || 'Subscription creation failed');
     }
 
+    // Clear cache and dispatch subscription change event
+    clearSubscriptionCache();
+    dispatchSubscriptionChange({
+      type: 'subscription_created',
+      newTier: 'pro',
+      previousTier: 'free'
+    });
+
     return result;
   } catch (error) {
     console.error('Error creating subscription:', error);
@@ -104,6 +120,14 @@ export const cancelSubscription = async (authenticatedRequest, cancelData = {}) 
     if (!response.ok) {
       throw new Error(result.detail || 'Subscription cancellation failed');
     }
+
+    // Clear cache and dispatch subscription change event
+    clearSubscriptionCache();
+    dispatchSubscriptionChange({
+      type: 'subscription_cancelled',
+      cancelImmediately: cancelData.cancel_immediately,
+      reason: cancelData.reason
+    });
 
     return result;
   } catch (error) {

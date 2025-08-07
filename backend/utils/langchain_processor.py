@@ -37,39 +37,67 @@ from datetime import datetime
 class LangChainResumeProcessor:
     def __init__(self):
         load_dotenv()
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         
+        # Defer actual initialization until first use
+        self.llm = None
+        self.embeddings = None
+        self.memory = None
+        self._initialized = False
+        
+        self.langchain_available = LANGCHAIN_AVAILABLE
+        
+        # Initialize vector store for job descriptions
+        self.job_vectorstore = None
+        self.resume_history = {}  # Track resume versions
+        
+        # Create vector store directory
+        os.makedirs("vector_stores", exist_ok=True)
+    
+    def _lazy_init(self):
+        """Initialize OpenAI components on first use to avoid blocking at import time"""
+        if self._initialized:
+            return
+        
+        self._initialized = True
+        
+        if not LANGCHAIN_AVAILABLE:
+            print("⚠️ LangChain not available - using fallback mode")
+            return
+        
         try:
+            # Initialize with timeout configuration
             import httpx
-            # Create custom HTTP client to avoid proxies issue
-            http_client = httpx.Client(timeout=60.0)
-            self.llm = ChatOpenAI(
-                model_name="gpt-4o-mini",
-                temperature=0.1,
-                openai_api_key=api_key,
-                max_tokens=8000,
-                http_client=http_client
+            # Create HTTP client with reasonable timeout
+            http_client = httpx.Client(
+                timeout=httpx.Timeout(60.0, connect=10.0),
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
             )
-            print("✅ LangChain OpenAI initialized successfully with custom HTTP client")
+            
+            self.llm = ChatOpenAI(
+                model="gpt-4o-mini",
+                temperature=0.1,
+                api_key=self.api_key,
+                max_tokens=8000,
+                request_timeout=60,  # 60 second timeout
+                max_retries=2  # Retry up to 2 times on failure
+            )
+            print("✅ LangChain OpenAI initialized with 60s timeout")
         except Exception as e:
             print(f"⚠️  LangChain OpenAI initialization failed: {e}")
             print("⚠️  Using fallback - resume generation may not work properly")
             self.llm = None
         
-        self.langchain_available = LANGCHAIN_AVAILABLE
-        
-        if LANGCHAIN_AVAILABLE and self.llm is not None:
+        if self.llm is not None:
             # Initialize LangChain components
             try:
-                # Use same custom HTTP client for embeddings
-                embeddings_http_client = httpx.Client(timeout=60.0)
+                # Initialize embeddings without custom HTTP client
                 self.embeddings = OpenAIEmbeddings(
-                    openai_api_key=api_key,
-                    http_client=embeddings_http_client
+                    api_key=self.api_key
                 )
-                print("✅ OpenAI Embeddings initialized successfully with custom HTTP client")
+                print("✅ OpenAI Embeddings initialized successfully")
             except Exception as e:
                 print(f"⚠️ OpenAI Embeddings not available: {e}")
                 self.embeddings = None
@@ -79,18 +107,6 @@ class LangChainResumeProcessor:
                 k=5,  # Remember last 5 interactions
                 return_messages=True
             )
-        else:
-            print("⚠️ LangChain not available - using fallback mode")
-            self.llm = None
-            self.embeddings = None
-            self.memory = None
-        
-        # Initialize vector store for job descriptions
-        self.job_vectorstore = None
-        self.resume_history = {}  # Track resume versions
-        
-        # Create vector store directory
-        os.makedirs("vector_stores", exist_ok=True)
     
     def _detect_existing_sections(self, resume_text: str) -> Set[str]:
         """
@@ -163,6 +179,7 @@ class LangChainResumeProcessor:
         
     def initialize_job_vectorstore(self, job_descriptions: List[Dict[str, str]]):
         """Initialize FAISS vector store with job descriptions"""
+        self._lazy_init()  # Initialize OpenAI components if needed
         if not self.langchain_available or not self.embeddings:
             print("⚠️ Vector store not available - RAG features disabled")
             return False
@@ -208,6 +225,7 @@ class LangChainResumeProcessor:
     
     def load_job_vectorstore(self):
         """Load existing job vector store"""
+        self._lazy_init()  # Initialize OpenAI components if needed
         if not self.langchain_available or not self.embeddings:
             return False
             
@@ -788,6 +806,7 @@ Return ONLY the transformed resume in plain text, starting with name. Create a d
             
             
             # Create chain and run
+            self._lazy_init()  # Initialize OpenAI components if needed
             chain = rag_prompt | self.llm | StrOutputParser()
             
             tailored_resume = chain.invoke({

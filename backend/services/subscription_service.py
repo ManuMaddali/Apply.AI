@@ -238,7 +238,8 @@ class SubscriptionService:
             if usage_type == UsageType.RESUME_PROCESSING:
                 return await self._check_weekly_resume_limit(user)
             elif usage_type == UsageType.BULK_PROCESSING:
-                return UsageLimitResult(False, "Bulk processing requires Pro subscription")
+                # Free users can do batch processing up to 10 jobs
+                return UsageLimitResult(True, "Free users can process up to 10 jobs in batch mode")
             elif usage_type == UsageType.COVER_LETTER:
                 return UsageLimitResult(False, "Cover letters require Pro subscription")
             else:

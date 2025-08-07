@@ -13,6 +13,7 @@ load_dotenv()
 from middleware.security import setup_security_middleware
 from middleware.feature_gate import setup_feature_gate_middleware
 from config.security import validate_security_environment, SecurityMonitoring, check_required_env_vars
+from config.timeout_config import TimeoutConfig
 from utils.rate_limiter import limiter, custom_rate_limit_handler
 from utils.file_security import cleanup_temp_files
 from slowapi.errors import RateLimitExceeded
@@ -21,7 +22,10 @@ from slowapi.errors import RateLimitExceeded
 from routes.upload_resume import router as upload_router
 from routes.scrape_jobs import router as scrape_router
 from routes.generate_resumes import router as generate_router
-from routes.batch_processing import router as batch_router
+from routes.simple_batch import router as simple_batch_router
+from routes.enhanced_batch import router as enhanced_batch_router
+from routes.professional_output import router as professional_output_router
+from routes.analytics_dashboard import router as analytics_dashboard_router
 from routes.auth import router as auth_router
 from routes.webhooks import router as webhooks_router
 from routes.advanced_formatting import router as advanced_formatting_router
@@ -32,6 +36,9 @@ from routes.analytics_privacy import router as analytics_privacy_router
 from routes.subscription import router as subscription_router
 from routes.admin_analytics import router as admin_analytics_router
 from routes.lifecycle_management import router as lifecycle_router
+from routes.app_redesign_api import router as app_redesign_router
+from routes.file_cleanup import router as file_cleanup_router
+from routes.websocket_api import router as websocket_router
 
 # Database initialization
 from config.database import init_db, check_database_health
@@ -67,20 +74,25 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 # Include routers with rate limiting
-app.include_router(auth_router, prefix="/api", tags=["authentication"])
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(subscription_router, prefix="/api/subscription", tags=["subscription"])
+app.include_router(analytics_dashboard_router, prefix="/api/analytics", tags=["analytics"])
+app.include_router(analytics_privacy_router, prefix="/api/analytics", tags=["analytics-privacy"])
 app.include_router(upload_router, prefix="/api/resumes", tags=["resumes"])
 app.include_router(scrape_router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(generate_router, prefix="/api/resumes", tags=["resumes"])
-app.include_router(batch_router, prefix="/api/batch", tags=["batch"])
+app.include_router(simple_batch_router, prefix="/api/simple-batch", tags=["simple-batch"])
+app.include_router(enhanced_batch_router, prefix="/api/enhanced-batch", tags=["enhanced-batch"])
+app.include_router(professional_output_router, prefix="/api/professional", tags=["professional-output"])
 app.include_router(webhooks_router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(advanced_formatting_router, tags=["advanced-formatting"])
 app.include_router(job_templates_router, prefix="/api/job-templates", tags=["job-specific-templates"])
-app.include_router(analytics_router, tags=["analytics"])
 app.include_router(premium_cover_letters_router, tags=["premium-cover-letters"])
-app.include_router(analytics_privacy_router, tags=["analytics-privacy"])
-app.include_router(subscription_router, tags=["subscription"])
 app.include_router(admin_analytics_router, tags=["admin-analytics"])
 app.include_router(lifecycle_router, tags=["lifecycle-management"])
+app.include_router(app_redesign_router, tags=["app-redesign"])
+app.include_router(file_cleanup_router, prefix="/api", tags=["file-cleanup"])
+app.include_router(websocket_router, tags=["websocket"])
 
 # Mount static files
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
@@ -132,6 +144,15 @@ async def startup_event():
         print("⚠️ Subscription lifecycle scheduler temporarily disabled")
     except Exception as e:
         print(f"⚠️ Failed to start lifecycle scheduler: {e}")
+        # Don't fail startup if scheduler fails
+    
+    # Start file cleanup scheduler for auto-deletion
+    try:
+        from services.file_cleanup_service import file_cleanup_service
+        file_cleanup_service.schedule_cleanup()
+        print("✅ File cleanup scheduler started - files will be auto-deleted after 24 hours")
+    except Exception as e:
+        print(f"⚠️ Failed to start file cleanup scheduler: {e}")
         # Don't fail startup if scheduler fails
     
     print("✅ Security configuration validated")
@@ -301,7 +322,9 @@ if __name__ == "__main__":
             port=8000,
             ssl_keyfile=key_file,
             ssl_certfile=cert_file,
-            reload=True
+            reload=True,
+            timeout_keep_alive=TimeoutConfig.SERVER_KEEP_ALIVE,
+            timeout_graceful_shutdown=TimeoutConfig.SERVER_GRACEFUL_SHUTDOWN
         )
     else:
         print("🌐 Starting with HTTP (no SSL certificates found)")
@@ -309,5 +332,7 @@ if __name__ == "__main__":
             "main:app",
             host="0.0.0.0",
             port=8000,
-            reload=True
+            reload=True,
+            timeout_keep_alive=TimeoutConfig.SERVER_KEEP_ALIVE,
+            timeout_graceful_shutdown=TimeoutConfig.SERVER_GRACEFUL_SHUTDOWN
         ) 

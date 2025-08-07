@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
+import { TierBadge, TierIndicator } from './ui/tier-badge';
+import { ContextualUpgradePrompt } from './UpgradePrompt';
 
 const SubscriptionStatus = ({ onUpgradeClick, showUpgradePrompt = true }) => {
   const { user, isAuthenticated, authenticatedRequest } = useAuth();
@@ -182,13 +184,12 @@ const SubscriptionStatus = ({ onUpgradeClick, showUpgradePrompt = true }) => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                isProUser 
-                  ? 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800' 
-                  : 'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-800'
-              }`}>
-                {isProUser ? '🚀 Pro' : '🆓 Free'}
-              </span>
+              <TierBadge 
+                tier={isProUser ? 'pro' : 'free'}
+                isActive={isProUser && !subscriptionData?.cancel_at_period_end}
+                size="default"
+                animated={true}
+              />
               {subscriptionData?.cancel_at_period_end && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                   Expires {new Date(subscriptionData.current_period_end).toLocaleDateString()}
@@ -266,36 +267,18 @@ const SubscriptionStatus = ({ onUpgradeClick, showUpgradePrompt = true }) => {
               )}
             </div>
 
-            {/* Upgrade Prompt */}
+            {/* Contextual Upgrade Prompt */}
             {showUpgradePrompt && (isApproachingLimit || hasExceededLimit) && (
-              <div className={`p-4 rounded-xl border-2 border-dashed ${
-                hasExceededLimit ? 'border-red-300 bg-red-50' : 'border-yellow-300 bg-yellow-50'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className={`text-sm font-semibold ${
-                      hasExceededLimit ? 'text-red-800' : 'text-yellow-800'
-                    }`}>
-                      {hasExceededLimit ? 'Limit Reached!' : 'Almost at your limit'}
-                    </h4>
-                    <p className={`text-xs mt-1 ${
-                      hasExceededLimit ? 'text-red-600' : 'text-yellow-600'
-                    }`}>
-                      Upgrade to Pro for unlimited resume processing and advanced features
-                    </p>
-                  </div>
-                  <button
-                    onClick={onUpgradeClick}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                      hasExceededLimit 
-                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl' 
-                        : 'bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg hover:shadow-xl'
-                    }`}
-                  >
-                    Upgrade Now
-                  </button>
-                </div>
-              </div>
+              <ContextualUpgradePrompt
+                weeklyUsage={weeklyUsage}
+                weeklyLimit={weeklyLimit}
+                isProUser={isProUser}
+                hasExceededLimit={hasExceededLimit}
+                isApproachingLimit={isApproachingLimit}
+                onUpgradeClick={onUpgradeClick}
+                variant="banner"
+                size="sm"
+              />
             )}
           </>
         ) : (

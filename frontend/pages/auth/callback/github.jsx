@@ -41,7 +41,7 @@ export default function GitHubCallback() {
         console.log("🔍 [GitHubCallback] Using redirect URI:", redirectUri);
         console.log("🔍 [GitHubCallback] Exchanging code for token...");
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/oauth/callback/github`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/auth/oauth/callback/github`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

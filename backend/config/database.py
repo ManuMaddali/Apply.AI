@@ -56,6 +56,7 @@ def init_db():
         User, UserSession, PasswordReset, EmailVerification,
         Subscription, UsageTracking, PaymentHistory
     )
+    from models.file_metadata import FileMetadata
     
     # Create all tables
     Base.metadata.create_all(bind=engine)

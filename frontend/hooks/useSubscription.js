@@ -9,6 +9,12 @@ import {
   getCachedSubscriptionData,
   clearSubscriptionCache
 } from '../utils/subscriptionUtils';
+import {
+  subscribeToSubscriptionEvents,
+  emitSubscriptionEvent,
+  queueSubscriptionUpdate,
+  SUBSCRIPTION_EVENTS
+} from '../utils/subscriptionEventManager';
 
 /**
  * Custom hook for managing subscription data and real-time updates
@@ -29,6 +35,8 @@ export const useSubscription = () => {
 
     try {
       setError(null);
+      const previousSubscriptionData = subscriptionData;
+      const previousUsageData = usageData;
 
       // Try to use cached data first
       if (useCache) {
@@ -58,6 +66,25 @@ export const useSubscription = () => {
         usage: usageResponse
       });
 
+      // Queue updates for event manager
+      if (previousSubscriptionData) {
+        queueSubscriptionUpdate({
+          type: 'subscription_status',
+          data: subscriptionResponse,
+          previousData: previousSubscriptionData,
+          userId: user.id
+        });
+      }
+
+      if (previousUsageData) {
+        queueSubscriptionUpdate({
+          type: 'usage_update',
+          data: usageResponse,
+          previousData: previousUsageData,
+          userId: user.id
+        });
+      }
+
     } catch (err) {
       console.error('❌ [useSubscription] Error loading subscription data:', err);
       setError(err.message);
@@ -71,16 +98,49 @@ export const useSubscription = () => {
     loadSubscriptionData();
   }, [loadSubscriptionData]);
 
-  // Listen for usage updates and subscription changes (with debouncing)
+  // Listen for subscription events using the event manager
   useEffect(() => {
     let updateTimeout;
     
+    // Subscribe to specific subscription events
+    const unsubscribeUsage = subscribeToSubscriptionEvents(
+      SUBSCRIPTION_EVENTS.USAGE_UPDATED,
+      () => {
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+          loadSubscriptionData(false);
+        }, 1000);
+      }
+    );
+
+    const unsubscribeStatus = subscribeToSubscriptionEvents(
+      SUBSCRIPTION_EVENTS.STATUS_CHANGED,
+      () => {
+        clearSubscriptionCache();
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+          loadSubscriptionData(false);
+        }, 500);
+      }
+    );
+
+    const unsubscribeTier = subscribeToSubscriptionEvents(
+      SUBSCRIPTION_EVENTS.TIER_CHANGED,
+      () => {
+        clearSubscriptionCache();
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+          loadSubscriptionData(false);
+        }, 500);
+      }
+    );
+
+    // Keep backward compatibility with window events
     const handleUsageUpdate = () => {
-      // Debounce updates to prevent excessive API calls
       clearTimeout(updateTimeout);
       updateTimeout = setTimeout(() => {
         loadSubscriptionData(false);
-      }, 2000); // Wait 2 seconds before updating
+      }, 2000);
     };
 
     const handleSubscriptionChange = () => {
@@ -96,6 +156,9 @@ export const useSubscription = () => {
     
     return () => {
       clearTimeout(updateTimeout);
+      unsubscribeUsage();
+      unsubscribeStatus();
+      unsubscribeTier();
       window.removeEventListener('usageUpdated', handleUsageUpdate);
       window.removeEventListener('subscriptionChanged', handleSubscriptionChange);
     };
@@ -120,16 +183,27 @@ export const useSubscription = () => {
   // Usage tracking function
   const trackUsage = useCallback(async () => {
     try {
+      const previousUsage = usageData;
+      
       // Optimistically update local state
       if (usageData) {
-        setUsageData(prev => ({
-          ...prev,
-          weekly_usage_count: (prev.weekly_usage_count || 0) + 1,
-          total_usage_count: (prev.total_usage_count || 0) + 1
-        }));
+        const newUsageData = {
+          ...usageData,
+          weekly_usage_count: (usageData.weekly_usage_count || 0) + 1,
+          total_usage_count: (usageData.total_usage_count || 0) + 1
+        };
+        
+        setUsageData(newUsageData);
+
+        // Emit usage update event through event manager
+        emitSubscriptionEvent(SUBSCRIPTION_EVENTS.USAGE_UPDATED, {
+          newUsage: newUsageData,
+          previousUsage: previousUsage,
+          delta: 1
+        });
       }
 
-      // Dispatch update event for other components (this will trigger debounced refresh)
+      // Dispatch update event for backward compatibility
       dispatchUsageUpdate();
 
     } catch (error) {

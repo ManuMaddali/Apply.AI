@@ -154,6 +154,7 @@ class User(Base):
     subscriptions = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
     usage_tracking = relationship("UsageTracking", back_populates="user", cascade="all, delete-orphan")
     payment_history = relationship("PaymentHistory", back_populates="user", cascade="all, delete-orphan")
+    uploaded_files = relationship("FileMetadata", back_populates="user", cascade="all, delete-orphan")
     
     def set_password(self, password: str):
         """Hash and set password"""
@@ -221,11 +222,11 @@ class User(Base):
         return free_features.get(feature, False)
     
     def get_usage_limits_new(self) -> dict:
-        """Get usage limits based on subscription tier"""
+        """Get usage limits based on subscription tier - matches README specifications"""
         if self.is_pro_active():
             return {
-                "weekly_sessions": -1,  # Unlimited
-                "bulk_jobs": 10,
+                "weekly_sessions": -1,  # Unlimited resume processing
+                "bulk_jobs": 25,        # Up to 25 jobs in batch mode
                 "cover_letters": True,
                 "advanced_formatting": True,
                 "analytics": True,
@@ -233,8 +234,8 @@ class User(Base):
             }
         else:
             return {
-                "weekly_sessions": 5,
-                "bulk_jobs": 1,
+                "weekly_sessions": 3,   # 3 tailored resumes per week
+                "bulk_jobs": 10,        # Up to 10 jobs in batch mode
                 "cover_letters": False,
                 "advanced_formatting": False,
                 "analytics": False,
