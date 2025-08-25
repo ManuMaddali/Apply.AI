@@ -22,7 +22,7 @@ from slowapi.errors import RateLimitExceeded
 from routes.upload_resume import router as upload_router
 from routes.scrape_jobs import router as scrape_router
 from routes.generate_resumes import router as generate_router
-from routes.simple_batch import router as simple_batch_router
+# from routes.simple_batch import router as simple_batch_router  # File not found
 from routes.enhanced_batch import router as enhanced_batch_router
 from routes.professional_output import router as professional_output_router
 from routes.analytics_dashboard import router as analytics_dashboard_router
@@ -81,7 +81,7 @@ app.include_router(analytics_privacy_router, prefix="/api/analytics", tags=["ana
 app.include_router(upload_router, prefix="/api/resumes", tags=["resumes"])
 app.include_router(scrape_router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(generate_router, prefix="/api/resumes", tags=["resumes"])
-app.include_router(simple_batch_router, prefix="/api/simple-batch", tags=["simple-batch"])
+# app.include_router(simple_batch_router, prefix="/api/simple-batch", tags=["simple-batch"])  # File not found
 app.include_router(enhanced_batch_router, prefix="/api/enhanced-batch", tags=["enhanced-batch"])
 app.include_router(professional_output_router, prefix="/api/professional", tags=["professional-output"])
 app.include_router(webhooks_router, prefix="/api/webhooks", tags=["webhooks"])

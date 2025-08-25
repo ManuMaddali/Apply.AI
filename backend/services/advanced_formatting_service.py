@@ -85,7 +85,11 @@ class FormattingOptions:
 
 
 class AdvancedFormattingService:
-    """Service for creating advanced PDF formatting for Pro users"""
+    """Deprecated: shim to maintain imports. Uses TemplateEngine under the hood for PDFs.
+
+    Existing public methods keep working. Any internal PDF generation should
+    delegate to the new HTML/CSS -> PDF engine for reliability.
+    """
     
     def __init__(self):
         self.color_schemes = self._initialize_color_schemes()
@@ -242,32 +246,22 @@ class AdvancedFormattingService:
         output_path: str,
         job_title: str = ""
     ) -> bool:
-        """Create an advanced formatted resume PDF"""
+        """Shim: render via TemplateEngine and write to output_path."""
         try:
-            logger.info(f"Creating advanced formatted resume with template: {formatting_options.template.value}")
-            
-            # Validate ATS compatibility
-            if not self._validate_ats_compatibility(formatting_options):
-                logger.warning("Formatting options may not be ATS compatible, applying adjustments")
-                formatting_options = self._adjust_for_ats_compatibility(formatting_options)
-            
-            # Parse resume content
-            resume_data = self._parse_resume_content(resume_text)
-            
-            # Create PDF based on template
-            success = self._create_pdf_with_template(
-                resume_data, formatting_options, output_path, job_title
-            )
-            
-            if success:
-                logger.info(f"Successfully created advanced formatted resume: {output_path}")
-            else:
-                logger.error("Failed to create advanced formatted resume")
-            
-            return success
-            
+            from services.template_engine import TemplateEngine
+            from models.resume_schema import parse_resume_text_to_schema
+            from services.renderers.pdf_renderer import render_pdf_from_html_sync
+            # Map enum to legacy ids sensibly
+            template_id = formatting_options.template.value if hasattr(formatting_options.template, 'value') else 'modern'
+            resume_obj = parse_resume_text_to_schema(resume_text)
+            # Pass raw resume_text so templates can use fallback rendering when parsing yields few sections
+            html = TemplateEngine.render_preview(template_id, resume_json=resume_obj.dict(), resume_text=resume_text)
+            pdf_bytes = render_pdf_from_html_sync(html, page_size='A4')
+            with open(output_path, 'wb') as f:
+                f.write(pdf_bytes)
+            return True
         except Exception as e:
-            logger.error(f"Error creating advanced formatted resume: {e}")
+            logger.error(f"Shim advanced resume render failed: {e}")
             return False
     
     def create_standard_formatted_resume(
@@ -354,6 +348,7 @@ class AdvancedFormattingService:
         lines = resume_text.split('\n')
         resume_data = {
             'name': '',
+            'title': '',
             'contact': [],
             'sections': []
         }
@@ -368,7 +363,26 @@ class AdvancedFormattingService:
             if not stripped:
                 continue
             
-            # Detect name (first substantial line)
+            # Handle lines that contain an uppercase header and multiple bullets inline (e.g., "ACHIEVEMENTS • ...")
+            if '•' in stripped:
+                header_candidate = stripped.split('•')[0].strip()
+                if header_candidate.isupper() and 1 <= len(header_candidate.split()) <= 3:
+                    # Save previous section
+                    if current_section:
+                        resume_data['sections'].append({
+                            'title': current_section,
+                            'content': current_content
+                        })
+                    # Start new section with title-cased header
+                    current_section = header_candidate.title()
+                    current_content = []
+                    # Add each bullet after the header
+                    parts = [p.strip() for p in stripped.split('•')[1:] if p.strip()]
+                    for p in parts:
+                        current_content.append(f"• {p}")
+                    continue
+            
+            # Detect name (first substantial line) with fallback when header combines name and contact
             if not name_detected and i < 5:
                 if (not any(char in stripped.lower() for char in ['@', '.com', 'phone', 'email', '(', ')', 'linkedin', 'http']) and 
                     len(stripped) < 60 and len(stripped) > 5 and 
@@ -376,6 +390,16 @@ class AdvancedFormattingService:
                     resume_data['name'] = stripped
                     name_detected = True
                     continue
+                # Combined header detection: extract probable name then keep whole line as contact
+                lower = stripped.lower()
+                if any(ind in lower for ind in ['email', '@', 'linkedin', 'phone']):
+                    import re
+                    m = re.match(r'^\s*([A-Za-z][A-Za-z\-]+\s+[A-Za-z][A-Za-z\-]+)', stripped)
+                    if m:
+                        resume_data['name'] = m.group(1).strip()
+                        name_detected = True
+                        resume_data['contact'].append(stripped)
+                        continue
             
             # Detect contact info
             if (any(indicator in stripped.lower() for indicator in ['@', '.com', 'phone', '(', ')', 'email', 'linkedin', 'http']) or 
@@ -383,6 +407,12 @@ class AdvancedFormattingService:
                 resume_data['contact'].append(stripped)
                 continue
             
+            # Detect professional title immediately after name (before contact or first section)
+            if name_detected and not resume_data['title']:
+                if (not self._is_section_header(stripped) and not any(ind in stripped.lower() for ind in ['@', '.com', 'phone', 'email', 'linkedin', 'http']) and len(stripped) < 80):
+                    resume_data['title'] = stripped
+                    continue
+
             # Detect section headers
             if self._is_section_header(stripped):
                 # Save previous section
@@ -396,8 +426,13 @@ class AdvancedFormattingService:
                 current_content = []
                 continue
             
-            # Add to current section
-            current_content.append(stripped)
+            # Add to current section; if a line has multiple bullets inline, split them
+            if '•' in stripped and not stripped.startswith('•') and stripped.count('•') > 1:
+                parts = [p.strip() for p in stripped.split('•') if p.strip()]
+                for p in parts:
+                    current_content.append(f"• {p}")
+            else:
+                current_content.append(stripped)
         
         # Add the last section
         if current_section:
@@ -469,9 +504,12 @@ class AdvancedFormattingService:
             # Build content
             story = []
             
-            # Add name
+            # Header block: Name, Title, Contact
             if resume_data['name']:
                 story.append(Paragraph(resume_data['name'], styles['name']))
+            if resume_data.get('title'):
+                story.append(Paragraph(resume_data['title'], styles['body']))
+            if resume_data['name'] or resume_data.get('title'):
                 story.append(Spacer(1, 6))
             
             # Add contact information
@@ -481,7 +519,12 @@ class AdvancedFormattingService:
                 story.append(Spacer(1, options.section_spacing))
             
             # Add sections
-            for section in resume_data['sections']:
+            # Section ordering preferences to make it look professional
+            preferred_order = ['PROFESSIONAL SUMMARY', 'SUMMARY', 'EXPERIENCE', 'PROFESSIONAL EXPERIENCE', 'EDUCATION', 'SKILLS', 'TECHNICAL SKILLS']
+            def section_sort_key(sec):
+                title = (sec['title'] or '').upper()
+                return preferred_order.index(title) if title in preferred_order else len(preferred_order)
+            for section in sorted(resume_data['sections'], key=section_sort_key):
                 # Section header
                 story.append(Paragraph(section['title'].upper(), styles['section_header']))
                 story.append(Spacer(1, 4))
@@ -497,64 +540,8 @@ class AdvancedFormattingService:
                 
                 story.append(Spacer(1, options.section_spacing))
             
-            # FORCE REFERENCE FORMAT - Replace with beautiful format
-            print("🚀 ADVANCED FORMATTING SERVICE: GENERATING REFERENCE FORMAT PDF!")
-            
-            # Clear story and rebuild with reference format
-            story = []
-            
-            # Reference format colors and styles
-            blue = HexColor('#4472C4')
-            black = HexColor('#000000')
-            
-            # Reference format styles
-            name_style = ParagraphStyle('Name', fontName='Helvetica-Bold', fontSize=18, textColor=blue, spaceAfter=2, alignment=TA_LEFT)
-            title_style = ParagraphStyle('Title', fontName='Helvetica-Bold', fontSize=14, textColor=blue, spaceAfter=6, alignment=TA_LEFT)
-            contact_style = ParagraphStyle('Contact', fontName='Helvetica', fontSize=10, textColor=black, spaceAfter=12, alignment=TA_LEFT)
-            section_style = ParagraphStyle('Section', fontName='Helvetica-Bold', fontSize=11, textColor=blue, spaceBefore=12, spaceAfter=6, alignment=TA_LEFT)
-            body_style = ParagraphStyle('Body', fontName='Helvetica', fontSize=10, textColor=black, spaceAfter=6, alignment=TA_JUSTIFY)
-            
-            # Parse resume text for reference format
-            resume_text = resume_data.get('content', '') or str(resume_data)
-            lines = [line.strip() for line in resume_text.split('\n') if line.strip()]
-            
-            # Add header
-            if lines:
-                story.append(Paragraph(lines[0].upper(), name_style))
-            if len(lines) > 1 and not any(pattern in lines[1].lower() for pattern in ['@', 'phone:', 'email:']):
-                story.append(Paragraph(lines[1], title_style))
-            
-            # Add contact info
-            for line in lines[1:4]:
-                if any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:']):
-                    story.append(Paragraph(line, contact_style))
-                    break
-            
-            # Add sections with reference format
-            current_section = None
-            section_content = []
-            
-            for line in lines:
-                line_upper = line.upper()
-                if line_upper in ['PROFESSIONAL SUMMARY', 'SUMMARY', 'PROFESSIONAL EXPERIENCE', 'EXPERIENCE', 'TECHNICAL SKILLS', 'SKILLS']:
-                    # Add previous section
-                    if current_section and section_content:
-                        story.append(Paragraph(current_section, section_style))
-                        story.append(Paragraph(' '.join(section_content), body_style))
-                    
-                    current_section = line_upper
-                    section_content = []
-                elif current_section and line.strip():
-                    section_content.append(line)
-            
-            # Add final section
-            if current_section and section_content:
-                story.append(Paragraph(current_section, section_style))
-                story.append(Paragraph(' '.join(section_content), body_style))
-            
-            # Build PDF with reference format
+            # Build PDF using the selected template configuration
             doc.build(story)
-            print("✨ REFERENCE FORMAT PDF GENERATED BY ADVANCED FORMATTING SERVICE! ✨")
             return True
             
         except Exception as e:
@@ -578,7 +565,7 @@ class AdvancedFormattingService:
             fontSize=template_config['name_font_size'],
             textColor=colors['primary'],
             fontName=fonts['bold'],
-            alignment=TA_CENTER if options.template == FormattingTemplate.CREATIVE else TA_LEFT,
+            alignment=TA_CENTER if options.template in [FormattingTemplate.CREATIVE, FormattingTemplate.EXECUTIVE] else TA_LEFT,
             spaceAfter=6,
             spaceBefore=0
         )

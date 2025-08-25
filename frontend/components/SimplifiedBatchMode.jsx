@@ -438,6 +438,7 @@ export default function SimplifiedBatchMode({
             results={results}
             onDownloadAll={onDownloadAll}
             onDownloadIndividual={onDownloadIndividual}
+            batchId={settings?.batchId || undefined}
           />
         </div>
 

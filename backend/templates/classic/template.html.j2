@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ resume.name }} – Resume</title>
+  <style>
+  {{ inline_css }}
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <header>
+    <h1>{{ display_name or resume.name }}</h1>
+    {% if resume.headline %}<div class="headline">{{ resume.headline }}</div>{% endif %}
+    <div class="meta">
+      {% if resume.contact.location %}{{ resume.contact.location }}{% endif %}
+      {% if resume.contact.email %} • {{ resume.contact.email }}{% endif %}
+      {% if resume.contact.phone %} • {{ resume.contact.phone }}{% endif %}
+      {% for link in resume.contact.links %} • <a href="{{ link.url }}">{{ link.label }}</a>{% endfor %}
+    </div>
+  </header>
+
+  {% if use_fallback %}
+  <section>
+    <div class="section-title">Resume</div>
+    <div>
+      {% for line in raw_lines %}
+        <div>{{ line }}</div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if resume.summary %}
+  <section>
+    <div class="section-title">Summary</div>
+    <div>{{ resume.summary }}</div>
+  </section>
+  {% endif %}
+
+  {% if resume.experience %}
+  <section>
+    <div class="section-title">Experience</div>
+    {% for role in resume.experience %}
+      <div class="row">
+        <div class="left meta">
+          <div>{{ role.company }}</div>
+          <div>{{ role.start }} – {{ role.end | present_if_none }}</div>
+          <div>{{ role.location }}</div>
+        </div>
+        <div class="right">
+          <strong>{{ role.title }}</strong>
+          <ul>
+            {% for b in role.bullets %}<li>{{ b }}</li>{% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if resume.education %}
+  <section>
+    <div class="section-title">Education</div>
+    {% for ed in resume.education %}
+      <div class="row">
+        <div class="left meta">{{ ed.end }}</div>
+        <div class="right"><strong>{{ ed.degree }}</strong> — {{ ed.school }}</div>
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if resume.skills %}
+  <section>
+    <div class="section-title">Skills</div>
+    <div class="meta">
+      {% for s in resume.skills %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</body>
+</html>
+
+

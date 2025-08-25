@@ -1196,16 +1196,16 @@ class ResumeEditor:
             title = ""
             contact = ""
             
-            # Find name (first non-section line)
-            for line in lines:
-                if not any(keyword in line.upper() for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'SKILLS', 'EMAIL:', 'PHONE:', 'TECHNICAL']):
+            # Find name (first non-section line) - restrict to top 5 lines to avoid picking section headers like ACHIEVEMENTS
+            for idx, line in enumerate(lines[:5]):
+                if not any(keyword in line.upper() for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'SKILLS', 'EDUCATION', 'ACHIEVEMENTS', 'EMAIL:', 'PHONE:', 'TECHNICAL']) and not line.strip().endswith(':'):
                     name = line
                     break
             
             # Find title (line after name, before contact)
             name_found = False
             for line in lines:
-                if line == name:
+                if name and line == name:
                     name_found = True
                     continue
                 if name_found and not any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')']) and not any(keyword in line.upper() for keyword in ['PROFESSIONAL', 'SUMMARY', 'EXPERIENCE', 'SKILLS', 'TECHNICAL']):
@@ -1213,8 +1213,8 @@ class ResumeEditor:
                     break
             
             # Find contact info
-            for line in lines:
-                if any(pattern in line.lower() for pattern in ['@', 'phone:', 'email:', 'linkedin:', '(', ')']):
+            for line in lines[:6]:
+                if any(pattern in line.lower() for pattern in ['@', 'phone', 'email', 'linkedin', '(', ')']):
                     contact = line
                     break
             

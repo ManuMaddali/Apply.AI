@@ -1,15 +1,9 @@
 """
 ApplyAI Models Package
-Contains all database models and related utilities
+
+Lightweight package initializer. Avoid importing heavy ORM models here to keep
+unit tests fast and decoupled. Import specific models directly from their
+modules, e.g., `from backend.models.user import User`.
 """
 
-from .user import User, UserSession, PasswordReset, EmailVerification, UserRole, AuthProvider
-
-__all__ = [
-    'User',
-    'UserSession', 
-    'PasswordReset',
-    'EmailVerification',
-    'UserRole',
-    'AuthProvider'
-] 
+__all__ = []

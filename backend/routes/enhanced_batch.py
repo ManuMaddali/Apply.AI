@@ -6,6 +6,7 @@ import asyncio
 import uuid
 import time
 import os
+import re
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -64,6 +65,16 @@ try:
 except ImportError as e:
     print(f"⚠️ EnhancedATSScorer not available: {e}")
     EnhancedATSScorer = None
+
+# Import professional output service for template-based formatting
+try:
+    from services.professional_output_service import ProfessionalOutputService
+    print("✅ ProfessionalOutputService imported successfully")
+    PROFESSIONAL_OUTPUT_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ ProfessionalOutputService not available: {e}")
+    ProfessionalOutputService = None
+    PROFESSIONAL_OUTPUT_AVAILABLE = False
 
 # Now try auth/db imports
 try:
@@ -229,7 +240,8 @@ class EnhancedBatchRequest(BaseModel):
     resume_text: str
     job_urls: List[str]
     use_rag: Optional[bool] = True
-    output_format: Optional[str] = "text"
+    output_format: Optional[str] = "pdf"  # "pdf", "rtf", or "text"
+    template: Optional[str] = "modern"  # "modern", "classic", "technical", "executive", "creative"
     tailoring_mode: Optional[str] = "light"  # "light" or "heavy"
     optional_sections: Optional[Dict[str, Any]] = {
         "includeSummary": False,
@@ -353,9 +365,9 @@ class EnhancedJobProcessor:
                 print(f"🔍 Using real JobScraper for: {url}")
                 job_description = self.job_scraper.scrape_job_description(url)
                 if job_description:
-                    # Extract additional details
-                    job_title = self.job_scraper.extract_job_title(job_description)
-                    company = self._extract_company_name(url, job_description)
+                    # Extract additional details - fix: pass URL to extract_job_title, not description
+                    job_title = self.job_scraper.extract_job_title(url)
+                    company = self.job_scraper._extract_company_name(url, job_description)
                     requirements = self._extract_requirements(job_description)
                     
                     return {
@@ -430,10 +442,11 @@ We offer competitive compensation, comprehensive benefits, and opportunities for
                 return self._heavy_mode_tailoring(resume_text, job_data)
             except Exception as e:
                 print(f"⚠️ Heavy mode failed, falling back to Light mode: {e}")
+                # Fall through to light mode
         
         # Light mode or fallback
         print(f"⚡ Using Light Mode for {job_data['title']}")
-        return self._light_mode_tailoring(resume_text, job_data)
+        return self._light_mode_tailoring(resume_text, job_data, use_clean_output=False)
 
     def _heavy_mode_tailoring(self, resume_text: str, job_data: Dict[str, Any]) -> str:
         """Heavy mode: Comprehensive content restructuring using LangChain"""
@@ -461,20 +474,122 @@ We offer competitive compensation, comprehensive benefits, and opportunities for
 """
         except Exception as e:
             print(f"❌ Heavy mode processing failed: {e}")
-            return self._light_mode_tailoring(resume_text, job_data)
+            return self._light_mode_tailoring(resume_text, job_data, use_clean_output=True)
 
-    def _light_mode_tailoring(self, resume_text: str, job_data: Dict[str, Any]) -> str:
-        """Light mode: Quick keyword optimization"""
+    def _light_mode_tailoring(self, resume_text: str, job_data: Dict[str, Any], use_clean_output: bool = False) -> str:
+        """Light mode: Quick keyword optimization
+        
+        Args:
+            resume_text: Original resume text
+            job_data: Job posting data
+            use_clean_output: If True, return clean resume without debug blocks (for template formatting)
+        """
         job_title = job_data.get('title', 'Unknown Position')
         company = job_data.get('company', 'Unknown Company')
         requirements = job_data.get('requirements', [])
+        description = job_data.get('description', '')
         
-        # Extract key skills from job requirements
+        # Extract key skills from job requirements and description
         key_skills = []
         for req in requirements:
-            if any(tech in req.lower() for tech in ['python', 'javascript', 'react', 'node', 'sql', 'aws']):
+            if any(tech in req.lower() for tech in ['python', 'javascript', 'react', 'node', 'sql', 'aws', 'docker', 'kubernetes']):
                 key_skills.append(req)
         
+        # If clean output is requested (for professional templates), build a structured, ATS-friendly text
+        if use_clean_output:
+            print("🧹 Using clean light mode output for template formatting (structured)")
+            try:
+                lines = [l.strip() for l in resume_text.split('\n') if l.strip()]
+                if not lines:
+                    return resume_text
+
+                # Identify header/name line: first non-contact, non-section line near the top
+                def is_contact(l: str) -> bool:
+                    low = l.lower()
+                    return ('@' in low) or ('http' in low) or ('linkedin' in low) or ('github' in low) or ('phone' in low) or ('(' in l and ')' in l)
+
+                def is_section(l: str) -> bool:
+                    low = l.lower().strip().rstrip(':')
+                    return low in {"summary", "professional summary", "experience", "work experience", "professional experience", "education", "skills", "projects"}
+
+                header = None
+                for cand in lines[:6]:
+                    if not is_contact(cand) and not is_section(cand) and len(cand) <= 80:
+                        header = cand
+                        break
+                if header is None:
+                    header = lines[0]
+
+                # Collect contact (first few lines with contact indicators)
+                contact_lines = []
+                for l in lines[:6]:
+                    if is_contact(l):
+                        contact_lines.append(l)
+
+                # Remaining body after removing header (first occurrence)
+                body_lines = []
+                removed_header = False
+                for l in lines:
+                    if not removed_header and l == header:
+                        removed_header = True
+                        continue
+                    body_lines.append(l)
+
+                # Normalize bullets
+                norm = []
+                for l in body_lines:
+                    ll = l.replace('\\bullet', '•').replace('\\n', '\n')
+                    if ll.lstrip().startswith(('- ', '* ', '– ')):
+                        ll = '• ' + ll.lstrip()[2:]
+                    norm.append(ll)
+                body_lines = norm
+
+                # Check for existing sections
+                has_summary = any(is_section(l) and l.lower().startswith('summary') for l in body_lines[:12])
+                has_experience = any(is_section(l) and 'experience' in l.lower() for l in body_lines)
+
+                structured: list[str] = []
+                structured.append(header)
+                if contact_lines:
+                    # Keep contact on a single line when possible
+                    if len(contact_lines) > 1:
+                        structured.append(' • '.join(contact_lines))
+                    else:
+                        structured.extend(contact_lines)
+
+                # Inject minimal sections if missing so the parser recognizes content
+                if not has_summary:
+                    structured.append('Summary')
+                    # Use first 3 non-contact, non-section lines as summary
+                    summary_seed = []
+                    for l in body_lines:
+                        if is_section(l) or is_contact(l):
+                            continue
+                        summary_seed.append(l)
+                        if len(summary_seed) >= 3:
+                            break
+                    if summary_seed:
+                        structured.extend(summary_seed)
+
+                if not has_experience:
+                    structured.append('Experience')
+                structured.extend([l for l in body_lines])
+
+                clean_text = '\n'.join([s for s in structured if s and s.strip()])
+                # Optionally apply keyword optimization to enrich, but preserve content
+                try:
+                    enriched = self._apply_keyword_optimization(clean_text, job_data)
+                    if enriched and len(enriched) > len(clean_text) * 0.8:
+                        clean_text = enriched
+                except Exception:
+                    pass
+
+                return clean_text
+            except Exception as e:
+                print(f"⚠️ Clean structuring failed, falling back to original: {e}")
+                return resume_text.replace('\\bullet', '•').replace('\\n', '\n')
+        
+        # Original debug-heavy output for non-template use
         tailored_resume = f"""LIGHT MODE TAILORED RESUME FOR {job_title.upper()} AT {company.upper()}
 
 {resume_text}
@@ -499,6 +614,59 @@ KEY QUALIFICATIONS:
 [This resume has been optimized using Light Mode keyword enhancement]
 """
         return tailored_resume
+    
+    def _apply_keyword_optimization(self, resume_text: str, job_data: Dict[str, Any]) -> str:
+        """Apply keyword optimization to resume text for clean template output"""
+        try:
+            job_title = job_data.get('title', '')
+            company = job_data.get('company', '')
+            description = job_data.get('description', '')
+            
+            # Extract key technologies and skills from job description
+            tech_keywords = []
+            skill_keywords = []
+            
+            # Common technical keywords to look for
+            tech_patterns = ['python', 'javascript', 'react', 'node', 'sql', 'aws', 'docker', 'kubernetes', 'java', 'c++', 'html', 'css', 'git', 'api', 'rest', 'json']
+            skill_patterns = ['leadership', 'management', 'communication', 'teamwork', 'problem-solving', 'analytical', 'project', 'agile', 'scrum']
+            
+            desc_lower = description.lower()
+            for tech in tech_patterns:
+                if tech in desc_lower and tech not in resume_text.lower():
+                    tech_keywords.append(tech.title())
+            
+            for skill in skill_patterns:
+                if skill in desc_lower and skill not in resume_text.lower():
+                    skill_keywords.append(skill.title())
+            
+            # Enhance the resume by strategically adding relevant keywords
+            enhanced_resume = resume_text
+            
+            # Add a targeted summary if missing
+            lines = enhanced_resume.split('\n')
+            if not any('summary' in line.lower() or 'objective' in line.lower() for line in lines[:10]):
+                # Find a good place to insert summary (after contact info)
+                insert_index = 1
+                for i, line in enumerate(lines[:5]):
+                    if '@' in line or 'phone' in line.lower() or '(' in line:
+                        insert_index = i + 2
+                        break
+                
+                targeted_summary = f"\nPROFESSIONAL SUMMARY\n\nExperienced {job_title} professional with expertise in {', '.join(tech_keywords[:3]) if tech_keywords else 'software development'}. Proven track record of delivering high-quality solutions and {', '.join(skill_keywords[:2]) if skill_keywords else 'collaborative teamwork'}. Seeking to contribute technical expertise and {skill_keywords[0] if skill_keywords else 'leadership skills'} to {company}.\n"
+                
+                lines.insert(insert_index, targeted_summary)
+                enhanced_resume = '\n'.join(lines)
+            
+            # Fix bullet point formatting
+            enhanced_resume = enhanced_resume.replace('\\bullet', '•').replace('\bullet', '•')
+            
+            print(f"✅ Applied keyword optimization: +{len(tech_keywords)} tech keywords, +{len(skill_keywords)} skill keywords")
+            return enhanced_resume
+            
+        except Exception as e:
+            print(f"⚠️ Keyword optimization failed: {e}")
+            # Fix bullet points at minimum
+            return resume_text.replace('\\bullet', '•').replace('\bullet', '•')
 
     def generate_cover_letter(self, resume_text: str, job_data: Dict[str, Any], tone: str = "professional") -> str:
         """Generate enhanced cover letter"""
@@ -571,7 +739,9 @@ async def process_single_job_enhanced(
     tailoring_mode: str = "light",
     cover_letter_options: Dict[str, Any] = None,
     user_id: str = None,
-    db: Session = None
+    db: Session = None,
+    template: str = "modern",
+    output_format: str = "pdf"
 ) -> Dict[str, Any]:
     """Process a single job with enhanced features and Phase 8 optimizations"""
     start_time = time.time()
@@ -594,7 +764,7 @@ async def process_single_job_enhanced(
             result = await asyncio.wait_for(
                 _process_job_core_enhanced(
                     resume_text, job_url, job_index, batch_id, 
-                    tailoring_mode, cover_letter_options, user_id, db
+                    tailoring_mode, cover_letter_options, user_id, db, template, output_format
                 ),
                 timeout=max_processing_time
             )
@@ -659,7 +829,9 @@ async def _process_job_core_enhanced(
     tailoring_mode: str = "light",
     cover_letter_options: Dict[str, Any] = None,
     user_id: str = None,
-    db: Session = None
+    db: Session = None,
+    template: str = "modern",
+    output_format: str = "pdf"
 ) -> Dict[str, Any]:
     """Core job processing logic with Phase 8 optimizations"""
     # Simulate processing time based on mode (Phase 8: Optimized for speed)
@@ -669,9 +841,129 @@ async def _process_job_core_enhanced(
     # Scrape job with real scraper
     job_data = enhanced_processor.scrape_job(job_url)
     
-    # Tailor resume with selected mode
-    tailored_resume = enhanced_processor.tailor_resume(resume_text, job_data, tailoring_mode)
+    # Apply professional template formatting if requested
+    formatted_resume_data = None
+    print(f"🎨 Template formatting check: format={output_format}, template={template}, available={PROFESSIONAL_OUTPUT_AVAILABLE}")
+    print(f"🔍 DEBUG: output_format in ['pdf', 'rtf'] = {output_format in ['pdf', 'rtf']}")
+    print(f"🔍 DEBUG: PROFESSIONAL_OUTPUT_AVAILABLE = {PROFESSIONAL_OUTPUT_AVAILABLE}")
+    print(f"🔍 DEBUG: Condition met for professional formatting = {output_format in ['pdf', 'rtf'] and PROFESSIONAL_OUTPUT_AVAILABLE}")
     
+    # If professional templates are being used, get CLEAN resume content (no debug blocks)
+    if output_format in ["pdf", "rtf"] and PROFESSIONAL_OUTPUT_AVAILABLE:
+        print("🧹 Using clean resume content for professional template formatting")
+        tailored_resume = enhanced_processor._light_mode_tailoring(resume_text, job_data, use_clean_output=True)
+        print(f"🧹 Clean tailored resume LENGTH: {len(tailored_resume)}")
+        print(f"🧹 Clean tailored resume preview (first 300 chars): {tailored_resume[:300]}...")
+        print(f"🧹 ABOUT TO CALL PROFESSIONAL SERVICE with template='{template}' and output_format='{output_format}'")
+    else:
+        print(f"📝 NOT using professional templates - falling back to standard tailoring")
+        print(f"📝 Reason: output_format={output_format}, PROFESSIONAL_OUTPUT_AVAILABLE={PROFESSIONAL_OUTPUT_AVAILABLE}")
+        # Standard tailoring with debug blocks for non-template output
+        tailored_resume = enhanced_processor.tailor_resume(resume_text, job_data, tailoring_mode)
+        print(f"📝 Standard tailored resume preview: {tailored_resume[:200]}...")
+    
+    # Fix bullet point formatting issues - convert literal \bullet to actual bullet points
+    tailored_resume = tailored_resume.replace('\\bullet', '•').replace('\bullet', '•')
+    
+    # Additional cleanup for common formatting issues
+    tailored_resume = tailored_resume.replace('\\n', '\n')  # Fix escaped newlines
+    tailored_resume = re.sub(r'\s*•\s*', '• ', tailored_resume)  # Standardize bullet spacing
+    
+    if output_format in ["pdf", "rtf"] and PROFESSIONAL_OUTPUT_AVAILABLE:
+        print(f"🚀 Starting professional formatting with {template} template...")
+        try:
+            professional_service = ProfessionalOutputService()
+            print(f"✅ ProfessionalOutputService created successfully")
+            
+            # Generate professional formatted output
+            if output_format == "pdf":
+                result = professional_service.generate_professional_pdf(
+                    resume_text=tailored_resume,
+                    job_description=job_data.get('description', ''),
+                    template=template,
+                    ats_optimize=True
+                )
+                if result.get('success'):
+                    print(f"✅ PDF generation successful! Result keys: {list(result.keys())}")
+                    formatted_content = result.get('formatted_text', tailored_resume)
+                    print(f"📝 Formatted content length: {len(formatted_content) if formatted_content else 0}")
+                    
+                    # Store the actual PDF content for download endpoint
+                    pdf_filename = f"{job_data['title'].replace(' ', '_').replace('/', '_')}_resume_{template}_{batch_id}_{job_index}.pdf"
+                    
+                    # Store PDF content in global storage for download
+                    file_key = f"{batch_id}/{pdf_filename}"
+                    batch_file_storage[file_key] = result.get('pdf_content')
+                    print(f"💾 Stored PDF file: {file_key}, size: {len(result.get('pdf_content', b''))} bytes")
+                    
+                    formatted_resume_data = {
+                        'format': 'pdf',
+                        'template_applied': template,
+                        'filename': pdf_filename,
+                        'download_url': f'/api/enhanced-batch/download/{batch_id}/{pdf_filename}',
+                        'has_binary_content': True,
+                        'content': ''
+                    }
+                else:
+                    print(f"❌ PDF generation failed! Result: {result}")
+                    
+            elif output_format == "rtf":
+                result = professional_service.generate_professional_docx(
+                    resume_text=tailored_resume,
+                    template=template
+                )
+                if result.get('success'):
+                    # Store the actual RTF/DOCX content for download endpoint
+                    rtf_filename = f"{job_data['title'].replace(' ', '_').replace('/', '_')}_resume_{template}_{batch_id}_{job_index}.rtf"
+                    
+                    # Store RTF content in global storage for download
+                    file_key = f"{batch_id}/{rtf_filename}"
+                    rtf_content = result.get('docx_content') or result.get('rtf_content')
+                    batch_file_storage[file_key] = rtf_content
+                    print(f"💾 Stored RTF file: {file_key}, size: {len(rtf_content) if rtf_content else 0} bytes")
+                    
+                    formatted_resume_data = {
+                        'format': 'rtf',
+                        'template_applied': template,
+                        'filename': rtf_filename,
+                        'formatted': True,
+                        'content': result.get('formatted_text', tailored_resume),  # Text content for display
+                        'download_url': f'/api/enhanced-batch/download/{batch_id}/{rtf_filename}',  # Download URL
+                        'has_binary_content': True
+                    }
+                    
+        except Exception as e:
+            print(f"⚠️ Professional formatting failed, using plain text: {e}")
+            import traceback
+            print(f"🚑 Full error traceback: {traceback.format_exc()}")
+            formatted_resume_data = None
+    else:
+        print(f"📝 Using plain text formatting (no professional templates applied)")
+    
+    # Emergency PDF fallback: if we still don't have formatted content, render HTML from template engine
+    if output_format == "pdf" and not formatted_resume_data:
+        try:
+            print("🆘 Emergency PDF fallback: rendering via TemplateEngine and storing for download")
+            from services.template_engine import TemplateEngine
+            from services.renderers.pdf_renderer import render_pdf_from_html_sync
+            # Use selected template when possible
+            html = TemplateEngine.render_preview(template_id=(template or "modern"), resume_text=tailored_resume)
+            pdf_bytes = render_pdf_from_html_sync(html, page_size="A4")
+            fallback_filename = f"{job_data['title'].replace(' ', '_').replace('/', '_')}_resume_{template}_{batch_id}_{job_index}.pdf"
+            file_key = f"{batch_id}/{fallback_filename}"
+            batch_file_storage[file_key] = pdf_bytes
+            print(f"🆘 Stored fallback PDF: {file_key}, size: {len(pdf_bytes)} bytes")
+            formatted_resume_data = {
+                'format': 'pdf',
+                'template_applied': template,
+                'filename': fallback_filename,
+                'download_url': f'/api/enhanced-batch/download/{batch_id}/{fallback_filename}',
+                'has_binary_content': True,
+                'content': ''
+            }
+        except Exception as e:
+            print(f"❌ Emergency PDF fallback failed: {e}")
+
     # Generate cover letter if requested
     cover_letter = None
     if cover_letter_options and cover_letter_options.get("includeCoverLetter", False):
@@ -740,6 +1032,9 @@ async def _process_job_core_enhanced(
         "cover_letter": cover_letter,
         "processing_time": processing_time,
         "tailoring_mode": tailoring_mode,
+        "template": template,
+        "output_format": output_format,
+        "formatted_resume_data": formatted_resume_data,  # PDF/RTF content if generated
         "scraped_successfully": job_data.get('scraped_successfully', False),
         "ats_score": ats_results.get('overall_score', 'N/A'),
         "ats_grade": ats_results.get('grade', 'N/A'),
@@ -759,7 +1054,9 @@ async def _process_job_core_enhanced(
             "heavy_mode": tailoring_mode == "heavy",
             "cover_letter": cover_letter is not None,
             "ats_scoring": True,
-            "intelligent_keyword_extraction": True
+            "intelligent_keyword_extraction": True,
+            "professional_formatting": formatted_resume_data is not None,
+            "template_applied": template
         },
         "phase8_optimized": True  # Phase 8 marker
     }
@@ -796,7 +1093,9 @@ async def process_batch_enhanced(
     tailoring_mode: str = "light",
     cover_letter_options: Dict[str, Any] = None,
     user_id: str = None,
-    db: Session = None
+    db: Session = None,
+    template: str = "modern",
+    output_format: str = "pdf"
 ):
     """Process batch jobs with enhanced features"""
     try:
@@ -833,7 +1132,7 @@ async def process_batch_enhanced(
         async def process_with_semaphore(job_url, job_index):
             async with semaphore:
                 return await process_single_job_enhanced(
-                    resume_text, job_url, job_index, batch_id, tailoring_mode, cover_letter_options, user_id, db
+                    resume_text, job_url, job_index, batch_id, tailoring_mode, cover_letter_options, user_id, db, template, output_format
                 )
         
         # Process jobs in parallel with semaphore control
@@ -998,7 +1297,9 @@ async def start_enhanced_batch_processing(
             request.tailoring_mode or "light",
             request.cover_letter_options,
             user_id_for_analytics,
-            None  # Background task will create its own DB session
+            None,  # Background task will create its own DB session
+            request.template or "modern",  # Template selection
+            request.output_format or "pdf"  # Output format
         )
         
         return JSONResponse({
@@ -1031,6 +1332,17 @@ async def get_enhanced_batch_status(batch_id: str):
         "status": batch_status.to_dict()
     })
 
+def sanitize_for_json(obj):
+    """Remove any bytes objects from data structure to prevent JSON serialization errors"""
+    if isinstance(obj, bytes):
+        return "<binary_data_removed>"  # Replace bytes with placeholder instead of None
+    elif isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items() if not isinstance(v, bytes)}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(item) for item in obj if not isinstance(item, bytes)]
+    else:
+        return obj
+
 @router.get("/results/{batch_id}")
 async def get_enhanced_batch_results(batch_id: str):
     """Get enhanced batch results"""
@@ -1038,26 +1350,170 @@ async def get_enhanced_batch_results(batch_id: str):
         raise HTTPException(status_code=404, detail="Batch results not found")
     
     results = batch_results[batch_id]
-    return JSONResponse({
+    
+    # Sanitize results to remove any bytes objects that could cause JSON serialization errors
+    sanitized_results = sanitize_for_json(results)
+    
+    # Ensure sanitized_results is still a list
+    if not isinstance(sanitized_results, list):
+        sanitized_results = []
+    
+    response_data = {
         "success": True,
-        "results": results,
-        "total": len(results),
+        "results": sanitized_results,
+        "total": len(sanitized_results),
         "summary": {
-            "completed": sum(1 for r in results if r["status"] == "completed"),
-            "failed": sum(1 for r in results if r["status"] == "failed"),
+            "completed": sum(1 for r in sanitized_results if isinstance(r, dict) and r.get("status") == "completed"),
+            "failed": sum(1 for r in sanitized_results if isinstance(r, dict) and r.get("status") == "failed"),
             "features_used": {
-                "real_scraper_success": sum(1 for r in results if r.get("features_used", {}).get("real_scraper", False)),
-                "heavy_mode_used": sum(1 for r in results if r.get("tailoring_mode") == "heavy"),
-                "cover_letters_generated": sum(1 for r in results if r.get("cover_letter") is not None)
+                "real_scraper_success": sum(1 for r in sanitized_results if isinstance(r, dict) and r.get("features_used", {}).get("real_scraper", False)),
+                "heavy_mode_used": sum(1 for r in sanitized_results if isinstance(r, dict) and r.get("tailoring_mode") == "heavy"),
+                "cover_letters_generated": sum(1 for r in sanitized_results if isinstance(r, dict) and r.get("cover_letter") is not None)
             }
         }
-    })
+    }
+    
+    print(f"📤 Returning sanitized batch results for {batch_id} with {len(sanitized_results)} results")
+    return JSONResponse(response_data)
+
+
+@router.get("/download-pdf/{batch_id}")
+async def download_batch_as_single_pdf(batch_id: str):
+    """Merge all generated PDFs in a batch into a single PDF and download directly."""
+    from fastapi.responses import StreamingResponse
+    from PyPDF2 import PdfReader, PdfWriter
+    import io
+
+    if batch_id not in batch_results:
+        raise HTTPException(status_code=404, detail="Batch results not found")
+
+    results = batch_results.get(batch_id, [])
+
+    # Collect file keys in the same order as results
+    pdf_keys_in_order = []
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        frd = r.get("formatted_resume_data") or {}
+        if frd.get("format") == "pdf":
+            filename = frd.get("filename")
+            if filename:
+                key = f"{batch_id}/{filename}"
+                if key in batch_file_storage:
+                    pdf_keys_in_order.append(key)
+
+    # Fallback: grab all PDFs for the batch
+    if not pdf_keys_in_order:
+        prefix = f"{batch_id}/"
+        pdf_keys_in_order = [k for k in batch_file_storage.keys() if k.startswith(prefix) and k.endswith(".pdf")]
+        pdf_keys_in_order.sort()
+
+    if not pdf_keys_in_order:
+        raise HTTPException(status_code=404, detail="No PDFs available for this batch")
+
+    writer = PdfWriter()
+    for key in pdf_keys_in_order:
+        data = batch_file_storage.get(key)
+        if not data:
+            continue
+        try:
+            reader = PdfReader(io.BytesIO(data))
+            for page in reader.pages:
+                writer.add_page(page)
+        except Exception as e:
+            print(f"⚠️ Skipping PDF in merge due to error: {key} -> {e}")
+            continue
+
+    if len(writer.pages) == 0:
+        raise HTTPException(status_code=500, detail="Failed to build merged PDF")
+
+    out_buf = io.BytesIO()
+    writer.write(out_buf)
+    out_buf.seek(0)
+
+    headers = {
+        "Content-Disposition": f"attachment; filename=batch_{batch_id}.pdf",
+        "Cache-Control": "no-store",
+    }
+    return StreamingResponse(out_buf, media_type="application/pdf", headers=headers)
+
+# Global storage for binary files (in production, use proper file storage like S3/disk)
+batch_file_storage = {}
+
+@router.get("/download/{batch_id}/{filename}")
+async def download_batch_file(batch_id: str, filename: str):
+    """Download a specific batch-generated file (PDF/RTF)"""
+    from fastapi.responses import Response
+    
+    # Create storage key
+    file_key = f"{batch_id}/{filename}"
+    
+    print(f"📥 Download request for: {file_key}")
+    
+    # Check if file exists in storage
+    if file_key not in batch_file_storage:
+        print(f"❌ File not found in storage: {file_key}")
+        print(f"📋 Available files: {list(batch_file_storage.keys())}")
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    file_data = batch_file_storage[file_key]
+    print(f"✅ Found file: {file_key}, size: {len(file_data)} bytes")
+    
+    # Determine content type based on file extension
+    if filename.endswith('.pdf'):
+        content_type = 'application/pdf'
+    elif filename.endswith('.rtf'):
+        content_type = 'application/rtf'
+    elif filename.endswith('.docx'):
+        content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    else:
+        content_type = 'text/plain'
+    
+    return Response(
+        content=file_data,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Cache-Control": "no-store"
+        }
+    )
+
+@router.get("/download-all/{batch_id}")
+async def download_all_batch_files(batch_id: str):
+    """Zip all generated PDFs for a batch and stream as attachment."""
+    import io
+    import zipfile
+    from fastapi.responses import StreamingResponse
+
+    # Validate batch
+    if batch_id not in batch_results:
+        raise HTTPException(status_code=404, detail="Batch results not found")
+
+    # Gather PDF files from storage using batch prefix
+    prefix = f"{batch_id}/"
+    pdf_entries = [(k, v) for k, v in batch_file_storage.items() if k.startswith(prefix) and k.endswith(".pdf")]
+    if not pdf_entries:
+        raise HTTPException(status_code=404, detail="No PDFs available for this batch")
+
+    # Create ZIP in memory
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for key, data in pdf_entries:
+            _, filename = key.split("/", 1)
+            zf.writestr(filename, data)
+    buf.seek(0)
+
+    headers = {
+        "Content-Disposition": f"attachment; filename=batch_{batch_id}.zip",
+        "Cache-Control": "no-store",
+    }
+    return StreamingResponse(buf, media_type="application/zip", headers=headers)
 
 @router.get("/test")
 async def test_enhanced_batch():
-    """Test enhanced batch processing"""
+    """Test endpoint for enhanced batch processing"""
     return {
-        "status": "ok", 
+        "status": "ok",
         "message": "Enhanced batch processing is ready!",
         "features": {
             "job_scraper": JOB_SCRAPER_AVAILABLE,

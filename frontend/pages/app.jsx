@@ -407,50 +407,73 @@ function RedesignedApp() {
     URL.revokeObjectURL(url)
   }, [])
 
-  const handleDownloadAll = useCallback((resultsToDownload, format = 'pdf') => {
-    if (!resultsToDownload || resultsToDownload.length === 0) return
-    
-    if (format === 'zip') {
-      // For ZIP, we'll download each file individually with a delay
-      // In production, you'd want to use a proper ZIP library like JSZip
-      resultsToDownload.forEach((result, index) => {
-        setTimeout(() => {
-          const content = result.tailored_resume || result.resume_content || result.content
-          if (content) {
-            const filename = `resume_${result.job_title || `job_${index + 1}`}`
-            downloadAsFormat(content, filename, 'pdf') // Default to PDF for ZIP
-          }
-        }, index * 500) // Stagger downloads by 500ms
-      })
-    } else {
-      resultsToDownload.forEach((result, index) => {
-        const content = result.tailored_resume || result.resume_content || result.content
-        if (content) {
-          const filename = `resume_${result.job_title || `job_${index + 1}`}`
-          downloadAsFormat(content, filename, format)
-        }
-      })
-    }
-  }, [downloadAsFormat])
-  
-  const handleDownloadIndividual = useCallback((result, format = 'pdf') => {
+  const handleDownloadIndividual = useCallback(async (result, format = 'pdf') => {
     if (!result) return
     
-    // Check if result has PDF download URL from backend (for PDF format)
-    if (format === 'pdf' && result.pdf && result.pdf.download_url) {
-      // Open PDF directly in new tab using backend URL
-      const pdfUrl = `${API_BASE_URL}${result.pdf.download_url}`
-      window.open(pdfUrl, '_blank')
-      return
+    console.log(`📥 Downloading individual resume in ${format} format:`, {
+      hasFormattedData: !!result.formatted_resume_data,
+      template: result.formatted_resume_data?.template_applied,
+      hasDownloadUrl: !!result.formatted_resume_data?.download_url,
+      downloadUrl: result.formatted_resume_data?.download_url
+    })
+    
+    // Prefer direct backend URL with Content-Disposition so the browser downloads (no blob)
+    if (result.formatted_resume_data?.download_url && (format === 'pdf' || format === 'rtf' || format === 'docx')) {
+      try {
+        console.log(`🌐 Directing browser to backend URL for download: ${result.formatted_resume_data.download_url}`)
+        const directUrl = `${API_BASE_URL}${result.formatted_resume_data.download_url}`
+        // Use anchor + click to honor attachment consistently
+        const a = document.createElement('a')
+        a.href = directUrl
+        a.rel = 'noopener'
+        a.target = '_blank'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        console.log(`✅ Browser navigation initiated for ${format.toUpperCase()} download`)
+        return
+      } catch (error) {
+        console.error(`❌ Direct navigation failed, falling back to client-side:`, error)
+      }
     }
     
-    // Fallback to client-side generation for other formats or if no PDF URL
-    const content = result.tailored_resume || result.resume_content || result.content
+    // Fallback to client-side generation for TXT format or if backend download fails
+    const content = result.formatted_resume_data?.content || result.tailored_resume || result.resume_content || result.content
+    console.log(`📄 Individual download fallback: Using ${result.formatted_resume_data ? 'formatted' : 'plain'} content (${result.formatted_resume_data?.template_applied || 'no template'} template)`)
     if (content) {
       const filename = `resume_${result.job_title || 'job'}`
       downloadAsFormat(content, filename, format)
+    } else {
+      console.warn('⚠️ No content available for download')
     }
-  }, [downloadAsFormat])
+  }, [downloadAsFormat, getToken])
+
+  const handleDownloadAll = useCallback(async (resultsToDownload, format = 'pdf') => {
+    // Prefer server-side ZIP for bulk PDF — navigate directly to avoid blob URLs
+    if (format === 'pdf' && batchId) {
+      try {
+        const url = `${API_BASE_URL}/api/enhanced-batch/download-all/${batchId}`
+        window.location.href = url
+        return
+      } catch (error) {
+        console.error('❌ Bulk ZIP direct navigation failed, falling back to individual downloads:', error)
+      }
+    }
+
+    // Fallback: download individually in chosen format
+    const resultsArray = Array.isArray(resultsToDownload) ? resultsToDownload : (resultsToDownload?.results || [])
+    if (!resultsArray || resultsArray.length === 0) return
+    for (const [index, result] of resultsArray.entries()) {
+      try {
+        await handleDownloadIndividual(result, format)
+        if (index < resultsArray.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200))
+        }
+      } catch (error) {
+        console.error(`Failed to download resume ${index + 1}:`, error)
+      }
+    }
+  }, [API_BASE_URL, batchId, getToken, handleDownloadIndividual])
 
   // Processing handlers
   const handleProcessingStart = useCallback(async (data) => {
@@ -705,6 +728,7 @@ function RedesignedApp() {
       
       if (data.success && data.results) {
         setResults(data.results)
+        console.log('📋 Results structure check:', data.results[0])
         setSuccess('Your resumes are ready! 🎉')
         setProcessing(false)
         
@@ -951,6 +975,7 @@ function RedesignedApp() {
                 results={results}
                 onDownloadAll={handleDownloadAll}
                 onDownloadIndividual={handleDownloadIndividual}
+                batchId={batchId}
               />
             </motion.div>
           )}

@@ -185,9 +185,28 @@ class EnhancedATSScorer:
         # Generate grade
         grade = self._get_grade(overall_score)
         
+        # DEBUG: Print extracted keywords for debugging
+        print(f"\n=== KEYWORD EXTRACTION DEBUG ===")
+        print(f"Job description text (first 500 chars): {job_description[:500]}...")
+        print(f"Resume text (first 200 chars): {resume_text[:200]}...")
+        
+        # Debug Python specifically
+        if 'python' in resume_text.lower():
+            print(f"🐍 DEBUG: PYTHON found in resume text!")
+        else:
+            print(f"🐍 DEBUG: PYTHON NOT found in resume text")
+        print(f"Resume skills extracted: {sorted(list(resume_keywords['skills']))}")
+        print(f"Job skills extracted: {sorted(list(job_keywords['skills']))}")
+        print(f"Resume roles extracted: {sorted(list(resume_keywords['roles']))}")
+        print(f"Job roles extracted: {sorted(list(job_keywords['roles']))}")
+        
         # Calculate keyword matches
         matched_skills = resume_keywords['skills'] & job_keywords['skills']
         missing_skills = job_keywords['skills'] - resume_keywords['skills']
+        
+        print(f"Matched skills: {sorted(list(matched_skills))}")
+        print(f"Missing skills: {sorted(list(missing_skills))}")
+        print(f"=== END DEBUG ===")
         
         # Generate detailed recommendations
         recommendations = self._generate_smart_recommendations(
@@ -337,6 +356,9 @@ class EnhancedATSScorer:
         for skill in comprehensive_skills_whitelist:
             if re.search(r'\b' + re.escape(skill) + r'\b', text_upper):
                 skills.add(skill.lower())
+                # Debug Python extraction specifically
+                if skill == 'PYTHON':
+                    print(f"🐍 DEBUG: Found PYTHON in text!")
         
         # Extract additional common terms - COMPREHENSIVE coverage for ALL industries
         additional_common_terms = [
@@ -793,18 +815,16 @@ class EnhancedATSScorer:
             'pesticide', 'harvest', 'storage', 'distribution', 'retail'
         ]
         
-        # Filter out overly generic terms that aren't specific skills
+        # Filter out only truly generic terms that aren't specific skills
+        # IMPORTANT: Only exclude terms that are never legitimate skills
         generic_exclusions = {
-            'service', 'customer', 'user', 'online', 'real', 'content', 'media', 
-            'social', 'testing', 'training', 'support', 'experience', 'promotion',
-            'email', 'data', 'analysis', 'management', 'planning', 'development',
-            'process', 'quality', 'safety', 'security', 'performance', 'business',
+            # Only exclude truly generic words that add no value
+            'online', 'real', 'content', 'media', 'promotion',
             # Social media platforms (not transferable skills)
             'facebook', 'instagram', 'twitter', 'linkedin', 'tiktok', 'youtube',
             'snapchat', 'pinterest', 'reddit', 'discord', 'whatsapp', 'telegram',
-            # Other non-transferable terms
-            'website', 'platform', 'application', 'system', 'tool', 'software',
-            'technology', 'solution', 'product', 'service', 'company', 'organization'
+            # Only truly generic terms
+            'website', 'company', 'organization'
         }
         
         text_lower = text.lower()

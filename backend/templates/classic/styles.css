@@ -1,0 +1,18 @@
+@page { size: A4; margin: 1.5cm; }
+:root { --text: #111; --muted: #555; }
+html, body { font-family: Georgia, 'Times New Roman', Times, serif; color: var(--text); }
+body { font-size: 11px; line-height: 1.4; }
+h1 { font-size: 21px; font-weight: 700; margin: 0; letter-spacing: .2px; }
+.headline { font-size: 12px; margin-top: 3px; color: var(--muted); font-style: italic; }
+.section-title { font-weight: 700; font-size: 12px; text-transform: uppercase; margin: 18px 0 6px; color: var(--text); border-bottom: 1px solid #222; padding-bottom: 2px; }
+.meta { font-size: 10.5px; color: var(--muted); }
+.row { display: grid; grid-template-columns: 1fr 2.2fr; gap: 16px; }
+ul { margin: 6px 0 0 16px; padding: 0; }
+li { line-height: 1.35; margin-bottom: 4px; }
+a { color: #000; text-decoration: none; }
+header { margin-bottom: 10px; }
+section { break-inside: avoid; }
+
+
+
+

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../utils/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { 
@@ -21,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 
-const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual }) => {
+const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual, batchId }) => {
   const [expandedResults, setExpandedResults] = useState({});
   
   const completedResults = results.filter(r => r.status === 'completed' || r.status === 'complete');
@@ -51,12 +52,17 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual }) 
     const gradeMap = {
       'A+': { color: 'bg-green-500', description: 'Excellent match! Your resume is highly optimized.' },
       'A': { color: 'bg-green-400', description: 'Great match! Strong keyword alignment.' },
+      'A-': { color: 'bg-green-300', description: 'Very strong match. Minor improvements possible.' },
+      'B+': { color: 'bg-blue-500', description: 'Good match! Nearly there.' },
       'B': { color: 'bg-blue-400', description: 'Good match! Room for minor improvements.' },
+      'B-': { color: 'bg-blue-300', description: 'Decent match. Add a few more relevant keywords.' },
+      'C+': { color: 'bg-yellow-500', description: 'Fair match. Consider adding more relevant keywords.' },
       'C': { color: 'bg-yellow-400', description: 'Fair match. Consider adding more relevant keywords.' },
+      'C-': { color: 'bg-yellow-300', description: 'Weak match. Significant improvements needed.' },
       'D': { color: 'bg-orange-400', description: 'Weak match. Significant improvements needed.' },
       'F': { color: 'bg-red-400', description: 'Poor match. Major revisions recommended.' }
     };
-    return gradeMap[grade] || { color: 'bg-gray-400', description: 'Score pending...' };
+    return gradeMap[grade] || { color: 'bg-gray-400', description: 'Analyzing' };
   };
 
   const getConfidenceBadge = (level) => {
@@ -78,15 +84,15 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual }) 
             Batch Processing Results
           </CardTitle>
           <CardDescription className="text-gray-700 mt-2">
-            <div className="flex items-center gap-4">
-              <span className="font-semibold text-lg">
-                {completedResults.length} of {results.length} resumes generated
-              </span>
-              <Badge variant={successRate === 100 ? 'success' : successRate >= 50 ? 'warning' : 'destructive'}>
-                {successRate}% Success Rate
-              </Badge>
-            </div>
+            <span className="font-semibold text-lg">
+              {completedResults.length} of {results.length} resumes generated
+            </span>
           </CardDescription>
+          <div className="mt-1">
+            <Badge variant={successRate === 100 ? 'success' : successRate >= 50 ? 'warning' : 'destructive'}>
+              {successRate}% Success Rate
+            </Badge>
+          </div>
         </CardHeader>
         
         <CardContent className="pt-6">
@@ -109,27 +115,31 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual }) 
               </div>
               
               <div className="flex flex-wrap gap-3">
-                {downloadFormats.map(format => (
-                  <Button 
-                    key={format.key}
-                    onClick={() => onDownloadAll(format.key)} 
-                    className="flex items-center gap-2"
-                    variant={format.key === 'pdf' ? 'default' : 'outline'}
-                  >
-                    {format.icon}
-                    <span>{format.label} Format</span>
-                    <Badge variant="secondary" className="ml-1">
-                      {completedResults.length}
-                    </Badge>
-                  </Button>
-                ))}
-                <Button 
-                  onClick={() => onDownloadAll('zip')} 
-                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
-                >
-                  <Archive className="h-4 w-4" />
-                  <span>Download All as ZIP</span>
-                </Button>
+                {downloadFormats.map(format => {
+                  const button = (
+                    <Button 
+                      key={format.key}
+                      onClick={() => {
+                        console.log('🔽 Download button clicked:', format.key, 'Results count:', completedResults.length)
+                        onDownloadAll(completedResults, format.key)
+                      }} 
+                      className="flex items-center gap-2"
+                      variant={format.key === 'pdf' ? 'default' : 'outline'}
+                    >
+                      {format.icon}
+                      <span>{format.label} Format</span>
+                      <Badge variant="secondary" className="ml-1">
+                        {completedResults.length}
+                      </Badge>
+                    </Button>
+                  )
+                  if (format.key === 'pdf' && batchId) {
+                    return (
+                      <a key={`bulk-${format.key}`} href={`${API_BASE_URL}/api/enhanced-batch/download-all/${batchId}`}>{button}</a>
+                    )
+                  }
+                  return button
+                })}
               </div>
             </div>
 
@@ -226,12 +236,12 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual }) 
                             {/* Expanded Details */}
                             {isExpanded && result.ats_details && (
                               <div className="mt-4 space-y-3 border-t pt-4">
-                                {/* Matched Skills */}
+                                {/* Keywords Matched */}
                                 {result.ats_details.matched_skills && result.ats_details.matched_skills.length > 0 && (
                                   <div>
                                     <h6 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
                                       <CheckCircle className="h-4 w-4" />
-                                      Matched Skills ({result.ats_details.matched_skills.length})
+                                      Keywords Matched ({result.ats_details.matched_skills.length})
                                     </h6>
                                     <div className="flex flex-wrap gap-1">
                                       {result.ats_details.matched_skills.map((skill, idx) => (
@@ -243,12 +253,12 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual }) 
                                   </div>
                                 )}
                                 
-                                {/* Missing Skills */}
+                                {/* Keywords to add */}
                                 {result.ats_details.missing_skills && result.ats_details.missing_skills.length > 0 && (
                                   <div>
                                     <h6 className="text-sm font-semibold text-orange-700 mb-2 flex items-center gap-1">
                                       <AlertCircle className="h-4 w-4" />
-                                      Skills to Consider Adding ({result.ats_details.missing_skills.length})
+                                      Keywords to add ({result.ats_details.missing_skills.length})
                                     </h6>
                                     <div className="flex flex-wrap gap-1">
                                       {result.ats_details.missing_skills.map((skill, idx) => (
@@ -303,23 +313,39 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual }) 
                           
                           {/* Download Buttons */}
                           <div className="flex gap-2 ml-4">
-                            {downloadFormats.map(format => (
-                              <Tooltip key={format.key}>
-                                <TooltipTrigger>
-                                  <Button
-                                    variant={format.key === 'pdf' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => onDownloadIndividual(result, format.key)}
-                                    className="h-9 w-9 p-0"
-                                  >
-                                    {format.icon}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Download as {format.label}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ))}
+                            {downloadFormats.map(format => {
+                              const btn = (
+                                <Button
+                                  key={format.key}
+                                  variant={format.key === 'pdf' ? 'default' : 'outline'}
+                                  size="sm"
+                                  onClick={() => onDownloadIndividual(result, format.key)}
+                                  className="h-9 w-9 p-0"
+                                >
+                                  {format.icon}
+                                </Button>
+                              )
+                              if (format.key === 'pdf' && result?.formatted_resume_data?.download_url) {
+                                return (
+                                  <Tooltip key={`pdf-${index}`}>
+                                    <TooltipTrigger>
+                                      <a href={`${API_BASE_URL}${result.formatted_resume_data.download_url}`}>{btn}</a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Download as PDF</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )
+                              }
+                              return (
+                                <Tooltip key={format.key}>
+                                  <TooltipTrigger>{btn}</TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Download as {format.label}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )
+                            })}
                           </div>
                         </div>
                       </CardContent>

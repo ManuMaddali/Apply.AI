@@ -535,9 +535,14 @@ function AppPageRedesign() {
       if (response.ok) {
         const pdfResult = await response.json()
         if (pdfResult.filename) {
-          // Open PDF directly in new tab instead of blob download
           const pdfUrl = `${API_BASE_URL}/api/resumes/download/${pdfResult.filename}`
-          window.open(pdfUrl, '_blank')
+          const a = document.createElement('a')
+          a.href = pdfUrl
+          a.rel = 'noopener'
+          a.target = '_blank'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
         } else {
           throw new Error('No filename returned from server')
         }

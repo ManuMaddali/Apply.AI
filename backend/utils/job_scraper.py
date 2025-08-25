@@ -52,8 +52,12 @@ class JobScraper:
                 return self._scrape_greenhouse(url)
             elif 'indeed.com' in domain:
                 return self._scrape_indeed(url)
+            elif 'oraclecloud.com' in domain:
+                return self._scrape_oracle_cloud(url)
+            elif 'workday.com' in domain:
+                return self._scrape_workday(url)
             else:
-                # Generic scraper for other sites
+                # Enhanced generic scraper for ANY job posting URL
                 return self._scrape_generic(url)
                 
         except requests.exceptions.Timeout:
@@ -98,6 +102,22 @@ class JobScraper:
                     '.jobsearch-JobInfoHeader-title',
                     'h1.it2eXe'
                 ]
+            elif 'oraclecloud.com' in domain:
+                # Oracle Cloud (used by JPMorgan Chase and other companies)
+                title_selectors = [
+                    'h1[data-automation-id="jobTitle"]',
+                    '.jobTitle',
+                    '.job-title',
+                    'h1.job-posting-title',
+                    '[data-testid="job-title"]',
+                    '.posting-title'
+                ]
+            elif 'workday.com' in domain:
+                title_selectors = [
+                    'h1[data-automation-id="jobTitle"]',
+                    '.jobTitle',
+                    '[data-automation-id="job-title"]'
+                ]
             
             # Generic selectors that work for most sites
             title_selectors.extend([
@@ -122,8 +142,28 @@ class JobScraper:
             page_title = soup.find('title')
             if page_title:
                 title = page_title.get_text().strip()
-                # Extract job title from page title (usually before company name or site name)
-                title = re.split(r'[-|]', title)[0].strip()
+                
+                # Handle different title formats
+                if 'oraclecloud.com' in domain:
+                    # Oracle Cloud format: "Job Title | Company Name | Oracle"
+                    # Split by | and take the first part
+                    parts = title.split('|')
+                    if len(parts) > 0:
+                        title = parts[0].strip()
+                elif 'workday.com' in domain:
+                    # Workday format: "Job Title - Company Name"
+                    parts = title.split(' - ')
+                    if len(parts) > 0:
+                        title = parts[0].strip()
+                else:
+                    # Generic format: split by common separators
+                    title = re.split(r'[-|–]', title)[0].strip()
+                
+                # Clean up common suffixes
+                title = re.sub(r'\s*\(.*\)\s*$', '', title)  # Remove parentheses
+                title = re.sub(r'\s*at\s+.*$', '', title, flags=re.IGNORECASE)  # Remove "at Company"
+                title = re.sub(r'\s*\|.*$', '', title)  # Remove remaining | parts
+                
                 if len(title) > 3 and len(title) < 100:
                     return title
             
@@ -219,7 +259,7 @@ class JobScraper:
             return None
     
     def _scrape_generic(self, url: str) -> Optional[str]:
-        """Generic scraper for other job sites"""
+        """Enhanced generic scraper that can handle ANY job posting URL"""
         try:
             print(f"🔍 DEBUG: Using generic scraper for {url}")
             response = requests.get(url, headers=self.headers, timeout=self.timeout)
@@ -229,27 +269,151 @@ class JobScraper:
             soup = BeautifulSoup(response.content, 'html.parser')
             print(f"🔍 DEBUG: Parsed HTML, looking for job description patterns")
             
-            # Look for common job description patterns
-            job_keywords = ['description', 'responsibilities', 'requirements', 'qualifications', 'duties']
+            # Remove unwanted elements that clutter the content
+            for element in soup(['nav', 'header', 'footer', 'aside', 'script', 'style', 'noscript']):
+                element.decompose()
             
-            for keyword in job_keywords:
-                elements = soup.find_all(['div', 'section', 'article'], 
-                                       class_=re.compile(keyword, re.I))
-                if elements:
-                    text = ' '.join([elem.get_text() for elem in elements])
-                    if len(text) > 100:  # Ensure we have substantial content
+            # Strategy 1: Look for job-specific class/id patterns
+            job_selectors = [
+                # Common job description containers
+                '[class*="job-description"]', '[id*="job-description"]',
+                '[class*="job-details"]', '[id*="job-details"]',
+                '[class*="description"]', '[id*="description"]',
+                '[class*="content"]', '[id*="content"]',
+                '[class*="posting"]', '[id*="posting"]',
+                '[class*="requirements"]', '[id*="requirements"]',
+                '[class*="responsibilities"]', '[id*="responsibilities"]',
+                # Greenhouse/ATS patterns
+                '.section-wrapper', '.content-intro', '.app-title',
+                # Generic content containers
+                'main', 'article', '.main-content', '#main-content'
+            ]
+            
+            for selector in job_selectors:
+                elements = soup.select(selector)
+                print(f"🔍 DEBUG: Selector '{selector}' found {len(elements)} elements")
+                for element in elements:
+                    text = element.get_text(strip=True)
+                    print(f"🔍 DEBUG: Element text length: {len(text)} chars")
+                    if len(text) > 50:  # Only show preview for substantial content
+                        print(f"🔍 DEBUG: Element preview: {text[:200]}...")
+                    if self._is_job_content(text):
+                        print(f"🔍 DEBUG: Found job content using selector: {selector}")
                         return self._clean_text(text)
             
-            # Fallback: get main content
-            main_content = soup.find('main') or soup.find('body')
-            if main_content:
-                return self._clean_text(main_content.get_text())
+            # Strategy 2: Look for text blocks with job-related keywords
+            all_divs = soup.find_all(['div', 'section', 'article', 'p'])
+            job_content_blocks = []
             
+            for div in all_divs:
+                text = div.get_text(strip=True)
+                if self._is_job_content(text):
+                    job_content_blocks.append((len(text), text))
+            
+            # Sort by length and take the longest meaningful content
+            if job_content_blocks:
+                job_content_blocks.sort(reverse=True)
+                longest_content = job_content_blocks[0][1]
+                print(f"🔍 DEBUG: Found job content by keyword analysis ({len(longest_content)} chars)")
+                return self._clean_text(longest_content)
+            
+            # Strategy 3: Handle JavaScript-rendered content
+            # For pages that load content dynamically, try to extract any meaningful text
+            all_text = soup.get_text(strip=True)
+            if len(all_text) > 500:  # Has substantial content
+                # Look for job-related patterns in the full text
+                job_patterns = [
+                    r'(?i)(responsibilities?|duties|role|position|requirements?|qualifications?|experience|skills?)[:.]([^.]{100,1000})',
+                    r'(?i)(what you.{0,20}do|about the role|job description)[:.]([^.]{100,1000})',
+                    r'(?i)(we are looking|join our team|candidate will)([^.]{100,1000})'
+                ]
+                
+                extracted_content = []
+                for pattern in job_patterns:
+                    matches = re.findall(pattern, all_text)
+                    for match in matches:
+                        if isinstance(match, tuple):
+                            content = ' '.join(match).strip()
+                        else:
+                            content = match.strip()
+                        if len(content) > 50:
+                            extracted_content.append(content)
+                
+                if extracted_content:
+                    combined_content = '\n'.join(extracted_content)
+                    print(f"🔍 DEBUG: Extracted job patterns ({len(combined_content)} chars)")
+                    return self._clean_text(combined_content)
+            
+            # Strategy 4: Fallback - get body but filter out navigation/footer content
+            body = soup.find('body')
+            if body:
+                text = body.get_text(strip=True)
+                # Filter out obvious non-job content
+                filtered_text = self._filter_non_job_content(text)
+                if len(filtered_text) > 200:
+                    print(f"🔍 DEBUG: Using filtered body content ({len(filtered_text)} chars)")
+                    return self._clean_text(filtered_text)
+            
+            print(f"🔍 DEBUG: All extraction strategies failed - likely JavaScript-rendered content")
+            print(f"🔍 DEBUG: Consider using manual job description input for this URL")
             return None
             
         except Exception as e:
             print(f"Generic scraping error: {str(e)}")
             return None
+    
+    def _is_job_content(self, text: str) -> bool:
+        """Determine if text block contains job description content"""
+        if len(text) < 100:  # Too short to be meaningful job content
+            return False
+        
+        # Look for job-related keywords
+        job_indicators = [
+            'responsibilities', 'requirements', 'qualifications', 'experience',
+            'skills', 'duties', 'role', 'position', 'candidate', 'apply',
+            'years of experience', 'bachelor', 'degree', 'preferred',
+            'required', 'must have', 'should have', 'we are looking',
+            'join our team', 'about the role', 'what you\'ll do',
+            'minimum qualifications', 'preferred qualifications'
+        ]
+        
+        text_lower = text.lower()
+        job_keyword_count = sum(1 for keyword in job_indicators if keyword in text_lower)
+        
+        # Must have at least 3 job-related keywords to be considered job content
+        return job_keyword_count >= 3
+    
+    def _filter_non_job_content(self, text: str) -> str:
+        """Filter out navigation, footer, and other non-job content"""
+        lines = text.split('\n')
+        filtered_lines = []
+        
+        # Skip lines that look like navigation/footer content
+        skip_patterns = [
+            r'(home|about|contact|careers|privacy|terms|cookie)',
+            r'(facebook|twitter|linkedin|instagram|youtube)',
+            r'(©|copyright|all rights reserved)',
+            r'(sign in|log in|register|subscribe)',
+            r'(menu|navigation|footer|header)',
+            r'^(\s*[A-Z][A-Z\s]{2,20}\s*)$',  # All caps navigation items
+        ]
+        
+        for line in lines:
+            line = line.strip()
+            if len(line) < 10:  # Skip very short lines
+                continue
+                
+            # Check if line matches skip patterns
+            should_skip = False
+            for pattern in skip_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    should_skip = True
+                    break
+            
+            if not should_skip:
+                filtered_lines.append(line)
+        
+        return '\n'.join(filtered_lines)
     
     def _clean_text(self, text: str) -> str:
         """Clean and normalize extracted text"""
@@ -554,4 +718,41 @@ class JobScraper:
                 "source": "manual",
                 "requirements": [],
                 "skills": []
-            } 
+            }
+    
+    def _scrape_oracle_cloud(self, url: str) -> Optional[str]:
+        """Scrape Oracle Cloud job posting (used by JPMorgan Chase and other companies)"""
+        try:
+            response = requests.get(url, headers=self.headers, timeout=self.timeout)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Oracle Cloud specific selectors
+            selectors = [
+                '[data-automation-id="jobPostingDescription"]',
+                '.jobDescription',
+                '.job-description',
+                '.posting-description',
+                '[class*="description"]',
+                '.content',
+                'main',
+                '[role="main"]'
+            ]
+            
+            for selector in selectors:
+                element = soup.select_one(selector)
+                if element:
+                    text = element.get_text(strip=True)
+                    if self._is_job_content(text):
+                        print(f"✅ Oracle Cloud scraping successful using selector: {selector}")
+                        return self._clean_text(text)
+            
+            # Fallback to generic scraping
+            return self._scrape_generic(url)
+            
+        except Exception as e:
+            print(f"❌ Oracle Cloud scraping failed for {url}: {str(e)}")
+            return None
+    
+ 
