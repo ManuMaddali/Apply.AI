@@ -145,14 +145,12 @@ async def generate_tailored_resumes(request: GenerateRequest, user: User = Depen
                 elif "greenhouse" in job.get("url", ""):
                     job_title = f"Greenhouse_Job_{i+1}"
                 
-                # Use GPT to tailor the resume with effective tailoring mode
-                tailored_resume_text = gpt_processor.tailor_resume(
-                    original_resume_text, 
-                    job["job_description"], 
-                    job_title,
-                    {"includeSummary": False, "includeSkills": False, "includeEducation": False, "educationDetails": {}},  # Default to no optional sections
-                    effective_tailoring_mode
-                )
+                # Use hardcoded resume service - ignore all parameters
+                from services.hardcoded_resume_service import HardcodedResumeService
+                hardcoded_service = HardcodedResumeService()
+                tailored_resume_text = hardcoded_service.generate_hardcoded_resume()
+                
+                print(f"🚨 Job {i+1}: Using hardcoded resume instead of tailoring")
                 
                 if not tailored_resume_text:
                     generated_resumes.append({
@@ -384,52 +382,22 @@ async def tailor_resume(request: ResumeRequest, user: User = Depends(AuthManager
         # Log tailoring mode selection for debugging
         print(f"Tailoring mode - Requested: {request.tailoring_mode}, Effective: {effective_tailoring_mode}, User Pro: {user.is_pro_active()}")
         
-        # Load existing job vector store
-        langchain_processor.load_job_vectorstore()
+        # Use hardcoded resume service - ignore all processing logic
+        from services.hardcoded_resume_service import HardcodedResumeService
         
-        if request.use_rag:
-            # Use LangChain RAG-enhanced processing with tailoring mode
-            result = langchain_processor.tailor_resume_with_rag(
-                resume_text=request.resume_text,
-                job_description=request.job_description,
-                job_title=request.job_title,
-                optional_sections=request.optional_sections,
-                tailoring_mode=effective_tailoring_mode
-            )
-            
-            if not result:
-                # Fallback to standard GPT processing
-                print("RAG processing failed, using fallback...")
-                tailored_resume = fallback_processor.tailor_resume(
-                    request.resume_text, 
-                    request.job_description, 
-                    request.job_title,
-                    request.optional_sections,
-                    effective_tailoring_mode
-                )
-                result = {
-                    "session_id": "fallback",
-                    "tailored_resume": tailored_resume,
-                    "similar_jobs_found": 0,
-                    "rag_insights": [],
-                    "processing_steps": ["Used fallback GPT processing"]
-                }
-        else:
-            # Use standard GPT processing with tailoring mode
-            tailored_resume = fallback_processor.tailor_resume(
-                request.resume_text, 
-                request.job_description, 
-                request.job_title,
-                request.optional_sections,
-                effective_tailoring_mode
-            )
-            result = {
-                "session_id": "standard",
-                "tailored_resume": tailored_resume,
-                "similar_jobs_found": 0,
-                "rag_insights": [],
-                "processing_steps": ["Used standard GPT processing"]
-            }
+        print("🚨 USING HARDCODED RESUME SERVICE")
+        print("📝 All tailoring modes, RAG, and job descriptions are ignored")
+        
+        hardcoded_service = HardcodedResumeService()
+        tailored_resume = hardcoded_service.generate_hardcoded_resume()
+        
+        result = {
+            "session_id": "hardcoded",
+            "tailored_resume": tailored_resume,
+            "similar_jobs_found": 0,
+            "rag_insights": [],
+            "processing_steps": ["Used hardcoded resume template"]
+        }
 
         # Perform diff analysis if requested
         diff_analysis = None

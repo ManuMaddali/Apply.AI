@@ -20,21 +20,37 @@ async def render_pdf_from_html(html: str, page_size: str = "A4") -> bytes:
         return pdf_bytes
 
 
-def render_pdf_from_html_sync(html: str, page_size: str = "A4") -> bytes:
+def render_pdf_from_html_sync(html: str, page_size: str = "A4") -> Optional[bytes]:
     """
-    Sync wrapper using Playwright sync API for contexts where awaiting is not possible.
+    Sync wrapper using Playwright with more robust defaults for server environments.
+    Returns None if rendering fails so callers can fallback.
     """
-    from playwright.sync_api import sync_playwright
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        context = browser.new_context()
-        page = context.new_page()
-        page.set_content(html, wait_until="networkidle")
-        pdf_bytes = page.pdf(format=page_size, print_background=True)
-        context.close()
-        browser.close()
-        return pdf_bytes
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            # Hardened launch options (CI/containers/macOS permissions)
+            browser = p.chromium.launch(headless=True, args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-setuid-sandbox"
+            ])
+            context = browser.new_context()
+            page = context.new_page()
+            # Allow up to 60s for complex HTML/CSS to layout
+            page.set_content(html, wait_until="load", timeout=60000)
+            pdf_bytes = page.pdf(
+                format=page_size,
+                print_background=True,
+                margin={"top": "0.5in", "bottom": "0.5in", "left": "0.5in", "right": "0.5in"}
+            )
+            context.close()
+            browser.close()
+            return pdf_bytes
+    except Exception as e:
+        # Surface a minimal hint to application logs; callers decide fallback
+        print(f"❌ Playwright render failed: {e}")
+        return None
 
 
 

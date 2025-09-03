@@ -1,5 +1,46 @@
-{ "id": "creative", "name": "Creative", "supports": ["html", "pdf"] }
-
-
-
-
+{
+  "id": "creative",
+  "name": "Creative Professional",
+  "description": "Vibrant and dynamic design with colorful gradients and modern card-based layout, perfect for creative professionals and designers",
+  "category": "creative",
+  "tags": ["creative", "colorful", "vibrant", "design-focused", "modern", "visual"],
+  "features": [
+    "Poppins and Montserrat modern fonts",
+    "Colorful gradient backgrounds (#764ba2 to #667eea)",
+    "Sidebar layout for skills and contact",
+    "Rounded corners and shadows",
+    "Modern card-based sections",
+    "Bold typography with gradient text effects",
+    "Visual skill badges"
+  ],
+  "industry_focus": ["design", "marketing", "media", "arts", "advertising", "entertainment"],
+  "difficulty_level": "advanced",
+  "layout_type": "sidebar",
+  "color_scheme": "multi-color",
+  "primary_color": "#667eea",
+  "secondary_color": "#764ba2",
+  "accent_color": "#f093fb",
+  "font_family": "Poppins, Montserrat",
+  "supports": ["html", "pdf"],
+  "version": "2.0.0",
+  "created_at": "2024-01-15",
+  "updated_at": "2024-01-15",
+  "author": "ApplyAI Team",
+  "preview_image": null,
+  "best_for": [
+    "Graphic designers",
+    "UX/UI designers",
+    "Creative directors", 
+    "Marketing specialists",
+    "Brand managers",
+    "Content creators",
+    "Social media managers"
+  ],
+  "key_strengths": [
+    "Eye-catching visual design stands out",
+    "Sidebar layout maximizes space efficiency",
+    "Gradient effects create modern appeal",
+    "Card-based sections improve readability",
+    "Perfect for creative industry applications"
+  ]
+}

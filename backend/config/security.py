@@ -37,6 +37,11 @@ class SecuritySettings(BaseSettings):
     # Authentication
     access_token_expire_minutes: int = 30
     
+    # Template Configuration
+    template_preview_cache: Optional[str] = "true"
+    template_preview_format: Optional[str] = "png"
+    max_preview_size: Optional[str] = "1024"
+    
     # Email Configuration
     smtp_server: str = "smtp.gmail.com"
     smtp_port: int = 587

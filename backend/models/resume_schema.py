@@ -149,18 +149,46 @@ def _collect_bullets(lines: List[str]) -> List[str]:
 
 
 def parse_resume_text_to_schema(resume_text: str) -> Resume:
+    print(f"🎯 PARSING RESUME TEXT:")
+    print(f"  - Input length: {len(resume_text)}")
+    print(f"  - First 300 chars: {resume_text[:300]}")
+    
+    print(f"🔍 parse_resume_text_to_schema: Input text length: {len(resume_text)}")
+    print(f"📝 First 300 chars: {resume_text[:300]}...")
+    
     lines = [l for l in _split_lines(resume_text) if l]
+    print(f"📊 Total lines after filtering: {len(lines)}")
 
-    # Name and headline detection
+    # Name and headline detection - IMPROVED
     name = ""
     headline = None
     if lines:
-        # Try: explicit probable name
-        for candidate in lines[:5]:
-            if _is_probable_name(candidate):
-                name = candidate.strip()
-                break
-        # Fallback: extract name-like tokens from first line before separators
+        print("🔍 Extracting name from first few lines...")
+        # Try: explicit probable name - look for name patterns in first line
+        first_line = lines[0].strip()
+        print(f"📝 First line: '{first_line}'")
+        
+        # If first line contains contact info, extract name before separators
+        if '|' in first_line or '@' in first_line:
+            # Split by common separators and take the first part as name
+            name_part = first_line.split('|')[0].split('@')[0].strip()
+            # Remove phone numbers and other contact patterns
+            import re
+            name_part = re.sub(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', '', name_part).strip()
+            name_part = re.sub(r'\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', '', name_part).strip()
+            if len(name_part.split()) <= 4 and re.match(r"^[A-Za-z][A-Za-z\s\-\.'&]+$", name_part):
+                name = name_part
+                print(f"✅ Extracted name from contact line: '{name}'")
+        
+        # If no name found yet, try probable name detection
+        if not name:
+            for candidate in lines[:5]:
+                if _is_probable_name(candidate):
+                    name = candidate.strip()
+                    print(f"✅ Found probable name: '{name}'")
+                    break
+        
+        # Final fallback: extract name-like tokens from first line
         if not name:
             first = lines[0]
             token_prefix = first.split("•")[0].split("|")[0].strip()
@@ -171,18 +199,24 @@ def parse_resume_text_to_schema(resume_text: str) -> Resume:
                     name = base_name
                 else:
                     name = token_prefix
+                print(f"✅ Fallback name extraction: '{name}'")
+        
         # Headline: first short, non-contact line after name
         for l in lines[:6]:
             if l != name and len(l) <= 80 and not any(x in l.lower() for x in ["@", "http", "linkedin", "github"]):
                 # Avoid obvious section headers
                 if l.lower().strip().rstrip(":") not in {"summary", "experience", "projects", "education", "skills"}:
                     headline = l
+                    print(f"✅ Found headline: '{headline}'")
                     break
 
+    print(f"📊 Extracted name: '{name}', headline: '{headline}'")
     contact = _extract_contact(lines)
 
-    # Detect sections (supports inline content)
+    # Detect sections (supports inline content) - IMPROVED
     detected = _detect_sections(lines)
+    print(f"🔍 Detected sections: {[(idx, key) for idx, key, _ in detected]}")
+    
     sections: dict = {}
     if detected:
         # Append sentinel to ease slicing
@@ -195,8 +229,10 @@ def parse_resume_text_to_schema(resume_text: str) -> Resume:
                 body.append(inline)
             body.extend([l for l in lines[start_idx + 1:end_idx] if l])
             sections[key] = body
+            print(f"📊 Section '{key}': {len(body)} lines")
     else:
-        # Fallback if no explicit sections found
+        print("⚠️ No sections detected, using fallback parsing")
+        # Fallback if no explicit sections found - IMPROVED HEURISTICS
         sections["summary"] = lines[:6]
         sections["experience"] = lines[6:]
 
@@ -266,7 +302,7 @@ def parse_resume_text_to_schema(resume_text: str) -> Resume:
                 seen.add(tl)
                 skills.append(Skill(name=t))
 
-    return Resume(
+    parsed_obj = Resume(
         name=name,
         headline=headline,
         contact=contact,
@@ -276,5 +312,15 @@ def parse_resume_text_to_schema(resume_text: str) -> Resume:
         education=education_items,
         skills=skills,
     )
+    
+    # DEBUG LOGGING - PARSED RESULT
+    print(f"🎯 PARSED RESULT:")
+    print(f"  - Name: {parsed_obj.name}")
+    print(f"  - Experience items: {len(parsed_obj.experience) if parsed_obj.experience else 0}")
+    print(f"  - Has skills: {bool(parsed_obj.skills)}")
+    print(f"  - Education items: {len(parsed_obj.education) if parsed_obj.education else 0}")
+    print(f"  - Summary length: {len(parsed_obj.summary) if parsed_obj.summary else 0}")
+    
+    return parsed_obj
 
 

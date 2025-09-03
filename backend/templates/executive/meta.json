@@ -1,5 +1,44 @@
-{ "id": "executive", "name": "Executive", "supports": ["html", "pdf"] }
-
-
-
-
+{
+  "id": "executive",
+  "name": "Executive Professional",
+  "description": "Sophisticated and authoritative design focused on achievements and leadership, crafted for senior executives and C-level professionals",
+  "category": "executive",
+  "tags": ["executive", "sophisticated", "leadership", "premium", "authoritative", "senior"],
+  "features": [
+    "Premium typography with executive styling",
+    "Achievement-focused layout design",
+    "Professional navy blue color scheme",
+    "Leadership-oriented content structure",
+    "Results-driven presentation",
+    "Formal business formatting",
+    "Executive summary prominence"
+  ],
+  "industry_focus": ["executive", "management", "consulting", "finance", "corporate", "leadership"],
+  "difficulty_level": "expert",
+  "layout_type": "single-column",
+  "color_scheme": "navy-blue",
+  "primary_color": "#1f4e79",
+  "secondary_color": "#2d5aa0",
+  "font_family": "Times New Roman, Georgia",
+  "supports": ["html", "pdf"],
+  "version": "2.0.0",
+  "created_at": "2024-01-15",
+  "updated_at": "2024-01-15",
+  "author": "ApplyAI Team",
+  "preview_image": null,
+  "best_for": [
+    "C-level executives (CEO, CTO, CFO)",
+    "Vice presidents and directors",
+    "Senior managers and team leads",
+    "Management consultants",
+    "Board members",
+    "Executive coaches"
+  ],
+  "key_strengths": [
+    "Commands authority and respect",
+    "Emphasizes leadership achievements",
+    "Professional color scheme builds trust",
+    "Achievement-focused layout highlights results",
+    "Sophisticated design matches executive level"
+  ]
+}

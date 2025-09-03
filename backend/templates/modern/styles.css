@@ -1,18 +1,436 @@
-@page { size: A4; margin: 1.5cm; }
-:root { --accent: #2f6fed; --text: #111; --muted: #555; }
-html, body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; color: var(--text); }
-body { font-size: 10.75px; line-height: 1.35; }
-h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: .2px; }
-.meta a { color: var(--accent); text-decoration: none; }
-header .meta { margin-top: 6px; }
-.headline { font-size: 11.5px; margin-top: 2px; color: var(--muted); }
-.section-title { font-weight: 700; font-size: 11.5px; text-transform: uppercase; margin: 18px 0 6px; color: var(--text); }
-.meta { font-size: 10.5px; color: var(--muted); }
-.row { display: grid; grid-template-columns: 1fr 2.2fr; gap: 18px; }
-ul { margin: 6px 0 0 16px; padding: 0; }
-li { line-height: 1.35; margin-bottom: 4px; }
-a { color: var(--accent); text-decoration: none; }
-header { margin-bottom: 10px; }
-section { break-inside: avoid; }
+/* Import Inter font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Page setup for PDF */
+@page { 
+  size: A4; 
+  margin: 1.5cm; 
+}
 
+/* CSS Variables for consistent theming */
+:root {
+  --primary: #667eea;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-subtle: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --background: #ffffff;
+  --surface: #f9fafb;
+  --border: #e5e7eb;
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Base styles */
+html, body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text-primary);
+  background-color: var(--background);
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+  background: var(--gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* Header section */
+header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid transparent;
+  border-image: var(--gradient) 1;
+}
+
+header .meta {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+header .meta a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+header .meta a:hover {
+  color: var(--primary-dark);
+}
+
+.headline {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Section styling */
+.section-title {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 24px 0 12px 0;
+  color: var(--primary);
+  position: relative;
+  padding-bottom: 6px;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: var(--gradient);
+  border-radius: 1px;
+}
+
+section {
+  break-inside: avoid;
+  margin-bottom: 24px;
+}
+
+/* Layout grid */
+.row {
+  display: grid;
+  grid-template-columns: 1fr 2.5fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Job headers with flexbox */
+.job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.job-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.job-company {
+  font-weight: 500;
+  color: var(--primary);
+  font-size: 11px;
+}
+
+.job-dates {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Modern bullet points using arrows */
+ul {
+  margin: 8px 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  line-height: 1.5;
+  margin-bottom: 6px;
+  position: relative;
+  padding-left: 16px;
+  font-size: 10.5px;
+  color: var(--text-primary);
+}
+
+li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+/* Skill badges with gradient backgrounds */
+.skills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.skill-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--gradient-subtle);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 16px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--primary-dark);
+  transition: all 0.2s ease;
+}
+
+.skill-badge:hover {
+  background: var(--gradient);
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+/* Enhanced card styling for sections */
+.section-card {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.2s ease;
+}
+
+.section-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Contact information styling */
+.contact-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.contact-info span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Links */
+a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Education and certification styling */
+.education-item,
+.cert-item {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.education-item:last-child,
+.cert-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.degree,
+.cert-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.institution,
+.cert-issuer {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.graduation-date,
+.cert-date {
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+/* Meta information */
+.meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* Responsive design - Mobile first */
+@media screen and (max-width: 768px) {
+  body {
+    font-size: 12px;
+    padding: 16px;
+  }
+  
+  h1 {
+    font-size: 24px;
+  }
+  
+  .row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .job-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .skills-container {
+    gap: 4px;
+  }
+  
+  .skill-badge {
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+  
+  .section-title {
+    font-size: 14px;
+    margin: 20px 0 10px 0;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  body {
+    font-size: 11px;
+    padding: 12px;
+  }
+  
+  h1 {
+    font-size: 20px;
+  }
+  
+  header .meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .contact-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  section {
+    margin-bottom: 20px;
+  }
+}
+
+/* Print optimizations */
+@media print {
+  body {
+    font-size: 10px;
+  }
+  
+  .section-card {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+  
+  .skill-badge {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid var(--primary);
+    box-shadow: none;
+  }
+  
+  a {
+    color: var(--text-primary);
+  }
+  
+  h1 {
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
+    color: var(--primary);
+  }
+}
+
+/* Animation for smooth interactions */
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Focus styles for accessibility */
+a:focus,
+button:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --primary: #4f46e5;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --border: #666666;
+  }
+  
+  .skill-badge {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none;
+  }
+}

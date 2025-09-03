@@ -44,364 +44,6 @@ import { useUserStore, useProcessingStore, useUIStore, useAnalyticsStore } from 
 import { fadeInUp, staggerContainer, staggerItem, slideInFromRight, slideInFromLeft } from '../lib/motion';
 
 /**
- * MobileGlobalSettings Component
- * Touch-friendly global enhancement settings for mobile
- */
-function MobileGlobalSettings({
-  settings,
-  onSettingsChange,
-  isProUser,
-  onUpgradeClick,
-  disabled = false
-}) {
-  const [localSettings, setLocalSettings] = useState(settings);
-  const [activeTab, setActiveTab] = useState('level');
-  const [expandedSection, setExpandedSection] = useState(null);
-
-  // Enhancement levels optimized for mobile display
-  const enhancementLevels = [
-    {
-      id: 'conservative',
-      name: 'Conservative',
-      shortName: 'Light',
-      description: 'Minimal changes, preserve structure',
-      impact: '+8-12',
-      color: 'green',
-      icon: '🛡️',
-      features: ['Keyword optimization', 'Format improvements', 'Grammar fixes']
-    },
-    {
-      id: 'balanced',
-      name: 'Balanced',
-      shortName: 'Smart',
-      description: 'Moderate enhancement with metrics',
-      impact: '+15-20',
-      color: 'blue',
-      icon: '⚖️',
-      features: ['Enhanced verbs', 'Quantified results', 'Industry keywords'],
-      recommended: true
-    },
-    {
-      id: 'aggressive',
-      name: 'Aggressive',
-      shortName: 'Max',
-      description: 'Heavy rewriting for maximum impact',
-      impact: '+22-27',
-      color: 'purple',
-      icon: '🚀',
-      features: ['Complete rewrite', 'Max keywords', 'Advanced metrics']
-    }
-  ];
-
-  // Auto-include sections for mobile
-  const autoIncludeSections = [
-    {
-      id: 'summary',
-      name: 'Summary',
-      icon: '📝',
-      impact: '+5-8',
-      essential: true,
-      proOnly: false
-    },
-    {
-      id: 'skills',
-      name: 'Skills',
-      icon: '🛠️',
-      impact: '+8-12',
-      essential: true,
-      proOnly: false
-    },
-    {
-      id: 'education',
-      name: 'Education',
-      icon: '🎓',
-      impact: '+2-4',
-      essential: false,
-      proOnly: false
-    },
-    {
-      id: 'coverLetter',
-      name: 'Cover Letter',
-      icon: '💌',
-      impact: '+10-15',
-      essential: false,
-      proOnly: true
-    }
-  ];
-
-  const handleLevelChange = useCallback((level) => {
-    const newSettings = { ...localSettings, enhancementLevel: level };
-    setLocalSettings(newSettings);
-    onSettingsChange(newSettings);
-  }, [localSettings, onSettingsChange]);
-
-  const handleSectionToggle = useCallback((sectionId) => {
-    const section = autoIncludeSections.find(s => s.id === sectionId);
-    
-    if (section?.proOnly && !isProUser) {
-      onUpgradeClick?.();
-      return;
-    }
-
-    const newSections = {
-      ...localSettings.autoIncludeSections,
-      [sectionId]: !localSettings.autoIncludeSections[sectionId]
-    };
-    
-    const newSettings = { ...localSettings, autoIncludeSections: newSections };
-    setLocalSettings(newSettings);
-    onSettingsChange(newSettings);
-  }, [localSettings, onSettingsChange, isProUser, onUpgradeClick]);
-
-  const getTotalImpact = () => {
-    const selectedLevel = enhancementLevels.find(level => level.id === localSettings.enhancementLevel);
-    let baseImpact = selectedLevel ? parseInt(selectedLevel.impact.split('-')[1]) : 15;
-    let sectionImpact = 0;
-    
-    Object.entries(localSettings.autoIncludeSections).forEach(([sectionId, enabled]) => {
-      if (enabled) {
-        const section = autoIncludeSections.find(s => s.id === sectionId);
-        if (section) {
-          sectionImpact += parseInt(section.impact.split('-')[1]);
-        }
-      }
-    });
-    
-    return baseImpact + sectionImpact;
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Mobile Tab Navigation */}
-      <div className="flex bg-gray-100 rounded-lg p-1">
-        <button
-          onClick={() => setActiveTab('level')}
-          className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
-            activeTab === 'level'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Enhancement Level
-        </button>
-        <button
-          onClick={() => setActiveTab('sections')}
-          className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
-            activeTab === 'sections'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Sections
-        </button>
-      </div>
-
-      {/* Enhancement Level Tab */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'level' && (
-          <motion.div
-            key="level"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="space-y-3"
-          >
-            {enhancementLevels.map((level) => {
-              const isSelected = localSettings.enhancementLevel === level.id;
-              
-              return (
-                <motion.div
-                  key={level.id}
-                  whileTap={{ scale: 0.98 }}
-                  className={`
-                    relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 active:scale-95
-                    ${isSelected
-                      ? `border-${level.color}-500 bg-${level.color}-50`
-                      : `border-gray-200 hover:border-${level.color}-300`
-                    }
-                    ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-                  `}
-                  onClick={() => !disabled && handleLevelChange(level.id)}
-                >
-                  {level.recommended && (
-                    <div className="absolute -top-2 -right-2">
-                      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        <Star className="w-3 h-3 inline mr-1" />
-                        Best
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{level.icon}</div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{level.name}</h3>
-                        <p className="text-sm text-gray-600">{level.shortName}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-green-600">{level.impact}</div>
-                      <div className="text-xs text-gray-500">points</div>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-gray-600 mb-3">{level.description}</p>
-
-                  {/* Expandable Features */}
-                  <div className="space-y-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedSection(expandedSection === level.id ? null : level.id);
-                      }}
-                      className="flex items-center justify-between w-full text-left"
-                    >
-                      <span className="text-sm font-medium text-gray-700">Features</span>
-                      {expandedSection === level.id ? (
-                        <ArrowUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ArrowDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </button>
-                    
-                    <AnimatePresence>
-                      {expandedSection === level.id && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="space-y-1 pt-2">
-                            {level.features.map((feature, index) => (
-                              <div key={index} className="flex items-center gap-2 text-xs text-gray-600">
-                                <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
-                                {feature}
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {isSelected && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute top-4 right-4"
-                    >
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-4 h-4 text-white" />
-                      </div>
-                    </motion.div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-
-        {/* Auto-Include Sections Tab */}
-        {activeTab === 'sections' && (
-          <motion.div
-            key="sections"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-3"
-          >
-            {autoIncludeSections.map((section) => {
-              const isEnabled = localSettings.autoIncludeSections[section.id];
-              const canAccess = !section.proOnly || isProUser;
-
-              return (
-                <motion.div
-                  key={section.id}
-                  whileTap={{ scale: 0.98 }}
-                  className={`
-                    relative p-4 rounded-xl border-2 transition-all duration-300 active:scale-95
-                    ${isEnabled && canAccess
-                      ? 'border-blue-500 bg-blue-50'
-                      : canAccess
-                      ? 'border-gray-200 hover:border-gray-300'
-                      : 'border-purple-200 bg-purple-50 opacity-75'
-                    }
-                    ${canAccess && !disabled ? 'cursor-pointer' : 'cursor-not-allowed'}
-                  `}
-                  onClick={() => canAccess && !disabled && handleSectionToggle(section.id)}
-                >
-                  {section.proOnly && (
-                    <div className="absolute -top-2 -right-2">
-                      <TierBadge tier="pro" size="sm" animated={true} />
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{section.icon}</div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">{section.name}</h4>
-                        <div className="text-sm font-medium text-green-600">{section.impact} pts</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {!canAccess && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUpgradeClick?.();
-                          }}
-                          className="text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
-                        >
-                          Upgrade
-                        </Button>
-                      )}
-                      
-                      {canAccess && (
-                        <div className={`
-                          w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all
-                          ${isEnabled
-                            ? 'bg-blue-500 border-blue-500'
-                            : 'border-gray-300 hover:border-blue-400'
-                          }
-                        `}>
-                          {isEnabled && <CheckCircle className="w-5 h-5 text-white" />}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Settings Summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900">Total Impact</h4>
-            <div className="text-sm text-gray-600">
-              {Object.values(localSettings.autoIncludeSections).filter(Boolean).length} sections enabled
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-green-600">+{getTotalImpact()}</div>
-            <div className="text-sm text-gray-600">points</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
  * MobileProcessingVisualization Component
  * Touch-optimized processing visualization with swipe navigation
  */
@@ -873,13 +515,7 @@ export function MobileBatchModeInterface({
 
   const [currentStep, setCurrentStep] = useState('settings'); // 'settings', 'processing', 'results'
   const [settings, setSettings] = useState({
-    enhancementLevel: 'balanced',
-    autoIncludeSections: {
-      summary: true,
-      skills: true,
-      education: false,
-      coverLetter: false
-    }
+    format: 'professional'
   });
   const [processingJobs, setProcessingJobs] = useState([]);
   const [results, setResults] = useState([]);
@@ -900,9 +536,9 @@ export function MobileBatchModeInterface({
       progress: 0,
       steps: [
         { name: 'Analyzing job', status: 'pending' },
-        { name: 'Enhancing resume', status: 'pending' },
-        { name: 'Optimizing keywords', status: 'pending' },
-        { name: 'Generating output', status: 'pending' }
+        { name: 'Generating resume', status: 'pending' },
+        { name: 'Formatting content', status: 'pending' },
+        { name: 'Creating PDF', status: 'pending' }
       ],
       startTime: Date.now(),
       estimatedTime: 45
@@ -968,19 +604,25 @@ export function MobileBatchModeInterface({
           >
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Batch Settings
+                Ready to Process
               </h2>
               <p className="text-gray-600">
-                Configure global settings for {jobCount} job{jobCount !== 1 ? 's' : ''}
+                Generate professional resumes for {jobCount} job{jobCount !== 1 ? 's' : ''} using our standardized format
               </p>
             </div>
 
-            <MobileGlobalSettings
-              settings={settings}
-              onSettingsChange={setSettings}
-              isProUser={isProUser}
-              onUpgradeClick={onUpgradeClick}
-            />
+            {/* Format Info Card */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-900">Professional Format</h3>
+                  <p className="text-sm text-blue-700">Standardized layout with consistent bullet points</p>
+                </div>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-3">
               <Button
@@ -1016,7 +658,7 @@ export function MobileBatchModeInterface({
                 Processing Jobs
               </h2>
               <p className="text-gray-600">
-                Enhancing your resumes with AI optimization
+                Generating professional resumes with standardized formatting
               </p>
             </div>
 

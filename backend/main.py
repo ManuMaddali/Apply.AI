@@ -39,6 +39,7 @@ from routes.lifecycle_management import router as lifecycle_router
 from routes.app_redesign_api import router as app_redesign_router
 from routes.file_cleanup import router as file_cleanup_router
 from routes.websocket_api import router as websocket_router
+from routes.template_preview import router as template_preview_router
 
 # Database initialization
 from config.database import init_db, check_database_health
@@ -93,6 +94,7 @@ app.include_router(lifecycle_router, tags=["lifecycle-management"])
 app.include_router(app_redesign_router, tags=["app-redesign"])
 app.include_router(file_cleanup_router, prefix="/api", tags=["file-cleanup"])
 app.include_router(websocket_router, tags=["websocket"])
+app.include_router(template_preview_router, prefix="/api/templates", tags=["templates"])
 
 # Mount static files
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")

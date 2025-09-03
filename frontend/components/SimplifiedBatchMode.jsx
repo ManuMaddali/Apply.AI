@@ -6,18 +6,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import TemplateSelector from './TemplateSelector';
 import ATSScoreDisplay from './ATSScoreDisplay';
 import EnhancedBatchResults from './EnhancedBatchResults';
 import { 
   Upload,
   FileText,
-  Settings,
   Clock,
   CheckCircle,
   AlertCircle,
   Play,
   Pause,
+  Square,
   Download,
   BarChart3,
   TrendingUp,
@@ -32,98 +31,7 @@ import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 
-function GlobalSettings({ settings, onSettingsChange, disabled = false }) {
-  const [localSettings, setLocalSettings] = useState(settings);
 
-  const handleSettingChange = (key, value) => {
-    const newSettings = { ...localSettings, [key]: value };
-    setLocalSettings(newSettings);
-    onSettingsChange(newSettings);
-  };
-
-  return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          Global Enhancement Settings
-        </CardTitle>
-        <CardDescription>
-          These settings will be applied to all jobs in your batch
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="enhancement-level">Enhancement Level</Label>
-          <select
-            id="enhancement-level"
-            value={localSettings.enhancementLevel || 'moderate'}
-            onChange={(e) => handleSettingChange('enhancementLevel', e.target.value)}
-            disabled={disabled}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="light">Light - Quick improvements</option>
-            <option value="moderate">Moderate - Balanced optimization</option>
-            <option value="aggressive">Aggressive - Maximum enhancement</option>
-          </select>
-        </div>
-
-        {/* Template Selection */}
-        <TemplateSelector
-          selectedTemplate={localSettings.template}
-          onTemplateChange={(template) => handleSettingChange('template', template)}
-          isPro={true} // TODO: Connect to actual subscription status
-        />
-
-        <div className="grid grid-cols-2 gap-4">
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={localSettings.includeSummary || false}
-              onChange={(e) => handleSettingChange('includeSummary', e.target.checked)}
-              disabled={disabled}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm">Include Summary</span>
-          </label>
-
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={localSettings.includeSkills || false}
-              onChange={(e) => handleSettingChange('includeSkills', e.target.checked)}
-              disabled={disabled}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm">Enhance Skills</span>
-          </label>
-
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={localSettings.includeCoverLetter || false}
-              onChange={(e) => handleSettingChange('includeCoverLetter', e.target.checked)}
-              disabled={disabled}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm">Generate Cover Letter</span>
-          </label>
-
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={localSettings.optimizeKeywords || false}
-              onChange={(e) => handleSettingChange('optimizeKeywords', e.target.checked)}
-              disabled={disabled}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm">Optimize Keywords</span>
-          </label>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function ProcessingVisualization({ jobs = [], currentProgress = 0, isPaused = false, estimatedTimeRemaining = 0 }) {
   return (
@@ -206,14 +114,8 @@ export default function SimplifiedBatchMode({
   onDownloadIndividual
 }) {
   const [settings, setSettings] = useState({
-    enhancementLevel: 'moderate',
-    includeSummary: false,
-    includeSkills: true,
-    includeCoverLetter: false,
-    optimizeKeywords: true,
-    template: 'modern',
-    outputFormat: 'pdf',
-    tailoringMode: 'light'
+    format: 'professional',
+    outputFormat: 'pdf'
   });
 
   const [localJobUrls, setLocalJobUrls] = useState(jobUrls.join('\n'));
@@ -223,6 +125,7 @@ export default function SimplifiedBatchMode({
   const [processingJobs, setProcessingJobs] = useState([]);
   const [currentProgress, setCurrentProgress] = useState(0);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Parse job URLs
   const jobUrlList = localJobUrls
@@ -314,6 +217,21 @@ export default function SimplifiedBatchMode({
     }
   };
 
+  // Local pause/stop handlers to prevent runtime errors and provide basic UX
+  const handlePauseProcessing = useCallback(() => {
+    setIsPaused(true);
+  }, []);
+
+  const handleStopProcessing = useCallback(() => {
+    setIsPaused(false);
+    setProcessingJobs([]);
+    setCurrentProgress(0);
+    setEstimatedTimeRemaining(0);
+    if (onProcessingComplete) {
+      onProcessingComplete([]);
+    }
+  }, [onProcessingComplete]);
+
 
 
   return (
@@ -338,11 +256,11 @@ export default function SimplifiedBatchMode({
         
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Batch Processing Mode</h1>
         <p className="text-lg text-gray-600">
-          Process multiple job applications quickly with global settings
+          Generate professional resumes for multiple job applications using our standardized format
         </p>
       </motion.div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Resume Input */}
@@ -392,37 +310,39 @@ export default function SimplifiedBatchMode({
           </Card>
 
           {/* Job URLs Input */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LinkIcon className="h-5 w-5" />
+          <Card className="shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <LinkIcon className="h-5 w-5 text-blue-600" />
                 Job URLs
               </CardTitle>
-              <CardDescription>
-                Enter job URLs (one per line, up to 10 jobs)
+              <CardDescription className="text-gray-600">
+                Enter job URLs (one per line, up to 10 jobs). Each job will be processed with our standardized professional resume format.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <Textarea
                 value={localJobUrls}
                 onChange={(e) => setLocalJobUrls(e.target.value)}
                 disabled={processing}
-                placeholder="https://example.com/job1&#10;https://example.com/job2&#10;..."
-                rows={6}
-                className="font-mono text-sm"
+                placeholder="https://linkedin.com/jobs/job1&#10;https://indeed.com/viewjob?jk=job2&#10;https://company.com/careers/job3"
+                rows={8}
+                className="font-mono text-sm resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
-              <p className="text-sm text-gray-500 mt-2">
-                {jobUrlList.length} job{jobUrlList.length !== 1 ? 's' : ''} entered
-              </p>
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-sm text-gray-500">
+                  {jobUrlList.length} job{jobUrlList.length !== 1 ? 's' : ''} entered
+                </p>
+                {jobUrlList.length > 0 && (
+                  <p className="text-xs text-blue-600 font-medium">
+                    Ready to process with standardized format
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Global Settings */}
-          <GlobalSettings
-            settings={settings}
-            onSettingsChange={setSettings}
-            disabled={processing}
-          />
+
 
           {/* Processing Visualization */}
           {processing && (
@@ -445,55 +365,113 @@ export default function SimplifiedBatchMode({
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Processing Controls */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Processing Controls</CardTitle>
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Processing Controls</CardTitle>
+              <CardDescription className="text-gray-600">
+                Generate professional resumes for all your job applications
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-0">
               <Button
                 onClick={handleStartProcessing}
                 disabled={!canProcess || processing}
-                className="w-full"
+                className="w-full h-12 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md"
               >
                 {processing ? (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
+                    <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+                    Processing {processingJobs.filter(j => j.status === 'completed').length} of {processingJobs.length}
                   </>
                 ) : (
                   <>
-                    <Play className="mr-2 h-4 w-4" />
+                    <Play className="mr-2 h-5 w-5" />
                     Start Batch Processing
                   </>
                 )}
               </Button>
+              
+              {processing && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={handlePauseProcessing}
+                    disabled={isPaused}
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-300 hover:border-gray-400"
+                  >
+                    <Pause className="mr-1 h-4 w-4" />
+                    Pause
+                  </Button>
+                  <Button
+                    onClick={handleStopProcessing}
+                    variant="destructive"
+                    size="sm"
+                    className="bg-red-500 hover:bg-red-600"
+                  >
+                    <Square className="mr-1 h-4 w-4" />
+                    Stop
+                  </Button>
+                </div>
+              )}
 
               {!canProcess && (
-                <p className="text-sm text-gray-500">
-                  Please provide resume content and at least one job URL to start processing.
-                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800">
+                    Please provide resume content and at least one job URL to start processing.
+                  </p>
+                </div>
+              )}
+              
+              {!processing && jobUrlList.length > 0 && canProcess && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Ready to process {jobUrlList.length} job{jobUrlList.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <p className="text-xs text-green-700 mt-1">
+                    Using standardized professional format with consistent bullet points
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
 
           {/* Quick Stats */}
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Batch Summary</CardTitle>
+              <CardTitle className="text-lg font-semibold">Batch Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Jobs queued:</span>
-                <span className="font-medium">{jobUrlList.length}</span>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                  <span className="text-sm text-blue-800 font-medium">Jobs queued:</span>
+                  <span className="font-bold text-blue-900 text-lg">{jobUrlList.length}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                  <span className="text-sm text-purple-800 font-medium">Estimated time:</span>
+                  <span className="font-bold text-purple-900 text-lg">{Math.ceil(jobUrlList.length * 0.5)} min</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                  <span className="text-sm text-green-800 font-medium">Format:</span>
+                  <span className="font-bold text-green-900">Professional</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Estimated time:</span>
-                <span className="font-medium">{Math.ceil(jobUrlList.length * 0.5)} min</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Enhancement level:</span>
-                <span className="font-medium capitalize">{settings.enhancementLevel}</span>
-              </div>
+              
+              {processing && (
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Progress:</span>
+                    <span className="font-medium">{Math.round(currentProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${currentProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

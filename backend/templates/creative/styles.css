@@ -1,5 +1,589 @@
-@import url("../modern/styles.css");
+/* CREATIVE TEMPLATE - Modern colorful design with sidebar layout */
+/* Import modern fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
+@page { 
+  size: A4; 
+  margin: 0.8cm; 
+}
 
+/* Creative color palette with gradients */
+:root { 
+  --gradient-primary: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  --gradient-secondary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-accent: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+  --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --primary: #667eea;
+  --secondary: #764ba2;
+  --accent: #f093fb;
+  --text-primary: #2d3748;
+  --text-secondary: #4a5568;
+  --text-muted: #718096;
+  --text-light: #a0aec0;
+  --background: #ffffff;
+  --surface: #f7fafc;
+  --surface-elevated: #edf2f7;
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
 
+/* Base styling with modern fonts */
+html, body { 
+  font-family: 'Poppins', 'Montserrat', system-ui, -apple-system, sans-serif; 
+  color: var(--text-primary); 
+  margin: 0; 
+  padding: 0;
+  font-size: 10px;
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
+body { 
+  line-height: 1.4; 
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+/* Main container - creative sidebar layout */
+.creative-container {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: 100vh;
+  gap: 0;
+  box-shadow: var(--shadow-xl);
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 8px;
+}
+
+/* LEFT SIDEBAR - Colorful gradient background */
+.sidebar {
+  background: var(--gradient-primary);
+  color: white;
+  padding: 24px 20px;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative elements in sidebar */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Profile section with bold typography */
+.profile-section {
+  text-align: center;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.profile-section h1 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-family: 'Montserrat', sans-serif;
+}
+
+.profile-title {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 16px;
+  font-style: italic;
+}
+
+/* Contact information with icon support */
+.contact-info {
+  margin-bottom: 24px;
+}
+
+.contact-item {
+  font-size: 9px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  transition: all 0.3s ease;
+}
+
+.contact-item:hover {
+  transform: translateX(4px);
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding-left: 8px;
+  margin-left: -8px;
+}
+
+.contact-icon {
+  width: 16px;
+  height: 16px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+.contact-item a {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* Skills section in sidebar with modern styling */
+.skills-sidebar {
+  margin-bottom: 24px;
+}
+
+.skills-sidebar h3 {
+  font-size: 11px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.skills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skill-tag {
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(10px);
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 8px;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.skill-tag:hover {
+  background: rgba(255,255,255,0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Education section in sidebar */
+.education-sidebar {
+  margin-bottom: 20px;
+}
+
+.education-sidebar h3 {
+  font-size: 11px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.education-item {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  border-left: 3px solid rgba(255,255,255,0.4);
+}
+
+.degree {
+  font-size: 9px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.school {
+  font-size: 8px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.year {
+  font-size: 7px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* MAIN CONTENT AREA - Card-based sections */
+.main-content {
+  padding: 24px 28px;
+  background: var(--background);
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Section headers with bold typography */
+.main-content h2,
+.section-title {
+  font-size: 14px;
+  font-weight: 800;
+  background: var(--gradient-secondary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-family: 'Montserrat', sans-serif;
+  position: relative;
+}
+
+.main-content h2::after,
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+}
+
+/* Card-based sections with shadows and rounded corners */
+.section-card {
+  background: var(--background);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.section-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-primary);
+}
+
+.section-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Summary section */
+.summary-creative {
+  margin-bottom: 20px;
+}
+
+.summary-text {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+/* Experience section with modern styling */
+.experience-creative {
+  margin-bottom: 20px;
+}
+
+.job-creative {
+  margin-bottom: 20px;
+  page-break-inside: avoid;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 12px;
+  border-left: 4px solid var(--primary);
+  transition: all 0.3s ease;
+}
+
+.job-creative:hover {
+  background: var(--surface-elevated);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+.job-title-creative {
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.job-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.company {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 20px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.dates {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* Modern bullet points */
+.achievements-creative {
+  margin: 8px 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.achievements-creative li {
+  font-size: 10px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+  position: relative;
+  padding-left: 20px;
+  color: var(--text-primary);
+}
+
+.achievements-creative li::before {
+  content: "▶";
+  color: var(--primary);
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 8px;
+  font-weight: bold;
+}
+
+/* Projects section */
+.projects-creative {
+  margin-bottom: 20px;
+}
+
+.project-item {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.project-name {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--gradient-accent);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.project-details {
+  margin: 4px 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-details li {
+  font-size: 9px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+  position: relative;
+  padding-left: 16px;
+  color: var(--text-secondary);
+}
+
+.project-details li::before {
+  content: "●";
+  color: var(--secondary);
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 8px;
+}
+
+/* Certifications and Awards */
+.certification-item,
+.award-item {
+  padding: 12px;
+  margin-bottom: 12px;
+  background: var(--surface);
+  border-radius: 12px;
+  border-left: 4px solid var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.cert-name,
+.award-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.cert-issuer,
+.award-description {
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+
+.cert-date {
+  font-size: 8px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Interactive elements */
+a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--secondary);
+  text-decoration: underline;
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+  .creative-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: auto;
+    margin: 4px;
+  }
+  
+  .sidebar {
+    padding: 20px 16px;
+  }
+  
+  .profile-section h1 {
+    font-size: 16px;
+  }
+  
+  .main-content {
+    padding: 20px 16px;
+  }
+  
+  .job-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .skills-grid {
+    gap: 4px;
+  }
+  
+  .skill-tag {
+    font-size: 7px;
+    padding: 3px 8px;
+  }
+}
+
+/* Print optimizations */
+@media print {
+  body {
+    font-size: 9px;
+  }
+  
+  .creative-container {
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+  }
+  
+  .section-card {
+    box-shadow: none;
+    border: 1px solid var(--text-light);
+  }
+  
+  .section-card::before {
+    background: var(--primary);
+  }
+  
+  .job-creative {
+    background: transparent;
+    box-shadow: none;
+  }
+  
+  .skill-tag {
+    background: rgba(102, 126, 234, 0.2);
+    border: 1px solid var(--primary);
+  }
+  
+  /* Ensure gradients work in print */
+  h1, .job-title-creative, .section-title {
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
+    color: var(--primary);
+  }
+}
+
+/* Animation and transitions */
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Focus styles for accessibility */
+a:focus,
+button:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --primary: #4f46e5;
+    --secondary: #6b21a8;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

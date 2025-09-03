@@ -1,5 +1,46 @@
-{ "id": "technical", "name": "Technical", "supports": ["html", "pdf"] }
-
-
-
-
+{
+  "id": "technical",
+  "name": "Technical Professional",
+  "description": "Skills-focused template with technical categorization and project showcase, optimized for software engineers and technical professionals",
+  "category": "technical",
+  "tags": ["technical", "engineering", "skills-focused", "github-ready", "developer", "systematic"],
+  "features": [
+    "Skills highlighting with categorization",
+    "Project showcase emphasis",
+    "Technical formatting and structure",
+    "Code-friendly presentation",
+    "Grid-based layout with skills prominence",
+    "Professional blue color scheme",
+    "Technical achievement focus"
+  ],
+  "industry_focus": ["software", "engineering", "data-science", "devops", "cybersecurity", "research"],
+  "difficulty_level": "intermediate",
+  "layout_type": "two-column",
+  "color_scheme": "tech-blue",
+  "primary_color": "#2c3e50",
+  "secondary_color": "#34495e",
+  "accent_color": "#3498db",
+  "font_family": "Inter, system-ui",
+  "supports": ["html", "pdf"],
+  "version": "2.0.0",
+  "created_at": "2024-01-15",
+  "updated_at": "2024-01-15",
+  "author": "ApplyAI Team",
+  "preview_image": null,
+  "best_for": [
+    "Software engineers and developers",
+    "Data scientists and analysts",
+    "DevOps and infrastructure engineers",
+    "Cybersecurity professionals",
+    "Research scientists",
+    "Technical architects",
+    "System administrators"
+  ],
+  "key_strengths": [
+    "Skills categorization highlights technical expertise",
+    "Project showcase demonstrates practical experience",
+    "Two-column layout maximizes information density",
+    "Technical formatting appeals to engineering managers",
+    "Systematic presentation matches technical mindset"
+  ]
+}

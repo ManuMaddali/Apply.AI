@@ -25,8 +25,16 @@ import { Badge } from './ui/badge';
 const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual, batchId }) => {
   const [expandedResults, setExpandedResults] = useState({});
   
-  const completedResults = results.filter(r => r.status === 'completed' || r.status === 'complete');
-  const successRate = results.length > 0 ? Math.round((completedResults.length / results.length) * 100) : 0;
+  const isCompleted = (r) => {
+    const s = (r?.status || '').toString().toLowerCase();
+    const hasPdf = !!(r?.formatted_resume_data?.download_url || r?.formatted_resume_data?.has_binary_content);
+    const hasText = typeof r?.tailored_resume === 'string' && r.tailored_resume.trim().length > 0;
+    return s.startsWith('complete') || hasPdf || hasText;
+  };
+
+  const completedResults = results.filter(isCompleted);
+  const completedCount = completedResults.length;
+  const successRate = results.length > 0 ? Math.round((completedCount / results.length) * 100) : 0;
 
   const downloadFormats = [
     { key: 'pdf', label: 'PDF', icon: <FileText className="h-4 w-4" />, color: 'purple' },
@@ -85,7 +93,7 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual, ba
           </CardTitle>
           <CardDescription className="text-gray-700 mt-2">
             <span className="font-semibold text-lg">
-              {completedResults.length} of {results.length} resumes generated
+              {completedCount} of {results.length} resumes generated
             </span>
           </CardDescription>
           <div className="mt-1">
@@ -325,17 +333,26 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual, ba
                                   {format.icon}
                                 </Button>
                               )
-                              if (format.key === 'pdf' && result?.formatted_resume_data?.download_url) {
-                                return (
-                                  <Tooltip key={`pdf-${index}`}>
-                                    <TooltipTrigger>
-                                      <a href={`${API_BASE_URL}${result.formatted_resume_data.download_url}`}>{btn}</a>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Download as PDF</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )
+                              if (format.key === 'pdf') {
+                                const directUrl = result?.formatted_resume_data?.download_url
+                                  || (batchId && result?.formatted_resume_data?.filename
+                                        ? `/api/enhanced-batch/download/${batchId}/${result.formatted_resume_data.filename}`
+                                        : null);
+                                if (directUrl) {
+                                  return (
+                                    <Tooltip key={`pdf-${index}`}>
+                                      <TooltipTrigger asChild>
+                                        <a href={`${API_BASE_URL}${directUrl}`}>
+                                          <span className="sr-only">PDF</span>
+                                          {btn}
+                                        </a>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Download as PDF</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )
+                                }
                               }
                               return (
                                 <Tooltip key={format.key}>

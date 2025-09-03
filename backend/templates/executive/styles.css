@@ -1,4 +1,189 @@
-@import url("../classic/styles.css");
+/* EXECUTIVE TEMPLATE - Formal, achievement-focused layout for senior leadership roles */
+@page { size: A4; margin: 1.5cm; }
+:root { --text: #000; --muted: #555; --accent: #8B0000; --light: #f8f9fa; }
+
+html, body { 
+  font-family: 'Times New Roman', Times, serif; 
+  color: var(--text); 
+  margin: 0; 
+  padding: 0;
+}
+
+body { 
+  font-size: 10px; 
+  line-height: 1.4; 
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+/* Executive container */
+.executive-container {
+  padding: 20px;
+  height: calc(100vh - 40px);
+  box-sizing: border-box;
+}
+
+/* Executive header - formal and prominent */
+.executive-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 3px double var(--accent);
+}
+
+.name-title h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.executive-title {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.contact-executive {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.contact-executive a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Section headers - executive style */
+h2 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 16px 0 8px 0;
+  color: var(--accent);
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 3px;
+}
+
+/* Executive summary */
+.executive-summary {
+  margin-bottom: 16px;
+}
+
+.summary-exec {
+  font-size: 10px;
+  line-height: 1.5;
+  margin: 0;
+  text-align: justify;
+  font-style: italic;
+}
+
+/* Executive experience - achievement focused */
+.executive-experience {
+  margin-bottom: 16px;
+}
+
+.executive-role {
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+}
+
+.role-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px dotted var(--muted);
+}
+
+.title-company {
+  flex: 1;
+}
+
+.exec-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  display: block;
+}
+
+.exec-company {
+  font-size: 9.5px;
+  color: var(--muted);
+  font-style: italic;
+  display: block;
+  margin-top: 1px;
+}
+
+.exec-dates {
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 600;
+  text-align: right;
+}
+
+.achievements-exec {
+  margin-top: 6px;
+}
+
+.achievement-item {
+  font-size: 9px;
+  line-height: 1.4;
+  margin-bottom: 3px;
+  padding-left: 12px;
+  position: relative;
+}
+
+.achievement-item:before {
+  content: "◆";
+  color: var(--accent);
+  position: absolute;
+  left: 0;
+  font-size: 8px;
+}
+
+/* Executive bottom section */
+.executive-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.education-exec h2,
+.competencies-exec h2 {
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.education-exec-item {
+  font-size: 9px;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.competencies-list {
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* Fallback */
+.executive-fallback {
+  margin-top: 12px;
+}
+
+.fallback-exec p {
+  font-size: 8px;
+  line-height: 1.3;
+  margin: 3px 0;
+}
+
 
 
 

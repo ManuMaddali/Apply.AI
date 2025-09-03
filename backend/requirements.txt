@@ -72,3 +72,7 @@ stripe==8.0.0
 # Testing
 pytest==8.4.1
 pytest-asyncio==1.1.0
+
+# Template Preview Dependencies
+playwright==1.54.0
+Pillow==11.3.0  # For fallback image generation

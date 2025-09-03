@@ -28,21 +28,47 @@ except ImportError as e:
     DEPENDENCIES_AVAILABLE = False
 
 # New template engine (HTML/CSS -> PDF)
-from services.template_engine import TemplateEngine
-from models.resume_schema import parse_resume_text_to_schema
-from services.renderers.pdf_renderer import render_pdf_from_html_sync
+try:
+    from backend.services.template_engine import TemplateEngine
+    from backend.models.resume_schema import parse_resume_text_to_schema, Resume, Contact, ExperienceItem, EducationItem, Skill, ProjectItem
+    from backend.services.renderers.pdf_renderer import render_pdf_from_html_sync
+except ImportError:
+    # Try relative imports if absolute imports fail
+    from services.template_engine import TemplateEngine
+    from models.resume_schema import parse_resume_text_to_schema, Resume, Contact, ExperienceItem, EducationItem, Skill, ProjectItem
+    from services.renderers.pdf_renderer import render_pdf_from_html_sync
+
+# Import our comprehensive resume parser
+try:
+    try:
+        from backend.services.resume_parser import ResumeParser
+    except ImportError:
+        from services.resume_parser import ResumeParser
+    RESUME_PARSER_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Resume parser not available: {e}")
+    RESUME_PARSER_AVAILABLE = False
 
 # Keep imports of AdvancedFormattingService available for backward compatibility,
 # but they are deprecated and not used for PDF generation anymore.
 ADVANCED_FMT_AVAILABLE = True
 try:
-    from services.advanced_formatting_service import (
-        AdvancedFormattingService,
-        FormattingOptions,
-        FormattingTemplate,
-        ColorScheme,
-        FontFamily,
-    )
+    try:
+        from backend.services.advanced_formatting_service import (
+            AdvancedFormattingService,
+            FormattingOptions,
+            FormattingTemplate,
+            ColorScheme,
+            FontFamily,
+        )
+    except ImportError:
+        from services.advanced_formatting_service import (
+            AdvancedFormattingService,
+            FormattingOptions,
+            FormattingTemplate,
+            ColorScheme,
+            FontFamily,
+        )
 except Exception as e:
     print(f"⚠️ AdvancedFormattingService not available: {e}")
     ADVANCED_FMT_AVAILABLE = False
@@ -267,6 +293,109 @@ class ProfessionalOutputService:
         self.ats_scorer = ATSScorer()
         self.template_engine = ProfessionalTemplateEngine()
     
+    def _convert_parsed_to_resume_schema(self, parsed_data: Dict[str, Any]) -> Resume:
+        """Convert parser output to Resume schema format."""
+        try:
+            # Extract contact information
+            contact = Contact(
+                email=parsed_data.get('email', ''),
+                phone=parsed_data.get('phone', ''),
+                location=parsed_data.get('location', ''),
+                links=[]
+            )
+            
+            # Add LinkedIn and GitHub as links if available
+            if parsed_data.get('linkedin'):
+                contact.links.append({'label': 'LinkedIn', 'url': parsed_data['linkedin']})
+            if parsed_data.get('github'):
+                contact.links.append({'label': 'GitHub', 'url': parsed_data['github']})
+            
+            # Convert experience
+            experience_items = []
+            for exp in parsed_data.get('experience', []):
+                bullets = exp.get('responsibilities', [])
+                # Ensure bullets are strings
+                if isinstance(bullets, list):
+                    bullets = [str(b) for b in bullets if b]
+                
+                experience_items.append(ExperienceItem(
+                    title=exp.get('title', ''),
+                    company=exp.get('company', ''),
+                    dates=exp.get('dates', ''),
+                    bullets=bullets
+                ))
+            
+            # Convert education
+            education_items = []
+            for edu in parsed_data.get('education', []):
+                school = edu.get('institution', '')
+                degree = edu.get('degree', '')
+                field = edu.get('field', '')
+                year = edu.get('year', '')
+                
+                # Combine into a school string
+                school_str = f"{degree} {field}" if degree and field else (degree or field or '')
+                if school:
+                    school_str = f"{school} - {school_str}" if school_str else school
+                if year:
+                    school_str = f"{school_str} ({year})" if school_str else year
+                
+                if school_str:
+                    education_items.append(EducationItem(school=school_str))
+            
+            # Convert skills
+            skills_list = []
+            skills_dict = parsed_data.get('skills', {})
+            if isinstance(skills_dict, dict):
+                # Combine all skill categories
+                for category in ['technical', 'languages', 'tools', 'soft', 'other']:
+                    skills_list.extend(skills_dict.get(category, []))
+            elif isinstance(skills_dict, list):
+                skills_list = skills_dict
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_skills = []
+            for skill in skills_list:
+                if skill and skill.lower() not in seen:
+                    seen.add(skill.lower())
+                    unique_skills.append(Skill(name=skill))
+            
+            # Convert projects
+            project_items = []
+            for proj in parsed_data.get('projects', []):
+                name = proj.get('name', 'Project')
+                desc = proj.get('description', '')
+                bullets = [desc] if desc else []
+                project_items.append(ProjectItem(name=name, bullets=bullets))
+            
+            # Get headline from summary (first sentence or first 80 chars)
+            summary = parsed_data.get('summary', '')
+            headline = None
+            if summary:
+                # Try to get first sentence
+                first_sentence = summary.split('.')[0]
+                if len(first_sentence) <= 100:
+                    headline = first_sentence
+                else:
+                    headline = summary[:80] + '...'
+            
+            return Resume(
+                name=parsed_data.get('name', ''),
+                headline=headline,
+                contact=contact,
+                summary=summary,
+                experience=experience_items,
+                projects=project_items,
+                education=education_items,
+                skills=unique_skills
+            )
+            
+        except Exception as e:
+            print(f"⚠️ Error converting parsed data to Resume schema: {e}")
+            # Return empty Resume on error
+            return Resume()
+    
     def generate_professional_pdf(
         self,
         resume_text: str,
@@ -275,30 +404,96 @@ class ProfessionalOutputService:
         ats_optimize: bool = True
     ) -> Dict[str, Any]:
         """Generate professional PDF using HTML/CSS templates rendered via Chromium.
-
-        Public API and return shape remain unchanged.
+        
+        Uses the comprehensive resume parser to extract structured data,
+        then renders clean PDFs without overlapping text.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
+            logger.info(f"🚀 Starting professional PDF generation with template: {template}")
+            
             # Calculate ATS score (kept for compatibility)
             ats_results = self.ats_scorer.calculate_ats_score(resume_text, job_description)
+            logger.info(f"📊 ATS Score calculated: {ats_results.get('total_score', 0)}")
 
             # Optional text optimizations
             optimized_text = self._apply_ats_optimizations(resume_text, ats_results) if ats_optimize else resume_text
 
-            # Build canonical resume json
-            resume_obj = parse_resume_text_to_schema(optimized_text)
+            # Parse resume with comprehensive parser if available
+            if RESUME_PARSER_AVAILABLE:
+                logger.info("📝 Using comprehensive resume parser")
+                parser = ResumeParser()
+                parsed_data = parser.parse(optimized_text)
+                
+                # Validate parsed data
+                validation_errors = parser.validate_parsed_data(parsed_data)
+                if validation_errors:
+                    logger.warning(f"⚠️ Validation issues: {validation_errors}")
+                
+                # Convert to Resume schema
+                resume_obj = self._convert_parsed_to_resume_schema(parsed_data)
+                logger.info(f"✅ Successfully parsed resume: {resume_obj.name}")
+            else:
+                logger.info("📝 Using fallback resume parser")
+                # Fallback to original parser
+                resume_obj = parse_resume_text_to_schema(optimized_text)
+            
             resume_json = resume_obj.dict()
 
             # HTML preview (not returned directly) and short preview string
+            logger.info("🎨 Rendering HTML template")
             html_preview = TemplateEngine.render_preview(
                 template_id=(template or "modern"),
                 resume_json=resume_json,
                 resume_text=optimized_text,
             )
+            
+            # Generate formatted display text
             formatted_display_text = make_short_preview_string(resume_json)
+            
+            # Add detailed formatting for better display
+            if RESUME_PARSER_AVAILABLE and resume_obj.name:
+                # Create a more detailed display text
+                display_parts = []
+                display_parts.append(f"👤 {resume_obj.name}")
+                
+                if resume_obj.contact.email:
+                    display_parts.append(f"📧 {resume_obj.contact.email}")
+                if resume_obj.contact.phone:
+                    display_parts.append(f"📱 {resume_obj.contact.phone}")
+                if resume_obj.contact.location:
+                    display_parts.append(f"📍 {resume_obj.contact.location}")
+                
+                if resume_obj.headline:
+                    display_parts.append(f"\n💼 {resume_obj.headline}")
+                
+                if resume_obj.experience:
+                    display_parts.append(f"\n🏢 Experience: {len(resume_obj.experience)} positions")
+                    for exp in resume_obj.experience[:2]:  # Show first 2 experiences
+                        if exp.title and exp.company:
+                            display_parts.append(f"  • {exp.title} at {exp.company}")
+                
+                if resume_obj.education:
+                    display_parts.append(f"\n🎓 Education: {len(resume_obj.education)} entries")
+                
+                if resume_obj.skills:
+                    display_parts.append(f"\n🔧 Skills: {len(resume_obj.skills)} items")
+                    skill_names = [s.name for s in resume_obj.skills[:5]]  # First 5 skills
+                    if skill_names:
+                        display_parts.append(f"  {', '.join(skill_names)}...")
+                
+                formatted_display_text = "\n".join(display_parts)
 
             # Produce PDF using sync renderer to avoid interfering with event loop
+            logger.info("📄 Generating PDF from HTML")
             pdf_bytes = render_pdf_from_html_sync(html_preview, page_size="A4")
+            
+            if not pdf_bytes:
+                raise ValueError("PDF generation returned empty content")
+            
+            logger.info(f"✅ PDF generated successfully: {len(pdf_bytes)} bytes")
 
             return {
                 'success': True,
@@ -306,11 +501,22 @@ class ProfessionalOutputService:
                 'formatted_text': formatted_display_text,
                 'ats_score': ats_results,
                 'template_used': template,
-                'optimizations_applied': ats_optimize
+                'optimizations_applied': ats_optimize,
+                'parser_used': 'comprehensive' if RESUME_PARSER_AVAILABLE else 'fallback'
             }
+            
         except Exception as e:
+            logger.error(f"❌ Professional PDF generation failed: {e}", exc_info=True)
             print(f"❌ Professional PDF generation failed: {e}")
-            return {'success': False, 'error': str(e)}
+            
+            # Return error with details
+            return {
+                'success': False, 
+                'error': str(e),
+                'error_type': type(e).__name__,
+                'template_used': template,
+                'parser_used': 'comprehensive' if RESUME_PARSER_AVAILABLE else 'fallback'
+            }
     
     def _generate_formatted_display_text(self, resume_text: str, template: str) -> str:
         """Generate properly formatted display text that matches template styling"""
@@ -344,134 +550,239 @@ class ProfessionalOutputService:
             return resume_text  # Fallback to original
     
     def _parse_resume_sections(self, resume_text: str) -> Dict[str, Any]:
-        """Parse resume text into structured sections"""
+        """
+        Parse resume text into structured sections:
+        - Extracts name, contact info, and main sections (experience, education, skills, summary, other)
+        - Handles common section header variations and preserves formatting
+        """
+        import re
+
         print(f"🔍 _parse_resume_sections called with text length: {len(resume_text)}")
         print(f"🔍 Resume text preview: {resume_text[:150]}...")
-        
+
+        # Section header patterns (case-insensitive)
+        SECTION_HEADERS = {
+            "experience": re.compile(r"^(work\s+)?experience|professional\s+experience|employment\s+history$", re.I),
+            "education": re.compile(r"^education|academic\s+background$", re.I),
+            "skills": re.compile(r"^skills|technical\s+skills|core\s+competencies$", re.I),
+            "summary": re.compile(r"^summary|professional\s+summary|profile|about\s+me$", re.I),
+        }
+        # For "other" section, anything not matching above
+
+        # Contact info patterns
+        EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+        PHONE_PATTERN = re.compile(r"\b(\+?\d{1,3}[-.\s]?)?(\(?\d{3}\)?[-.\s]?){1,2}\d{3,4}\b")
+        LOCATION_KEYWORDS = [
+            "street", "st.", "ave", "avenue", "road", "rd.", "blvd", "suite", "floor",
+            "city", "state", "zip", "country", "usa", "united states", "canada",
+            "atlanta", "new york", "san francisco", "los angeles", "chicago", "boston", "ga", "ny", "ca", "il", "ma"
+        ]
+
         try:
             lines = [line.strip() for line in resume_text.strip().split('\n') if line.strip()]
             print(f"🔍 Parsed {len(lines)} lines from resume")
-            
+
             if not lines:
                 print("⚠️ Empty resume text for parsing")
                 return {
                     'header': 'Professional Resume',
-                    'experience': resume_text,
+                    'experience': '',
                     'education': '',
                     'skills': '',
+                    'summary': '',
+                    'contact': '',
                     'other': ''
                 }
-            
-            # For template formatting, let's use a simpler approach
-            # Extract the first line as name and include most content
-            first_line = lines[0] if lines else "Professional Resume"
-            
-            # Simple name extraction - first line or fallback
-            if len(first_line.split()) <= 6 and not '@' in first_line:
-                name = first_line
-                content_start = 1
-            else:
-                name = "Professional Resume"
-                content_start = 0
-            
-            # Extract contact info from first few lines (lines with @, phone patterns, etc.)
+
+            # 1. Identify contact info and name
             contact_info = []
-            for line in lines[:4]:
-                if any(indicator in line.lower() for indicator in ['@', 'phone', '(', ')', '.com', 'atlanta', 'ga']):
+            name = None
+            name_line_idx = None
+            max_contact_scan = min(8, len(lines))  # Only scan first 8 lines for contact info and name
+
+            for idx in range(max_contact_scan):
+                line = lines[idx]
+                # Check for contact info
+                is_email = EMAIL_PATTERN.search(line)
+                is_phone = PHONE_PATTERN.search(line)
+                is_location = any(loc in line.lower() for loc in LOCATION_KEYWORDS)
+                if is_email or is_phone or is_location:
                     contact_info.append(line)
-            
-            # Include most of the resume as content (skip only first line if it's the name)
-            if content_start == 1 and len(lines) > 1:
-                content_lines = lines[1:]
-            else:
-                content_lines = lines
-            
-            content = '\n'.join(content_lines)
-            
-            print(f"📝 Parsed resume: name='{name}', contact_lines={len(contact_info)}, content_chars={len(content)}")
-            print(f"📝 Content preview: {content[:200]}...")
-            
-            # Return the structure expected by template formatting methods
-            # FORCE content into experience section to fix empty issue
-            return {
-                'header': first_line if first_line else 'Professional Resume',  # Use first line as header
-                'experience': resume_text,  # PUT ENTIRE RESUME IN EXPERIENCE - NO PARSING BULLSH*T
-                'education': '',  # Empty
-                'skills': '',     # Empty
-                'other': ''       # Empty
+                elif not name and len(line.split()) <= 6 and not any(x in line for x in ['@', '|', 'www.', '.com']):
+                    # Heuristic: first non-contact, non-weird line with <= 6 words is likely the name
+                    name = line
+                    name_line_idx = idx
+
+            # If name not found, fallback to first line
+            if not name:
+                name = lines[0]
+                name_line_idx = 0
+
+            # Remove name and contact lines from the main content
+            skip_idxs = set()
+            if name_line_idx is not None:
+                skip_idxs.add(name_line_idx)
+            for idx, line in enumerate(lines[:max_contact_scan]):
+                if line in contact_info:
+                    skip_idxs.add(idx)
+            content_lines = [line for idx, line in enumerate(lines) if idx not in skip_idxs]
+
+            # 2. Parse sections
+            sections = {
+                'header': name,
+                'contact': "\n".join(contact_info),
+                'summary': '',
+                'experience': '',
+                'education': '',
+                'skills': '',
+                'other': ''
             }
-            
+            current_section = None
+            section_buffers = {
+                'summary': [],
+                'experience': [],
+                'education': [],
+                'skills': [],
+                'other': []
+            }
+
+            def match_section(line):
+                for sec, pat in SECTION_HEADERS.items():
+                    if pat.match(line):
+                        return sec
+                return None
+
+            # Track which sections have been seen
+            seen_sections = set()
+            for line in content_lines:
+                sec = match_section(line)
+                if sec:
+                    current_section = sec
+                    seen_sections.add(sec)
+                    continue
+                # If line is a section header not recognized, treat as "other"
+                if re.match(r"^[A-Z][A-Za-z\s]+$", line) and len(line.split()) <= 4 and not sec:
+                    current_section = "other"
+                    continue
+                # Assign line to current section, or to "other" if none
+                if current_section:
+                    section_buffers[current_section].append(line)
+                else:
+                    section_buffers["other"].append(line)
+
+            # 3. Populate sections with joined text
+            for sec in ['summary', 'experience', 'education', 'skills', 'other']:
+                sections[sec] = "\n".join(section_buffers[sec]).strip()
+
+            # If all main sections are empty, put everything in experience as fallback
+            if not any(sections[sec] for sec in ['experience', 'education', 'skills', 'summary']):
+                sections['experience'] = "\n".join(content_lines).strip()
+                sections['other'] = ''
+
+            print(f"📝 Parsed resume: name='{sections['header']}', contact_lines={len(contact_info)}")
+            for sec in ['summary', 'experience', 'education', 'skills', 'other']:
+                print(f"📝 Section '{sec}': {len(sections[sec])} chars")
+
+            return sections
+
         except Exception as e:
             print(f"❌ Resume parsing error: {e}")
             import traceback
             print(f"🔍 Full parsing error: {traceback.format_exc()}")
             # Safe fallback - return expected structure with all content in experience section
             return {
-                'header': 'Professional Resume',  # Default header
-                'experience': resume_text,  # Put all content in experience section as fallback
-                'education': '',  # Empty but present
-                'skills': '',     # Empty but present
-                'other': ''       # Empty but present
+                'header': 'Professional Resume',
+                'contact': '',
+                'summary': '',
+                'experience': resume_text,
+                'education': '',
+                'skills': '',
+                'other': ''
             }
-    
     def _format_modern_template(self, sections: Dict[str, Any]) -> str:
-        """Format resume with Modern template styling"""
+        """Format resume with Modern template styling and proper section formatting"""
         formatted = []
-        
+
         # Header - Modern style with visual emphasis
-        # Use 'header' key (actual parser output) or fallback to name
         header_text = sections.get('header', sections.get('name', 'Professional Resume'))
-        if header_text:
-            formatted.append(f"═══════════════════════════════════════════════════════")
+        if header_text and header_text.strip():
+            formatted.append("═══════════════════════════════════════════════════════")
             # Extract just the name if header contains full contact line
             if '•' in header_text:
                 name_part = header_text.split('•')[0].strip()
             else:
                 name_part = header_text[:50] + ('...' if len(header_text) > 50 else '')
             formatted.append(f"🔹 {name_part.upper()} 🔹")
-            formatted.append(f"═══════════════════════════════════════════════════════")
+            formatted.append("═══════════════════════════════════════════════════════")
             formatted.append("")
-        
-        # Add experience section
+
+        # Summary section (as a paragraph)
+        summary = sections.get('summary', '')
+        if summary and summary.strip():
+            formatted.append("📝 SUMMARY")
+            formatted.append("─" * 20)
+            summary_lines = [line.strip() for line in summary.split('\n') if line.strip()]
+            formatted.append(" ".join(summary_lines))
+            formatted.append("")
+
+        # Experience section (bullet points, proper spacing)
         experience = sections.get('experience', '')
-        if experience:
+        if experience and experience.strip():
             formatted.append("💼 PROFESSIONAL EXPERIENCE")
             formatted.append("─" * 35)
-            formatted.append(experience)
+            exp_lines = [line.strip() for line in experience.split('\n') if line.strip()]
+            # Try to detect if already bulleted, otherwise add bullets
+            for line in exp_lines:
+                if line.startswith(("-", "•", "*")):
+                    formatted.append(f"{line}")
+                else:
+                    formatted.append(f"• {line}")
             formatted.append("")
-        
-        # Add skills section
+
+        # Skills section (comma-separated or categorized)
         skills = sections.get('skills', '')
-        if skills:
+        if skills and skills.strip():
             formatted.append("⚙️ TECHNICAL SKILLS")
             formatted.append("─" * 25)
-            formatted.append(skills)
+            # Try to split by comma or newlines, then join as comma-separated
+            skill_items = []
+            for line in skills.split('\n'):
+                skill_items.extend([s.strip() for s in line.split(',') if s.strip()])
+            if skill_items:
+                formatted.append(", ".join(skill_items))
             formatted.append("")
-        
-        # Add education section
+
+        # Education section (formatted entries)
         education = sections.get('education', '')
-        if education:
+        if education and education.strip():
             formatted.append("🎓 EDUCATION")
             formatted.append("─" * 15)
-            formatted.append(education)
+            edu_lines = [line.strip() for line in education.split('\n') if line.strip()]
+            for line in edu_lines:
+                formatted.append(f"• {line}")
             formatted.append("")
-        
-        # Add other content
+
+        # Additional Information/Other section
         other = sections.get('other', '')
-        if other:
+        if other and other.strip():
             formatted.append("📄 ADDITIONAL INFORMATION")
             formatted.append("─" * 30)
-            formatted.append(other)
-        else:
-            print("⚠️ Other section is empty!")
-        
-        print(f"🔍 Formatted sections count: {len(formatted)}")
+            other_lines = [line.strip() for line in other.split('\n') if line.strip()]
+            for line in other_lines:
+                formatted.append(f"• {line}")
+
+        # If no content at all, fallback to a minimal message
+        if not any([
+            summary and summary.strip(),
+            experience and experience.strip(),
+            skills and skills.strip(),
+            education and education.strip(),
+            other and other.strip()
+        ]):
+            formatted.append("No resume content available.")
+
         final_result = '\n'.join(formatted)
-        print(f"🎯 _format_modern_template final result length: {len(final_result)}")
-        print(f"🎯 Final result preview: {final_result[:200]}...")
-        
         return final_result
-    
     def _format_classic_template(self, sections: Dict[str, Any]) -> str:
         """Format resume with Classic template styling"""
         formatted = []

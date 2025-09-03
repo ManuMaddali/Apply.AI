@@ -1,4 +1,46 @@
-{ "id": "classic", "name": "Classic", "supports": ["html", "pdf"] }
+{
+  "id": "classic",
+  "name": "Classic Professional",
+  "description": "Traditional, conservative resume template with formal typography and clean structure, ideal for law, finance, and corporate environments",
+  "category": "traditional",
+  "tags": ["classic", "traditional", "conservative", "formal", "corporate"],
+  "features": [
+    "Georgia and Times New Roman serif fonts",
+    "Black and white color scheme",
+    "Centered header with horizontal line",
+    "Traditional single-column layout",
+    "Formal section headers with underlines",
+    "Achievement-focused bullet points"
+  ],
+  "industry_focus": ["law", "finance", "government", "consulting", "corporate", "banking"],
+  "difficulty_level": "beginner",
+  "layout_type": "single-column",
+  "color_scheme": "monochrome",
+  "primary_color": "#000000",
+  "secondary_color": "#555555",
+  "font_family": "Times New Roman, Georgia",
+  "supports": ["html", "pdf"],
+  "version": "2.0.0",
+  "created_at": "2024-01-15",
+  "updated_at": "2024-01-15",
+  "author": "ApplyAI Team",
+  "preview_image": null,
+  "best_for": [
+    "Lawyers and legal professionals",
+    "Finance and banking professionals",
+    "Government employees",
+    "Corporate executives",
+    "Conservative industries"
+  ],
+  "key_strengths": [
+    "Professional and conservative appearance",
+    "Excellent for traditional industries",
+    "Clean, readable typography",
+    "Formal structure conveys authority",
+    "ATS-friendly single-column layout"
+  ]
+}
+
 
 
 

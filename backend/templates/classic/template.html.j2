@@ -1,84 +1,238 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en" itemscope itemtype="http://schema.org/Person">
 <head>
   <meta charset="utf-8">
-  <title>{{ resume.name }} – Resume</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="format-detection" content="telephone=no">
+  
+  <!-- PDF Generation Meta Tags -->
+  <meta name="author" content="{{ display_name or resume.name or 'Resume' }}">
+  <meta name="subject" content="Professional Resume - Classic Format">
+  <meta name="keywords" content="resume, cv, professional, traditional, {% if resume.skills %}{% for s in resume.skills %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}">
+  <meta name="creator" content="ApplyAI Resume Builder">
+  
+  <title>{{ display_name or resume.name or 'Professional Resume' }} – Classic Resume</title>
+  
   <style>
-  {{ inline_css }}
+    {{ inline_css }}
+    
+    /* Print-specific CSS rules */
+    @media print {
+      body { 
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
+      .avoid-break { page-break-inside: avoid; }
+      .header-line { border-color: #000 !important; }
+    }
+    
+    /* Responsive adjustments */
+    @media screen and (max-width: 768px) {
+      .bottom-sections { 
+        display: block; 
+      }
+      .job-header { 
+        flex-direction: column; 
+        align-items: flex-start;
+      }
+      .job-dates {
+        margin-top: 0.25rem;
+      }
+    }
   </style>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
-<body>
-  <header>
-    <h1>{{ display_name or resume.name }}</h1>
-    {% if resume.headline %}<div class="headline">{{ resume.headline }}</div>{% endif %}
-    <div class="meta">
-      {% if resume.contact.location %}{{ resume.contact.location }}{% endif %}
-      {% if resume.contact.email %} • {{ resume.contact.email }}{% endif %}
-      {% if resume.contact.phone %} • {{ resume.contact.phone }}{% endif %}
-      {% for link in resume.contact.links %} • <a href="{{ link.url }}">{{ link.label }}</a>{% endfor %}
-    </div>
+
+<body itemscope itemtype="http://schema.org/Person">
+  <!-- CLASSIC LAYOUT: Traditional single-column with clear sections -->
+  <header role="banner" class="classic-header">
+    {% if display_name or resume.name %}
+    <h1 itemprop="name" class="person-name">
+      {{ display_name or resume.name }}
+    </h1>
+    {% endif %}
+    
+    {% if resume.contact %}
+    <address class="contact-line" itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
+      {% if resume.contact.location %}
+        <span itemprop="addressLocality">{{ resume.contact.location }}</span>
+      {% endif %}
+      
+      {% if resume.contact.email %}
+        {% if resume.contact.location %} • {% endif %}
+        <a href="mailto:{{ resume.contact.email }}" itemprop="email">{{ resume.contact.email }}</a>
+      {% endif %}
+      
+      {% if resume.contact.phone %}
+        {% if resume.contact.email or resume.contact.location %} • {% endif %}
+        <a href="tel:{{ resume.contact.phone }}" itemprop="telephone">{{ resume.contact.phone }}</a>
+      {% endif %}
+      
+      {% if resume.contact.links %}
+        {% for link in resume.contact.links %}
+          • <a href="{{ link.url }}" itemprop="url" target="_blank" rel="noopener">{{ link.label }}</a>
+        {% endfor %}
+      {% endif %}
+    </address>
+    {% endif %}
+    
+    <hr class="header-line name-underline" aria-hidden="true">
   </header>
 
-  {% if use_fallback %}
-  <section>
-    <div class="section-title">Resume</div>
-    <div>
-      {% for line in raw_lines %}
-        <div>{{ line }}</div>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
+  <main role="main" class="resume-content">
+    {% if use_fallback %}
+    <section class="fallback-section formal-spacing avoid-break">
+      <h2 class="section-title">PROFESSIONAL BACKGROUND</h2>
+      <div class="fallback-content">
+        {% if raw_lines %}
+          {% for line in raw_lines %}
+            {% if line.strip() %}
+            <p>{{ line }}</p>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <p>No resume content available.</p>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
 
-  {% if resume.summary %}
-  <section>
-    <div class="section-title">Summary</div>
-    <div>{{ resume.summary }}</div>
-  </section>
-  {% endif %}
+    {% if resume.summary %}
+    <section class="summary-section formal-spacing avoid-break" itemprop="description">
+      <h2 class="section-title">PROFESSIONAL SUMMARY</h2>
+      <div class="summary-text">{{ resume.summary }}</div>
+    </section>
+    {% endif %}
 
-  {% if resume.experience %}
-  <section>
-    <div class="section-title">Experience</div>
-    {% for role in resume.experience %}
-      <div class="row">
-        <div class="left meta">
-          <div>{{ role.company }}</div>
-          <div>{{ role.start }} – {{ role.end | present_if_none }}</div>
-          <div>{{ role.location }}</div>
-        </div>
-        <div class="right">
-          <strong>{{ role.title }}</strong>
-          <ul>
-            {% for b in role.bullets %}<li>{{ b }}</li>{% endfor %}
+    {% if resume.experience and resume.experience|length > 0 %}
+    <section class="experience-section formal-spacing">
+      <h2 class="section-title">PROFESSIONAL EXPERIENCE</h2>
+      {% for role in resume.experience %}
+        <article class="job-entry no-page-break" itemprop="worksFor" itemscope itemtype="http://schema.org/Organization">
+          <div class="job-header">
+            {% if role.title %}
+            <h3 class="job-title" itemprop="jobTitle">{{ role.title }}</h3>
+            {% endif %}
+            
+            <time class="job-dates">
+              {% if role.start %}{{ role.start }}{% endif %}
+              {% if role.start and (role.end or role.end != role.start) %} – {% endif %}
+              {% if role.end %}{{ role.end }}{% else %}Present{% endif %}
+            </time>
+          </div>
+          
+          <div class="company-name" itemprop="name">
+            {{ role.company }}{% if role.location %}, <span itemprop="address">{{ role.location }}</span>{% endif %}
+          </div>
+          
+          {% if role.bullets and role.bullets|length > 0 %}
+          <ul class="achievements" role="list">
+            {% for bullet in role.bullets %}
+              {% if bullet.strip() %}
+              <li>{{ bullet }}</li>
+              {% endif %}
+            {% endfor %}
           </ul>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if resume.projects and resume.projects|length > 0 %}
+    <section class="projects-section formal-spacing">
+      <h2 class="section-title">NOTABLE PROJECTS</h2>
+      {% for project in resume.projects %}
+        <article class="project-entry no-page-break" itemprop="workExample" itemscope itemtype="http://schema.org/CreativeWork">
+          {% if project.name %}
+          <h3 class="project-title" itemprop="name">{{ project.name }}</h3>
+          {% endif %}
+          
+          {% if project.description %}
+          <div class="project-description" itemprop="description">{{ project.description }}</div>
+          {% endif %}
+          
+          {% if project.bullets and project.bullets|length > 0 %}
+          <ul class="project-achievements" role="list">
+            {% for bullet in project.bullets %}
+              {% if bullet.strip() %}
+              <li>{{ bullet }}</li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    <div class="bottom-sections two-column-section">
+      {% if resume.education and resume.education|length > 0 %}
+      <section class="education-section">
+        <h2 class="section-title">EDUCATION</h2>
+        {% for education in resume.education %}
+          <article class="education-entry" itemprop="alumniOf" itemscope itemtype="http://schema.org/EducationalOrganization">
+            {% if education.degree %}
+            <div class="degree-info">
+              <strong>{{ education.degree }}</strong>
+            </div>
+            {% endif %}
+            
+            <div class="school-info">
+              {% if education.school %}
+              <span itemprop="name">{{ education.school }}</span>
+              {% endif %}
+              {% if education.end %}
+              • <time datetime="{{ education.end }}">{{ education.end }}</time>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if resume.skills and resume.skills|length > 0 %}
+      <section class="skills-section">
+        <h2 class="section-title">CORE COMPETENCIES</h2>
+        <div class="skills-list" itemprop="knowsAbout">
+          {% for skill in resume.skills %}
+            {% if skill.name and skill.name.strip() %}
+              {{ skill.name }}{% if not loop.last %} • {% endif %}
+            {% endif %}
+          {% endfor %}
         </div>
-      </div>
-    {% endfor %}
-  </section>
-  {% endif %}
-
-  {% if resume.education %}
-  <section>
-    <div class="section-title">Education</div>
-    {% for ed in resume.education %}
-      <div class="row">
-        <div class="left meta">{{ ed.end }}</div>
-        <div class="right"><strong>{{ ed.degree }}</strong> — {{ ed.school }}</div>
-      </div>
-    {% endfor %}
-  </section>
-  {% endif %}
-
-  {% if resume.skills %}
-  <section>
-    <div class="section-title">Skills</div>
-    <div class="meta">
-      {% for s in resume.skills %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </section>
+      {% endif %}
     </div>
-  </section>
-  {% endif %}
+  </main>
+
+  <!-- Professional references note -->
+  <footer class="references-note no-print">
+    Professional references available upon request
+  </footer>
+
+  <!-- Structured data for better parsing -->
+  <script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "Person",
+    {% if display_name or resume.name %}"name": "{{ display_name or resume.name }}",{% endif %}
+    {% if resume.headline %}"jobTitle": "{{ resume.headline }}",{% endif %}
+    {% if resume.contact.email %}"email": "{{ resume.contact.email }}",{% endif %}
+    {% if resume.contact.phone %}"telephone": "{{ resume.contact.phone }}",{% endif %}
+    {% if resume.contact.location %}"address": "{{ resume.contact.location }}",{% endif %}
+    {% if resume.summary %}"description": "{{ resume.summary|replace('"', '\\"') }}",{% endif %}
+    "url": [
+      {% if resume.contact.links %}
+        {% for link in resume.contact.links %}
+          "{{ link.url }}"{% if not loop.last %},{% endif %}
+        {% endfor %}
+      {% endif %}
+    ]
+  }
+  </script>
 </body>
 </html>
 

@@ -1,5 +1,41 @@
-{ "id": "modern", "name": "Modern", "supports": ["html", "pdf"] }
-
-
-
-
+{
+  "id": "modern",
+  "name": "Modern Professional",
+  "description": "Clean, contemporary design with modern typography and gradient accents, perfect for tech professionals and startups",
+  "category": "modern",
+  "tags": ["modern", "clean", "minimalist", "tech-friendly", "professional"],
+  "features": [
+    "Modern typography with Inter font",
+    "Gradient text effects", 
+    "Clean spacing with 24px sections",
+    "ATS-friendly single column layout",
+    "Responsive design",
+    "Professional color scheme"
+  ],
+  "industry_focus": ["technology", "startups", "marketing", "design", "consulting"],
+  "difficulty_level": "intermediate",
+  "layout_type": "single-column",
+  "color_scheme": "blue-gradient",
+  "primary_color": "#667eea",
+  "secondary_color": "#764ba2",
+  "font_family": "Inter",
+  "supports": ["html", "pdf"],
+  "version": "2.0.0",
+  "created_at": "2024-01-15",
+  "updated_at": "2024-01-15",
+  "author": "ApplyAI Team",
+  "preview_image": null,
+  "best_for": [
+    "Software developers",
+    "Product managers", 
+    "UX/UI designers",
+    "Marketing professionals",
+    "Startup employees"
+  ],
+  "key_strengths": [
+    "Modern aesthetic appeals to tech companies",
+    "Clean layout highlights key information",
+    "Gradient accents add visual interest",
+    "Excellent readability and ATS compatibility"
+  ]
+}

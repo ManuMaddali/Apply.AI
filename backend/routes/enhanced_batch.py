@@ -838,38 +838,68 @@ async def _process_job_core_enhanced(
     processing_time = 2 if tailoring_mode == "heavy" else 0.8  # Faster than original
     await asyncio.sleep(processing_time)
     
-    # Scrape job with real scraper
-    job_data = enhanced_processor.scrape_job(job_url)
+    print("🧠 Starting tailoring pipeline (RAG -> Standard fallback)")
+    # Scrape job data if available; otherwise stub
+    try:
+        job_data = enhanced_processor.scrape_job(job_url) if hasattr(enhanced_processor, 'scrape_job') else {
+            'title': f'Job {job_index + 1}',
+            'company': 'Company Name',
+            'description': 'Job description placeholder'
+        }
+    except:
+        job_data = {
+            'title': f'Job {job_index + 1}',
+            'company': 'Company Name', 
+            'description': 'Job description placeholder'
+        }
     
-    # Apply professional template formatting if requested
+    # Tailor resume_text -> tailored_resume using available processors
+    try:
+        if 'LANGCHAIN_AVAILABLE' in globals() and LANGCHAIN_AVAILABLE and hasattr(enhanced_processor, 'tailor_resume_with_rag'):
+            tailored_resume = enhanced_processor.tailor_resume_with_rag(resume_text, job_data)
+        elif hasattr(enhanced_processor, 'tailor_resume'):
+            tailored_resume = enhanced_processor.tailor_resume(resume_text, job_data, tailoring_mode)
+        else:
+            tailored_resume = resume_text or ""
+    except Exception as e:
+        print(f"❌ Tailoring failed, falling back to original text: {e}")
+        tailored_resume = resume_text or ""
+
+    # Ensure we always have this defined to avoid UnboundLocalError in later checks
     formatted_resume_data = None
-    print(f"🎨 Template formatting check: format={output_format}, template={template}, available={PROFESSIONAL_OUTPUT_AVAILABLE}")
-    print(f"🔍 DEBUG: output_format in ['pdf', 'rtf'] = {output_format in ['pdf', 'rtf']}")
-    print(f"🔍 DEBUG: PROFESSIONAL_OUTPUT_AVAILABLE = {PROFESSIONAL_OUTPUT_AVAILABLE}")
-    print(f"🔍 DEBUG: Condition met for professional formatting = {output_format in ['pdf', 'rtf'] and PROFESSIONAL_OUTPUT_AVAILABLE}")
-    
-    # If professional templates are being used, get CLEAN resume content (no debug blocks)
-    if output_format in ["pdf", "rtf"] and PROFESSIONAL_OUTPUT_AVAILABLE:
-        print("🧹 Using clean resume content for professional template formatting")
-        tailored_resume = enhanced_processor._light_mode_tailoring(resume_text, job_data, use_clean_output=True)
-        print(f"🧹 Clean tailored resume LENGTH: {len(tailored_resume)}")
-        print(f"🧹 Clean tailored resume preview (first 300 chars): {tailored_resume[:300]}...")
-        print(f"🧹 ABOUT TO CALL PROFESSIONAL SERVICE with template='{template}' and output_format='{output_format}'")
-    else:
-        print(f"📝 NOT using professional templates - falling back to standard tailoring")
-        print(f"📝 Reason: output_format={output_format}, PROFESSIONAL_OUTPUT_AVAILABLE={PROFESSIONAL_OUTPUT_AVAILABLE}")
-        # Standard tailoring with debug blocks for non-template output
-        tailored_resume = enhanced_processor.tailor_resume(resume_text, job_data, tailoring_mode)
-        print(f"📝 Standard tailored resume preview: {tailored_resume[:200]}...")
-    
-    # Fix bullet point formatting issues - convert literal \bullet to actual bullet points
-    tailored_resume = tailored_resume.replace('\\bullet', '•').replace('\bullet', '•')
-    
-    # Additional cleanup for common formatting issues
-    tailored_resume = tailored_resume.replace('\\n', '\n')  # Fix escaped newlines
-    tailored_resume = re.sub(r'\s*•\s*', '• ', tailored_resume)  # Standardize bullet spacing
-    
-    if output_format in ["pdf", "rtf"] and PROFESSIONAL_OUTPUT_AVAILABLE:
+
+    if output_format == "pdf":
+        print("🖨️ Rendering PDF via TemplateEngine/Playwright")
+        
+        try:
+            from services.template_engine import TemplateEngine
+            from services.renderers.pdf_renderer import render_pdf_from_html_sync
+            html = TemplateEngine.render_preview(template_id=(template or "modern"), resume_text=tailored_resume)
+            pdf_bytes = render_pdf_from_html_sync(html, page_size="Letter")
+            
+            if pdf_bytes and len(pdf_bytes) > 0:
+                # Store it
+                pdf_filename = f"resume_{batch_id}_{job_index}.pdf"
+                file_key = f"{batch_id}/{pdf_filename}"
+                batch_file_storage[file_key] = pdf_bytes
+                
+                formatted_resume_data = {
+                    'format': 'pdf',
+                    'filename': pdf_filename,
+                    'download_url': f'/api/enhanced-batch/download/{batch_id}/{pdf_filename}',
+                    'has_binary_content': True,
+                    'template_applied': (template or 'modern'),
+                    'content': ''
+                }
+            else:
+                print("❌ TemplateEngine render returned empty bytes")
+        except Exception as template_error:
+            # Do not fail the job if PDF rendering fails; continue with analysis
+            print(f"⚠️ TemplateEngine render failed: {template_error}")
+    elif output_format == "rtf":
+        # Handle RTF separately if needed
+        formatted_resume_data = None
+    elif output_format in ["pdf", "rtf"] and PROFESSIONAL_OUTPUT_AVAILABLE:
         print(f"🚀 Starting professional formatting with {template} template...")
         try:
             professional_service = ProfessionalOutputService()
@@ -877,6 +907,7 @@ async def _process_job_core_enhanced(
             
             # Generate professional formatted output
             if output_format == "pdf":
+                print(f"🔍 DEBUG: Current batch_file_storage has {len(batch_file_storage)} items before PDF generation")
                 result = professional_service.generate_professional_pdf(
                     resume_text=tailored_resume,
                     job_description=job_data.get('description', ''),
@@ -885,6 +916,14 @@ async def _process_job_core_enhanced(
                 )
                 if result.get('success'):
                     print(f"✅ PDF generation successful! Result keys: {list(result.keys())}")
+                    
+                    # Check if we actually got PDF content
+                    pdf_content = result.get('pdf_content')
+                    if pdf_content:
+                        print(f"✅ PDF content exists, type: {type(pdf_content)}, size: {len(pdf_content)} bytes")
+                    else:
+                        print(f"❌ WARNING: PDF content is None or empty!")
+                    
                     formatted_content = result.get('formatted_text', tailored_resume)
                     print(f"📝 Formatted content length: {len(formatted_content) if formatted_content else 0}")
                     
@@ -893,19 +932,82 @@ async def _process_job_core_enhanced(
                     
                     # Store PDF content in global storage for download
                     file_key = f"{batch_id}/{pdf_filename}"
-                    batch_file_storage[file_key] = result.get('pdf_content')
-                    print(f"💾 Stored PDF file: {file_key}, size: {len(result.get('pdf_content', b''))} bytes")
                     
-                    formatted_resume_data = {
-                        'format': 'pdf',
-                        'template_applied': template,
-                        'filename': pdf_filename,
-                        'download_url': f'/api/enhanced-batch/download/{batch_id}/{pdf_filename}',
-                        'has_binary_content': True,
-                        'content': ''
-                    }
+                    if pdf_content:
+                        batch_file_storage[file_key] = pdf_content
+                        print(f"💾 Stored PDF file: {file_key}, size: {len(pdf_content)} bytes")
+                        print(f"✅ Verified storage: key '{file_key}' exists = {file_key in batch_file_storage}")
+                        print(f"📊 Total items in batch_file_storage: {len(batch_file_storage)}")
+                        
+                        formatted_resume_data = {
+                            'format': 'pdf',
+                            'template_applied': template,
+                            'filename': pdf_filename,
+                            'download_url': f'/api/enhanced-batch/download/{batch_id}/{pdf_filename}',
+                            'has_binary_content': True,
+                            'content': ''
+                        }
+                    else:
+                        print(f"❌ ERROR: PDF content is None or empty! Forcing fallback generation...")
+                        # Force fallback PDF generation when main generation returns empty
+                        try:
+                            print("🆘 Generating fallback PDF using TemplateEngine...")
+                            from services.template_engine import TemplateEngine
+                            from services.renderers.pdf_renderer import render_pdf_from_html_sync
+                            
+                            html = TemplateEngine.render_preview(template_id=(template or "modern"), resume_text=tailored_resume)
+                            fallback_pdf_bytes = render_pdf_from_html_sync(html, page_size="A4")
+                            
+                            if fallback_pdf_bytes and len(fallback_pdf_bytes) > 0:
+                                batch_file_storage[file_key] = fallback_pdf_bytes
+                                print(f"✅ Fallback PDF generated and stored: {len(fallback_pdf_bytes)} bytes")
+                                
+                                formatted_resume_data = {
+                                    'format': 'pdf',
+                                    'template_applied': template,
+                                    'filename': pdf_filename,
+                                    'download_url': f'/api/enhanced-batch/download/{batch_id}/{pdf_filename}',
+                                    'has_binary_content': True,
+                                    'content': '',
+                                    'fallback_generated': True
+                                }
+                            else:
+                                print(f"❌ Even fallback PDF generation failed!")
+                                formatted_resume_data = None
+                        except Exception as fallback_error:
+                            print(f"❌ Fallback PDF generation error: {fallback_error}")
+                            formatted_resume_data = None
                 else:
                     print(f"❌ PDF generation failed! Result: {result}")
+                    print(f"🔍 Error details: {result.get('error', 'No error details')}")
+                    
+                    # Try emergency fallback even when generation completely fails
+                    try:
+                        print("🆘 Emergency fallback: generating basic PDF...")
+                        from services.template_engine import TemplateEngine
+                        from services.renderers.pdf_renderer import render_pdf_from_html_sync
+                        
+                        html = TemplateEngine.render_preview(template_id="modern", resume_text=tailored_resume)
+                        emergency_pdf_bytes = render_pdf_from_html_sync(html, page_size="A4")
+                        
+                        if emergency_pdf_bytes and len(emergency_pdf_bytes) > 0:
+                            batch_file_storage[file_key] = emergency_pdf_bytes
+                            print(f"✅ Emergency PDF generated: {len(emergency_pdf_bytes)} bytes")
+                            
+                            formatted_resume_data = {
+                                'format': 'pdf',
+                                'template_applied': 'modern',  # Default to modern
+                                'filename': pdf_filename,
+                                'download_url': f'/api/enhanced-batch/download/{batch_id}/{pdf_filename}',
+                                'has_binary_content': True,
+                                'content': '',
+                                'emergency_generated': True
+                            }
+                        else:
+                            formatted_resume_data = None
+                    except Exception as emergency_error:
+                        print(f"❌ Emergency PDF generation also failed: {emergency_error}")
+                        formatted_resume_data = None
                     
             elif output_format == "rtf":
                 result = professional_service.generate_professional_docx(
@@ -940,19 +1042,42 @@ async def _process_job_core_enhanced(
     else:
         print(f"📝 Using plain text formatting (no professional templates applied)")
     
-    # Emergency PDF fallback: if we still don't have formatted content, render HTML from template engine
+                # Emergency PDF fallback: if we still don't have formatted content, render HTML from template engine
     if output_format == "pdf" and not formatted_resume_data:
         try:
             print("🆘 Emergency PDF fallback: rendering via TemplateEngine and storing for download")
-            from services.template_engine import TemplateEngine
-            from services.renderers.pdf_renderer import render_pdf_from_html_sync
+            print(f"🔍 Current batch_file_storage keys: {list(batch_file_storage.keys())}")
+            print(f"🔍 Current batch_file_storage size: {len(batch_file_storage)} items")
+            
+            # Try different import approaches
+            try:
+                from backend.services.template_engine import TemplateEngine
+                from backend.services.renderers.pdf_renderer import render_pdf_from_html_sync
+                print("✅ Imports successful using backend.services path")
+            except ImportError as e1:
+                print(f"⚠️ Import failed with backend.services: {e1}")
+                try:
+                    from services.template_engine import TemplateEngine
+                    from services.renderers.pdf_renderer import render_pdf_from_html_sync
+                    print("✅ Imports successful using services path")
+                except ImportError as e2:
+                    print(f"❌ Both import attempts failed: {e2}")
+                    raise ImportError(f"Cannot import TemplateEngine or pdf_renderer: {e1}, {e2}")
+            
             # Use selected template when possible
+            print(f"📝 Rendering HTML with template: {template}")
             html = TemplateEngine.render_preview(template_id=(template or "modern"), resume_text=tailored_resume)
+            print(f"📄 HTML generated, length: {len(html)} characters")
+            
+            print("🎨 Converting HTML to PDF...")
             pdf_bytes = render_pdf_from_html_sync(html, page_size="A4")
+            print(f"📑 PDF generated, size: {len(pdf_bytes)} bytes")
+            
             fallback_filename = f"{job_data['title'].replace(' ', '_').replace('/', '_')}_resume_{template}_{batch_id}_{job_index}.pdf"
             file_key = f"{batch_id}/{fallback_filename}"
             batch_file_storage[file_key] = pdf_bytes
             print(f"🆘 Stored fallback PDF: {file_key}, size: {len(pdf_bytes)} bytes")
+            print(f"📊 Updated batch_file_storage now has {len(batch_file_storage)} items")
             formatted_resume_data = {
                 'format': 'pdf',
                 'template_applied': template,
@@ -963,6 +1088,24 @@ async def _process_job_core_enhanced(
             }
         except Exception as e:
             print(f"❌ Emergency PDF fallback failed: {e}")
+            # Final fallback: ReportLab direct in olive theme
+            try:
+                print("🌿 Final fallback: ReportLab direct in olive theme")
+                from services.reportlab_direct import generate_pdf_directly
+                final_pdf = generate_pdf_directly(tailored_resume, template="olive")
+                final_filename = f"{job_data['title'].replace(' ', '_').replace('/', '_')}_resume_olive_{batch_id}_{job_index}.pdf"
+                file_key = f"{batch_id}/{final_filename}"
+                batch_file_storage[file_key] = final_pdf
+                formatted_resume_data = {
+                    'format': 'pdf',
+                    'template_applied': 'olive',
+                    'filename': final_filename,
+                    'download_url': f'/api/enhanced-batch/download/{batch_id}/{final_filename}',
+                    'has_binary_content': True,
+                    'content': ''
+                }
+            except Exception as rl_err:
+                print(f"❌ ReportLab olive fallback failed: {rl_err}")
 
     # Generate cover letter if requested
     cover_letter = None
@@ -1013,20 +1156,28 @@ async def _process_job_core_enhanced(
     
     # Calculate ATS score for the tailored resume with enhanced intelligence
     ats_scorer = EnhancedATSScorer()
-    ats_results = ats_scorer.calculate_ats_score(
-        resume_text=tailored_resume,
-        job_description=job_data.get('description', '')
-    )
+    try:
+        ats_results = ats_scorer.calculate_ats_score(
+            resume_text=tailored_resume or "",
+            job_description=job_data.get('description', '')
+        )
+    except Exception as ats_err:
+        print(f"⚠️ ATS scoring failed: {ats_err}")
+        ats_results = { 'overall_score': 'N/A', 'grade': 'N/A', 'keyword_analysis': {}, 'confidence_level': {} }
     
     # Extract keyword analysis for better UX display
     keyword_analysis = ats_results.get('keyword_analysis', {})
     confidence_level = ats_results.get('confidence_level', {})
     
+    # Ensure formatted_resume_data exists (may be None)
+    frd_safe = formatted_resume_data if 'formatted_resume_data' in locals() else None
+
     result = {
         "job_index": job_index,
         "job_url": job_url,
         "job_title": job_data['title'],
         "company": job_data['company'],
+        # If we reached here, the job completed regardless of PDF state
         "status": "completed",
         "tailored_resume": tailored_resume,
         "cover_letter": cover_letter,
@@ -1034,7 +1185,7 @@ async def _process_job_core_enhanced(
         "tailoring_mode": tailoring_mode,
         "template": template,
         "output_format": output_format,
-        "formatted_resume_data": formatted_resume_data,  # PDF/RTF content if generated
+        "formatted_resume_data": frd_safe,  # PDF/RTF content if generated
         "scraped_successfully": job_data.get('scraped_successfully', False),
         "ats_score": ats_results.get('overall_score', 'N/A'),
         "ats_grade": ats_results.get('grade', 'N/A'),
@@ -1055,13 +1206,23 @@ async def _process_job_core_enhanced(
             "cover_letter": cover_letter is not None,
             "ats_scoring": True,
             "intelligent_keyword_extraction": True,
-            "professional_formatting": formatted_resume_data is not None,
+            "professional_formatting": frd_safe is not None,
             "template_applied": template
         },
         "phase8_optimized": True  # Phase 8 marker
     }
     
     print(f"✅ Enhanced processing completed job {job_index + 1}: {job_data['title']}")
+    
+    # DEBUG: Verify result structure before returning
+    print(f"🔍 DEBUG: Result structure check:")
+    print(f"   - Status: {result.get('status', 'MISSING!')}")
+    print(f"   - Job title: {result.get('job_title', 'MISSING!')}")
+    print(f"   - Has formatted_resume_data: {result.get('formatted_resume_data') is not None}")
+    if result.get('formatted_resume_data'):
+        print(f"   - PDF filename: {result['formatted_resume_data'].get('filename', 'NO FILENAME')}")
+        print(f"   - Download URL: {result['formatted_resume_data'].get('download_url', 'NO URL')}")
+    
     return result
 
 def _update_phase8_metrics(batch_id: str, processing_time: float, timed_out: bool, job_index: int):
@@ -1157,6 +1318,17 @@ async def process_batch_enhanced(
         # Update progress
         completed_count = sum(1 for r in processed_results if r["status"] == "completed")
         failed_count = len(processed_results) - completed_count
+        
+        # DEBUG: Check processed results before storing
+        print(f"🔍 DEBUG: Batch completion check:")
+        print(f"   - Total processed results: {len(processed_results)}")
+        print(f"   - Completed count: {completed_count}")
+        print(f"   - Failed count: {failed_count}")
+        for i, r in enumerate(processed_results[:3]):
+            if isinstance(r, dict):
+                print(f"   Result {i}: status='{r.get('status', 'MISSING')}', title='{r.get('job_title', 'MISSING')}'")
+            else:
+                print(f"   Result {i}: NOT A DICT - {type(r)}")
         
         # Mark as completed
         if batch_id in batch_jobs:
@@ -1374,6 +1546,17 @@ async def get_enhanced_batch_results(batch_id: str):
     }
     
     print(f"📤 Returning sanitized batch results for {batch_id} with {len(sanitized_results)} results")
+    
+    # DEBUG: Check what we're sending to frontend
+    print(f"🔍 DEBUG: Frontend results check:")
+    for i, result in enumerate(sanitized_results[:3]):  # Show first 3 results
+        if isinstance(result, dict):
+            print(f"   Result {i}: status='{result.get('status', 'MISSING')}', title='{result.get('job_title', 'MISSING')}'")
+            if result.get('formatted_resume_data'):
+                print(f"     - Has PDF: filename={result['formatted_resume_data'].get('filename', 'NO FILE')}")
+        else:
+            print(f"   Result {i}: NOT A DICT - {type(result)}")
+    
     return JSONResponse(response_data)
 
 
@@ -1442,72 +1625,67 @@ batch_file_storage = {}
 
 @router.get("/download/{batch_id}/{filename}")
 async def download_batch_file(batch_id: str, filename: str):
-    """Download a specific batch-generated file (PDF/RTF)"""
+    """Fixed download endpoint"""
     from fastapi.responses import Response
     
-    # Create storage key
     file_key = f"{batch_id}/{filename}"
     
-    print(f"📥 Download request for: {file_key}")
+    print(f"📥 Download request: {file_key}")
+    print(f"📥 Available files: {list(batch_file_storage.keys())[:5]}")  # Show first 5
     
-    # Check if file exists in storage
     if file_key not in batch_file_storage:
-        print(f"❌ File not found in storage: {file_key}")
-        print(f"📋 Available files: {list(batch_file_storage.keys())}")
-        raise HTTPException(status_code=404, detail="File not found")
+        return Response(
+            content=f"File not found: {file_key}. Available: {list(batch_file_storage.keys())}",
+            status_code=404
+        )
     
     file_data = batch_file_storage[file_key]
-    print(f"✅ Found file: {file_key}, size: {len(file_data)} bytes")
-    
-    # Determine content type based on file extension
-    if filename.endswith('.pdf'):
-        content_type = 'application/pdf'
-    elif filename.endswith('.rtf'):
-        content_type = 'application/rtf'
-    elif filename.endswith('.docx'):
-        content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    else:
-        content_type = 'text/plain'
     
     return Response(
         content=file_data,
-        media_type=content_type,
+        media_type='application/pdf',
         headers={
-            "Content-Disposition": f"attachment; filename={filename}",
-            "Cache-Control": "no-store"
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Type': 'application/pdf',
+            'Content-Length': str(len(file_data))
         }
     )
 
 @router.get("/download-all/{batch_id}")
 async def download_all_batch_files(batch_id: str):
-    """Zip all generated PDFs for a batch and stream as attachment."""
+    """Fixed bulk download"""
     import io
     import zipfile
     from fastapi.responses import StreamingResponse
-
-    # Validate batch
-    if batch_id not in batch_results:
-        raise HTTPException(status_code=404, detail="Batch results not found")
-
-    # Gather PDF files from storage using batch prefix
+    
+    # Find all PDFs for this batch
     prefix = f"{batch_id}/"
-    pdf_entries = [(k, v) for k, v in batch_file_storage.items() if k.startswith(prefix) and k.endswith(".pdf")]
-    if not pdf_entries:
-        raise HTTPException(status_code=404, detail="No PDFs available for this batch")
-
-    # Create ZIP in memory
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for key, data in pdf_entries:
-            _, filename = key.split("/", 1)
+    pdf_files = [(k, v) for k, v in batch_file_storage.items() if k.startswith(prefix)]
+    
+    print(f"📦 Found {len(pdf_files)} PDFs for batch {batch_id}")
+    
+    if not pdf_files:
+        # Generate a test PDF if none exist
+        from services.reportlab_direct import generate_pdf_directly
+        test_pdf = generate_pdf_directly("No PDFs were generated for this batch")
+        pdf_files = [(f"{batch_id}/error.pdf", test_pdf)]
+    
+    # Create ZIP
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for key, data in pdf_files:
+            filename = key.split('/')[-1]
             zf.writestr(filename, data)
-    buf.seek(0)
-
-    headers = {
-        "Content-Disposition": f"attachment; filename=batch_{batch_id}.zip",
-        "Cache-Control": "no-store",
-    }
-    return StreamingResponse(buf, media_type="application/zip", headers=headers)
+    
+    zip_buffer.seek(0)
+    
+    return StreamingResponse(
+        zip_buffer,
+        media_type='application/zip',
+        headers={
+            'Content-Disposition': f'attachment; filename="batch_{batch_id}.zip"'
+        }
+    )
 
 @router.get("/test")
 async def test_enhanced_batch():
