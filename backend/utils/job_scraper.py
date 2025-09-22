@@ -81,14 +81,34 @@ class JobScraper:
             soup = BeautifulSoup(response.content, 'html.parser')
             domain = urlparse(url).netloc.lower()
             
+            # Try robust meta tags first (works even when content is gated/login)
+            meta_title_selectors = [
+                'meta[property="og:title"]',
+                'meta[name="og:title"]',
+                'meta[name="twitter:title"]',
+                'meta[property="twitter:title"]'
+            ]
+            for selector in meta_title_selectors:
+                element = soup.select_one(selector)
+                if element and element.get('content'):
+                    title = element.get('content').strip()
+                    title = re.sub(r'\s+', ' ', title)
+                    title = re.sub(r'(- .+|\| .+)$', '', title)
+                    title = re.sub(r'\s*at\s+.*$', '', title, flags=re.IGNORECASE)
+                    if 3 < len(title) < 100:
+                        return title
+            
             # Try different title selectors based on site
             title_selectors = []
             
             if 'linkedin.com' in domain:
                 title_selectors = [
                     '.top-card-layout__title',
+                    'h1.top-card-layout__title',
                     'h1[data-automation-id="job-title"]',
-                    '.jobs-unified-top-card__job-title h1'
+                    '.jobs-unified-top-card__job-title h1',
+                    '.jobs-unified-top-card__job-title',
+                    '[data-test-id="job-title"]'
                 ]
             elif 'greenhouse.io' in domain:
                 title_selectors = [
@@ -155,6 +175,11 @@ class JobScraper:
                     parts = title.split(' - ')
                     if len(parts) > 0:
                         title = parts[0].strip()
+                elif 'linkedin.com' in domain:
+                    # LinkedIn often formats as "<Job Title> | LinkedIn"
+                    parts = title.split('|')
+                    if parts:
+                        title = parts[0].strip()
                 else:
                     # Generic format: split by common separators
                     title = re.split(r'[-|–]', title)[0].strip()
@@ -193,6 +218,13 @@ class JobScraper:
                 element = soup.select_one(selector)
                 if element:
                     return self._clean_text(element.get_text())
+            
+            # Fallback to meta description if gated
+            meta_desc = soup.select_one('meta[property="og:description"]') or soup.select_one('meta[name="description"]')
+            if meta_desc and meta_desc.get('content'):
+                content = meta_desc.get('content')
+                if content and len(content) > 100:
+                    return self._clean_text(content)
             
             # Fallback: look for any div with job-related content
             job_content = soup.find('div', string=re.compile(r'(responsibilities|requirements|qualifications)', re.I))

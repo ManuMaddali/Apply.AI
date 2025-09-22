@@ -32,6 +32,7 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual, ba
     return s.startsWith('complete') || hasPdf || hasText;
   };
 
+  const failedResults = results.filter(r => (r?.status || '').toString().toLowerCase() === 'failed' || (!!r?.error && !isCompleted(r)));
   const completedResults = results.filter(isCompleted);
   const completedCount = completedResults.length;
   const successRate = results.length > 0 ? Math.round((completedCount / results.length) * 100) : 0;
@@ -150,6 +151,24 @@ const EnhancedBatchResults = ({ results, onDownloadAll, onDownloadIndividual, ba
                 })}
               </div>
             </div>
+
+            {/* Failure Notices Section */}
+            {failedResults.length > 0 && (
+              <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Some jobs could not be scraped
+                </h4>
+                <ul className="list-disc pl-5 text-sm text-red-800 space-y-1">
+                  {failedResults.slice(0, 5).map((r, idx) => (
+                    <li key={idx}>
+                      <span className="font-medium">{r.job_title || `Job ${r.job_index + 1 || idx + 1}`}:</span> {r.error || 'Unable to extract job description. Please paste it manually.'}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-red-700 mt-2">Tip: If a posting is gated or script-rendered, paste the full job description manually.</p>
+              </div>
+            )}
 
             {/* Individual Results Section */}
             <div className="space-y-4">

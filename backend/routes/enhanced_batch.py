@@ -378,59 +378,64 @@ class EnhancedJobProcessor:
                         "url": url,
                         "scraped_successfully": True
                     }
+                else:
+                    # Return explicit failure (no mock data)
+                    extracted_title = None
+                    try:
+                        extracted_title = self.job_scraper.extract_job_title(url)
+                    except Exception:
+                        extracted_title = None
+                    return {
+                        "title": extracted_title or "",
+                        "company": "",
+                        "description": None,
+                        "requirements": [],
+                        "url": url,
+                        "scraped_successfully": False,
+                        "error": "Could not extract job description from this URL. Please paste the job description or verify the link."
+                    }
             except Exception as e:
                 print(f"❌ Real scraper failed for {url}: {e}")
+                # Return explicit failure (no mock data)
+                extracted_title = None
+                try:
+                    if hasattr(self, 'job_scraper') and self.job_scraper:
+                        extracted_title = self.job_scraper.extract_job_title(url)
+                except Exception:
+                    extracted_title = None
+                return {
+                    "title": extracted_title or "",
+                    "company": "",
+                    "description": None,
+                    "requirements": [],
+                    "url": url,
+                    "scraped_successfully": False,
+                    "error": "Job scraping failed due to a network or parsing error. Please paste the description manually."
+                }
         
-        # Fallback to enhanced mock data
+        # Fallback when scraper not available
         return self._generate_enhanced_mock_job(url)
 
     def _generate_enhanced_mock_job(self, url: str) -> Dict[str, Any]:
-        """Generate more realistic mock job data"""
+        """Return a failure object instead of mock job data (no hardcoded titles)."""
         domain = self._get_domain(url)
-        
-        # Enhanced mock data based on domain
-        if "linkedin" in domain.lower():
-            company = "LinkedIn Tech Corp"
-            title = "Senior Software Engineer"
-        elif "indeed" in domain.lower():
-            company = "Indeed Innovations"
-            title = "Full Stack Developer"
-        elif "google" in domain.lower():
-            company = "Google"
-            title = "Software Engineer III"
-        else:
-            company = f"{domain.replace('.com', '').title()} Inc."
-            title = "Software Engineer"
-        
+        # Try to salvage the actual title even if description scraping failed
+        title_from_page = None
+        try:
+            if getattr(self, 'job_scraper', None):
+                title_from_page = self.job_scraper.extract_job_title(url)
+        except Exception:
+            title_from_page = None
+
+        # Return structured failure (no synthetic content)
         return {
-            "title": title,
-            "company": company,
-            "description": f"""We are seeking a talented {title} to join our growing team at {company}.
-
-Key Responsibilities:
-• Design and develop scalable software solutions
-• Collaborate with cross-functional teams
-• Write clean, maintainable code
-• Participate in code reviews and technical discussions
-• Contribute to architectural decisions
-
-Requirements:
-• 3+ years of software development experience
-• Proficiency in Python, JavaScript, or similar languages
-• Experience with web frameworks and databases
-• Strong problem-solving skills
-• Excellent communication abilities
-
-We offer competitive compensation, comprehensive benefits, and opportunities for professional growth.""",
-            "requirements": [
-                "3+ years software development experience",
-                "Python/JavaScript proficiency",
-                "Web frameworks experience",
-                "Database knowledge",
-                "Strong problem-solving skills"
-            ],
+            "title": title_from_page or "",
+            "company": "",
+            "description": None,
+            "requirements": [],
             "url": url,
-            "scraped_successfully": False
+            "scraped_successfully": False,
+            "error": "Unable to scrape this job posting automatically. Please paste the job description or try a different link."
         }
 
     def tailor_resume(self, resume_text: str, job_data: Dict[str, Any], tailoring_mode: str = "light") -> str:
@@ -853,6 +858,48 @@ async def _process_job_core_enhanced(
             'description': 'Job description placeholder'
         }
     
+    # If scraping failed or we have no description, return a clear failure without generating content
+    if not job_data.get('scraped_successfully', False) or not job_data.get('description'):
+        error_message = job_data.get('error') or 'Could not extract job description from this URL. Please paste the description or verify the link.'
+        failure_result = {
+            "job_index": job_index,
+            "job_url": job_url,
+            "job_title": job_data.get('title') or f"Job {job_index + 1}",
+            "company": job_data.get('company') or "",
+            "status": "failed",
+            "error": error_message,
+            "processing_time": processing_time,
+            "timed_out": False,
+            "phase8_optimized": True,
+            "tailored_resume": None,
+            "cover_letter": None,
+            "tailoring_mode": tailoring_mode,
+            "formatted_resume_data": None,
+            "scraped_successfully": False,
+            "ats_score": 'N/A',
+            "ats_grade": 'N/A',
+            "keyword_matches": 0,
+            "keyword_match_percentage": 0,
+            "confidence_level": 'LOW',
+            "confidence_message": 'Scraping failed',
+            "ats_details": {
+                "component_scores": {},
+                "recommendations": ["Paste the job description manually to proceed"],
+                "matched_skills": [],
+                "missing_skills": []
+            },
+            "features_used": {
+                "real_scraper": False,
+                "heavy_mode": False,
+                "cover_letter": False,
+                "ats_scoring": False,
+                "intelligent_keyword_extraction": False,
+                "professional_formatting": False,
+                "template_applied": template
+            }
+        }
+        return failure_result
+
     # Tailor resume_text -> tailored_resume using available processors
     try:
         if 'LANGCHAIN_AVAILABLE' in globals() and LANGCHAIN_AVAILABLE and hasattr(enhanced_processor, 'tailor_resume_with_rag'):

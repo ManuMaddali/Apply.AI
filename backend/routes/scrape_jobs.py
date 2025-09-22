@@ -31,19 +31,21 @@ async def scrape_single_job(request: SingleJobURL):
         # Scrape job description
         job_description = job_scraper.scrape_job_description(url)
         
+        # Extract job title if possible (even if description fails)
+        job_title = job_scraper.extract_job_title(url)
+        
         if not job_description:
             return JSONResponse({
                 "success": False,
-                "detail": "Could not extract job description from this URL"
+                "detail": "Could not extract job description from this URL. Please paste the description manually or verify the link.",
+                "job_title": job_title or "",
+                "job_url": url
             })
-        
-        # Extract job title if possible
-        job_title = job_scraper.extract_job_title(url)
         
         return JSONResponse({
             "success": True,
             "job_description": job_description,
-            "job_title": job_title or "Product Manager",
+            "job_title": job_title or "",
             "job_url": url,
             "preview": job_description[:200] + "..." if len(job_description) > 200 else job_description
         })
