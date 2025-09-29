@@ -86,12 +86,6 @@ Works with job postings from:
 
 ---
 
-Ready to get more interviews? Start your free account today.
-- Immediate access to AI-powered resume optimization
-- Join thousands of successful job seekers
-- Professional results in under 30 seconds
 
----
-
-**ApplyAI Platform** - Intelligent resume optimization for the modern job market.
+**ApplyAI** - Intelligent resume optimization for the modern job market.
 
