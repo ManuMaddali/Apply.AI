@@ -912,10 +912,10 @@ class TemplatePreviewService:
         Returns:
             Dictionary mapping template_id to PreviewResult
         """
-        template_ids = TemplateRegistry.list_ids()
+        template_ids = ["executive_compact"]
         
         # Filter out non-resume templates
-        resume_templates = [tid for tid in template_ids if tid not in ["emails"]]
+        resume_templates = ["executive_compact"]
         
         # Semaphore to limit concurrent operations
         semaphore = asyncio.Semaphore(max_concurrent)
@@ -951,8 +951,8 @@ class TemplatePreviewService:
         Returns:
             Dictionary mapping template_id to TemplateMetadata
         """
-        template_ids = TemplateRegistry.list_ids()
-        resume_templates = [tid for tid in template_ids if tid not in ["emails"]]
+        template_ids = ["executive_compact"]
+        resume_templates = ["executive_compact"]
         
         metadata_results = {}
         for template_id in resume_templates:

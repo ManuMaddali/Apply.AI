@@ -1,6 +1,6 @@
 # ApplyAI - Get More Interviews with AI-Tailored Resumes
 
-Transform your job search in seconds. Upload your resume once, paste job URLs, and get perfectly tailored resumes for every application.
+Transform your job search in seconds. Upload your resume once, paste up to 25+ job URLs, and get perfectly tailored resumes for every application. Launching October 2025!
 
 ## What ApplyAI Does
 
@@ -14,7 +14,7 @@ ApplyAI automatically customizes your resume to match any job posting. Instead o
 - Works with any job posting URL
 
 **Advanced Batch Processing**
-- **Batch Mode**: Process up to 25 jobs simultaneously with real-time progress tracking
+- **Batch Mode**: Process up to 25+ jobs simultaneously with real-time progress tracking
 - **Precision Mode**: Focus on one perfect application with detailed analysis
 - **Automatic Retry Logic**: Robust error handling ensures successful completion
 

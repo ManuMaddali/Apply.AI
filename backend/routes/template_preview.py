@@ -408,6 +408,8 @@ async def get_template_preview(
         HTTPException: If template not found or generation fails
     """
     
+    # Force to executive_compact only
+    template_id = "executive_compact"
     # Validate template exists
     try:
         TemplateRegistry.validate(template_id)
@@ -454,8 +456,8 @@ async def get_template_preview(
         
         # Generate HTML preview
         html_content = TemplateEngine.render_preview(
-            template_id=template_id,
-            resume_json=resume_data
+            template_id="executive_compact",
+            resume_json=resume_data,
         )
         
         # Handle different response formats
@@ -543,6 +545,7 @@ async def create_custom_preview(
     
     # Validate template exists
     try:
+        template_id = "executive_compact"
         TemplateRegistry.validate(template_id)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -553,8 +556,8 @@ async def create_custom_preview(
         
         # Generate HTML preview
         html_content = TemplateEngine.render_preview(
-            template_id=template_id,
-            resume_json=resume_data
+            template_id="executive_compact",
+            resume_json=resume_data,
         )
         
         # Return in requested format
@@ -602,7 +605,7 @@ async def get_all_templates_metadata(
     
     try:
         templates = []
-        template_ids = TemplateRegistry.list_ids()
+        template_ids = ["executive_compact"]
         
         for template_id in template_ids:
             try:

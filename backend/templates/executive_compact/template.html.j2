@@ -1,0 +1,148 @@
+<!-- EXECUTIVE_COMPACT TEMPLATE -->
+<!-- EXECUTIVE_COMPACT TEMPLATE -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="format-detection" content="telephone=no">
+  <title>{{ display_name or resume.name or 'Resume' }}</title>
+  <style>
+    {{ inline_css }}
+  </style>
+  <meta name="author" content="{{ display_name or resume.name or 'Resume' }}">
+  <meta name="subject" content="Executive Compact Resume">
+</head>
+<body>
+  <main class="page">
+    {# Header: name on first line; contact on second line #}
+    {% set has_header = (display_name or resume.name) or (resume.contact and (resume.contact.location or resume.contact.email or resume.contact.phone or (resume.contact.links and resume.contact.links|length > 0))) %}
+    {% if has_header %}
+    <section class="header avoid-break">
+      {% set nm = (display_name or resume.name or '').strip() %}
+      {% if nm %}<div class="name">{{ nm }}</div>{% endif %}
+      {% set parts = [] %}
+      {% if resume.contact %}
+        {% if resume.contact.location and resume.contact.location.strip() %}
+          {% set _ = parts.append(resume.contact.location.strip()) %}
+        {% endif %}
+        {% if resume.contact.email and resume.contact.email.strip() %}
+          {% set _ = parts.append(resume.contact.email.strip()) %}
+        {% endif %}
+        {% if resume.contact.phone and resume.contact.phone.strip() %}
+          {% set _ = parts.append(resume.contact.phone.strip()) %}
+        {% endif %}
+        {% if resume.contact.links and resume.contact.links|length > 0 %}
+          {% for link in resume.contact.links %}
+            {% if link.url %}{% set _ = parts.append(link.url) %}{% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+      {% if parts|length > 0 %}
+        <div class="contact-line">{{ parts|join(' • ') }}</div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {# Summary: short paragraph, max 280 chars #}
+    {% if resume.summary and resume.summary.strip() %}
+    {% set summary_text = resume.summary.strip()[:280] %}
+    <section class="summary avoid-break">
+      <div class="section-title">Summary</div>
+      <p class="summary-text">{{ summary_text }}</p>
+    </section>
+    {% endif %}
+
+    {# Skills: inline bullets using • #}
+    {% if resume.skills and resume.skills|length > 0 %}
+    <section class="skills avoid-break">
+      <div class="section-title">Skills</div>
+      <div class="skills-line">
+        {% for s in resume.skills %}
+          {% if s.name and s.name.strip() %}<span>{{ s.name.strip() }}</span>{% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {# Experience: title | company, location/dates, up to 5 bullets #}
+    {% if resume.experience and resume.experience|length > 0 %}
+    <section class="experience">
+      <div class="section-title">Experience</div>
+      {% for role in resume.experience %}
+        {% set title = (role.title or '').strip() %}
+        {% set company = (role.company or '').strip() %}
+        {% set header = title %}
+        {% if title and company %}{% set header = title ~ ' | ' ~ company %}{% elif company %}{% set header = company %}{% endif %}
+        {% set loc = (role.location or '').strip() %}
+        {% set dates = '' %}
+        {% if role.start or role.end %}
+          {% set dates = (role.start or '') ~ ((' – ' ~ role.end) if role.end else ' – Present') %}
+        {% elif role.dates %}
+          {% set dates = role.dates %}
+        {% endif %}
+        <div class="role avoid-break">
+          {% if header %}<div class="role-header">{{ header }}</div>{% endif %}
+          {% if loc or dates %}
+            <div class="meta-line">
+              {% set meta_parts = [] %}
+              {% if loc %}{% set _ = meta_parts.append(loc) %}{% endif %}
+              {% if dates %}{% set _ = meta_parts.append(dates) %}{% endif %}
+              {{ meta_parts|join(' • ') }}
+            </div>
+          {% endif %}
+          {% if role.bullets and role.bullets|length > 0 %}
+            <ul>
+              {% for bullet in role.bullets[:5] %}
+                {% if bullet and bullet.strip() %}<li>{{ bullet.strip() }}</li>{% endif %}
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {# Projects: up to 2 projects, each with 2–3 bullets #}
+    {% if resume.projects and resume.projects|length > 0 %}
+    <section class="projects">
+      <div class="section-title">Projects</div>
+      {% for project in resume.projects[:2] %}
+        {% set pname = (project.name or project.title or '').strip() %}
+        {% set pdesc = (project.description or '').strip() %}
+        <div class="project avoid-break">
+          {% if pname %}<div class="project-name">{{ pname }}</div>{% endif %}
+          {% if pdesc %}<div class="project-desc">{{ pdesc }}</div>{% endif %}
+          {% if project.bullets and project.bullets|length > 0 %}
+            <ul>
+              {% for bullet in project.bullets[:3] %}
+                {% if bullet and bullet.strip() %}<li>{{ bullet.strip() }}</li>{% endif %}
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {# Education: single line per entry #}
+    {% if resume.education and resume.education|length > 0 %}
+    <section class="education avoid-break">
+      <div class="section-title">Education</div>
+      {% for edu in resume.education %}
+        {% set line_parts = [] %}
+        {% if edu.degree and edu.degree.strip() %}{% set _ = line_parts.append(edu.degree.strip()) %}{% endif %}
+        {% if edu.school and edu.school.strip() %}{% set _ = line_parts.append(edu.school.strip()) %}{% endif %}
+        {% if edu.end and edu.end.strip() %}{% set _ = line_parts.append(edu.end.strip()) %}{% endif %}
+        {% if line_parts|length > 0 %}
+          <div class="edu-line">{{ line_parts|join(' • ') }}</div>
+        {% endif %}
+      {% endfor %}
+    </section>
+    {% endif %}
+  </main>
+</body>
+</html>
+
+

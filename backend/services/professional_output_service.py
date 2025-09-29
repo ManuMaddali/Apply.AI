@@ -8,6 +8,15 @@ import os
 import re
 from io import BytesIO
 from datetime import datetime
+import asyncio
+
+
+def _prefer_backend(module_path: str, fallback_path: str, attr: str | None = None):
+    try:
+        mod = __import__(module_path, fromlist=['*'])
+    except ImportError:
+        mod = __import__(fallback_path, fromlist=['*'])
+    return getattr(mod, attr) if attr else mod
 
 # Import existing components
 try:
@@ -28,22 +37,19 @@ except ImportError as e:
     DEPENDENCIES_AVAILABLE = False
 
 # New template engine (HTML/CSS -> PDF)
-try:
-    from backend.services.template_engine import TemplateEngine
-    from backend.models.resume_schema import parse_resume_text_to_schema, Resume, Contact, ExperienceItem, EducationItem, Skill, ProjectItem
-    from backend.services.renderers.pdf_renderer import render_pdf_from_html_sync
-except ImportError:
-    # Try relative imports if absolute imports fail
-    from services.template_engine import TemplateEngine
-    from models.resume_schema import parse_resume_text_to_schema, Resume, Contact, ExperienceItem, EducationItem, Skill, ProjectItem
-    from services.renderers.pdf_renderer import render_pdf_from_html_sync
+TemplateEngine = _prefer_backend('backend.services.template_engine', 'services.template_engine', attr='TemplateEngine')
+parse_resume_text_to_schema = _prefer_backend('backend.models.resume_schema', 'models.resume_schema', attr='parse_resume_text_to_schema')
+Resume = _prefer_backend('backend.models.resume_schema', 'models.resume_schema', attr='Resume')
+Contact = _prefer_backend('backend.models.resume_schema', 'models.resume_schema', attr='Contact')
+ExperienceItem = _prefer_backend('backend.models.resume_schema', 'models.resume_schema', attr='ExperienceItem')
+EducationItem = _prefer_backend('backend.models.resume_schema', 'models.resume_schema', attr='EducationItem')
+Skill = _prefer_backend('backend.models.resume_schema', 'models.resume_schema', attr='Skill')
+ProjectItem = _prefer_backend('backend.models.resume_schema', 'models.resume_schema', attr='ProjectItem')
+clean_and_compact = _prefer_backend('backend.services.cleaners', 'services.cleaners', attr='clean_and_compact')
 
 # Import our comprehensive resume parser
 try:
-    try:
-        from backend.services.resume_parser import ResumeParser
-    except ImportError:
-        from services.resume_parser import ResumeParser
+    ResumeParser = _prefer_backend('backend.services.resume_parser', 'services.resume_parser', attr='ResumeParser')
     RESUME_PARSER_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ Resume parser not available: {e}")
@@ -53,22 +59,12 @@ except ImportError as e:
 # but they are deprecated and not used for PDF generation anymore.
 ADVANCED_FMT_AVAILABLE = True
 try:
-    try:
-        from backend.services.advanced_formatting_service import (
-            AdvancedFormattingService,
-            FormattingOptions,
-            FormattingTemplate,
-            ColorScheme,
-            FontFamily,
-        )
-    except ImportError:
-        from services.advanced_formatting_service import (
-            AdvancedFormattingService,
-            FormattingOptions,
-            FormattingTemplate,
-            ColorScheme,
-            FontFamily,
-        )
+    advanced_module = _prefer_backend('backend.services.advanced_formatting_service', 'services.advanced_formatting_service')
+    AdvancedFormattingService = advanced_module.AdvancedFormattingService
+    FormattingOptions = advanced_module.FormattingOptions
+    FormattingTemplate = advanced_module.FormattingTemplate
+    ColorScheme = advanced_module.ColorScheme
+    FontFamily = advanced_module.FontFamily
 except Exception as e:
     print(f"⚠️ AdvancedFormattingService not available: {e}")
     ADVANCED_FMT_AVAILABLE = False
@@ -400,7 +396,7 @@ class ProfessionalOutputService:
         self,
         resume_text: str,
         job_description: str = "",
-        template: str = "modern",
+        template: str = "executive_compact",
         ats_optimize: bool = True
     ) -> Dict[str, Any]:
         """Generate professional PDF using HTML/CSS templates rendered via Chromium.
@@ -425,7 +421,12 @@ class ProfessionalOutputService:
             if RESUME_PARSER_AVAILABLE:
                 logger.info("📝 Using comprehensive resume parser")
                 parser = ResumeParser()
-                parsed_data = parser.parse(optimized_text)
+                # Sanitize input of JD-derived junk before parsing
+                try:
+                    sanitize_input_text = _prefer_backend('services.content_filters', 'backend.services.content_filters', attr='sanitize_input_text')
+                except Exception:
+                    sanitize_input_text = lambda x: x
+                parsed_data = parser.parse(sanitize_input_text(optimized_text))
                 
                 # Validate parsed data
                 validation_errors = parser.validate_parsed_data(parsed_data)
@@ -434,23 +435,22 @@ class ProfessionalOutputService:
                 
                 # Convert to Resume schema
                 resume_obj = self._convert_parsed_to_resume_schema(parsed_data)
-                logger.info(f"✅ Successfully parsed resume: {resume_obj.name}")
+                if not resume_obj or not resume_obj.name:
+                    logger.warning("⚠️ Parsed resume missing critical fields; falling back to raw text output")
+                else:
+                    logger.info(f"✅ Successfully parsed resume: {resume_obj.name}")
             else:
                 logger.info("📝 Using fallback resume parser")
                 # Fallback to original parser
-                resume_obj = parse_resume_text_to_schema(optimized_text)
+                try:
+                    sanitize_input_text = _prefer_backend('services.content_filters', 'backend.services.content_filters', attr='sanitize_input_text')
+                except Exception:
+                    sanitize_input_text = lambda x: x
+                resume_obj = parse_resume_text_to_schema(sanitize_input_text(optimized_text))
             
-            resume_json = resume_obj.dict()
+            resume_json = clean_and_compact(resume_obj.dict())
 
-            # HTML preview (not returned directly) and short preview string
-            logger.info("🎨 Rendering HTML template")
-            html_preview = TemplateEngine.render_preview(
-                template_id=(template or "modern"),
-                resume_json=resume_json,
-                resume_text=optimized_text,
-            )
-            
-            # Generate formatted display text
+            # Generate formatted display text using parsed data when available
             formatted_display_text = make_short_preview_string(resume_json)
             
             # Add detailed formatting for better display
@@ -486,37 +486,64 @@ class ProfessionalOutputService:
                 
                 formatted_display_text = "\n".join(display_parts)
 
-            # Produce PDF using sync renderer to avoid interfering with event loop
-            logger.info("📄 Generating PDF from HTML")
-            pdf_bytes = render_pdf_from_html_sync(html_preview, page_size="A4")
+            # Produce PDF using template engine pipeline
+            logger.info("📄 Generating PDF from TemplateEngine")
+            bundle_name = template or "executive_compact"
+            pdf_bytes = b""
+            try:
+                pdf_bytes = TemplateEngine.render_pdf_sync(
+                    template_id=bundle_name,
+                    resume_json=resume_json,
+                    resume_text=optimized_text,
+                    bundle=bundle_name,
+                )
+            except Exception as render_err:
+                logger.error(f"❌ TemplateEngine rendering failed, falling back to direct ReportLab: {render_err}", exc_info=True)
+                try:
+                    reportlab_direct = _prefer_backend(
+                        'backend.services.reportlab_direct',
+                        'services.reportlab_direct'
+                    )
+                    fallback_text = resume_text or formatted_display_text or optimized_text
+                    pdf_bytes = reportlab_direct.generate_pdf_from_text(
+                        fallback_text,
+                        template=bundle_name,
+                        display_text=formatted_display_text,
+                    )
+                    logger.info("✅ Fallback ReportLab PDF generated successfully")
+                except Exception as direct_err:
+                    logger.error(f"❌ ReportLab fallback failed: {direct_err}", exc_info=True)
+                    raise render_err
             
             if not pdf_bytes:
                 raise ValueError("PDF generation returned empty content")
             
             logger.info(f"✅ PDF generated successfully: {len(pdf_bytes)} bytes")
 
-            return {
+            # Keep ATS scoring out of resume content; return separately so callers can persist as scorecard
+            response_payload = {
                 'success': True,
                 'pdf_content': pdf_bytes,
                 'formatted_text': formatted_display_text,
-                'ats_score': ats_results,
-                'template_used': template,
+                'template_used': template or "executive_compact",
                 'optimizations_applied': ats_optimize,
                 'parser_used': 'comprehensive' if RESUME_PARSER_AVAILABLE else 'fallback'
             }
+
+            return response_payload, ats_results
             
         except Exception as e:
             logger.error(f"❌ Professional PDF generation failed: {e}", exc_info=True)
             print(f"❌ Professional PDF generation failed: {e}")
-            
+
             # Return error with details
             return {
-                'success': False, 
+                'success': False,
                 'error': str(e),
                 'error_type': type(e).__name__,
-                'template_used': template,
+                'template_used': template or "executive_compact",
                 'parser_used': 'comprehensive' if RESUME_PARSER_AVAILABLE else 'fallback'
-            }
+            }, None
     
     def _generate_formatted_display_text(self, resume_text: str, template: str) -> str:
         """Generate properly formatted display text that matches template styling"""
@@ -930,7 +957,12 @@ class ProfessionalOutputService:
     def _apply_docx_template(self, doc: Document, resume_text: str, template: str):
         """Apply template styling to DOCX document"""
         # Parse resume sections
-        sections = self._parse_resume_sections(resume_text)
+        # Sanitize first to remove junk panels
+        try:
+            sanitize_input_text = _prefer_backend('backend.services.content_filters', 'services.content_filters', attr='sanitize_input_text')
+        except Exception:
+            sanitize_input_text = lambda x: x
+        sections = self._parse_resume_sections(sanitize_input_text(resume_text))
         
         # Apply template-specific formatting
         for section_name, content in sections.items():
@@ -1000,14 +1032,26 @@ class ProfessionalOutputService:
             content_run.font.size = Pt(10)
     
     def get_available_templates(self) -> List[Dict[str, str]]:
-        """Get list of available templates"""
+        """Get list of available templates (restricted to executive_compact)."""
         return [
-            {'name': 'modern', 'description': 'Modern professional template (default)'},
-            {'name': 'executive', 'description': 'Conservative executive template'},
-            {'name': 'technical', 'description': 'Clean technical template'},
-            {'name': 'creative', 'description': 'Creative template with color accents'},
-            {'name': 'classic', 'description': 'Traditional black and white template'}
+            {'name': 'executive_compact', 'description': 'Executive compact one-page (default)'}
         ]
+
+    def export_scorecard(self, ats_score: Dict[str, Any], fmt: str = "json") -> Dict[str, Any]:
+        """Emit ATS scorecard as a separate artifact (JSON for now)."""
+        try:
+            if fmt.lower() == "json":
+                import json
+                return {
+                    'success': True,
+                    'mime': 'application/json',
+                    'content': json.dumps(ats_score).encode('utf-8'),
+                    'filename': 'scorecard.json',
+                }
+            # Future: support PDF rendering for scorecard if needed
+            return {'success': False, 'error': 'Unsupported format', 'mime': 'text/plain'}
+        except Exception as e:
+            return {'success': False, 'error': str(e), 'mime': 'text/plain'}
 
 
 def make_short_preview_string(resume_json: Dict[str, Any]) -> str:

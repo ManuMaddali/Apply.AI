@@ -252,10 +252,10 @@ class AdvancedFormattingService:
             from models.resume_schema import parse_resume_text_to_schema
             from services.renderers.pdf_renderer import render_pdf_from_html_sync
             # Map enum to legacy ids sensibly
-            template_id = formatting_options.template.value if hasattr(formatting_options.template, 'value') else 'modern'
+            template_id = 'executive_compact'
             resume_obj = parse_resume_text_to_schema(resume_text)
             # Pass raw resume_text so templates can use fallback rendering when parsing yields few sections
-            html = TemplateEngine.render_preview(template_id, resume_json=resume_obj.dict(), resume_text=resume_text)
+            html = TemplateEngine.render_preview('executive_compact', resume_json=resume_obj.dict(), resume_text=resume_text)
             pdf_bytes = render_pdf_from_html_sync(html, page_size='A4')
             with open(output_path, 'wb') as f:
                 f.write(pdf_bytes)

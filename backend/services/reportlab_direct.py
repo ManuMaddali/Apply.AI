@@ -82,12 +82,24 @@ def get_template_config(template: str) -> dict:
             "header_size": 11.5,
             "job_title_size": 11,
             "body_size": 10.75
+        },
+        "executive_compact": {
+            "accent_color": "#111111",
+            "name_font": "Helvetica-Bold",
+            "header_font": "Helvetica-Bold",
+            "job_title_font": "Helvetica-Bold",
+            "body_font": "Helvetica",
+            "name_size": 20,
+            "contact_size": 10.5,
+            "header_size": 11.5,
+            "job_title_size": 11,
+            "body_size": 10.5
         }
     }
     
     return configs.get(template, configs["modern"])
 
-def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
+def generate_pdf_directly(resume_text: str, template: str = "executive_compact") -> bytes:
     """Generate clean PDF using ReportLab directly with template-specific styling"""
     print(f"🚀 DIRECT REPORTLAB: Generating PDF from {len(resume_text)} chars with template: {template}")
     
@@ -98,10 +110,10 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        rightMargin=0.75*inch,
-        leftMargin=0.75*inch,
-        topMargin=0.75*inch,
-        bottomMargin=0.75*inch
+        rightMargin=0.5*inch,
+        leftMargin=0.5*inch,
+        topMargin=0.5*inch,
+        bottomMargin=0.5*inch
     )
     
     styles = getSampleStyleSheet()
@@ -114,16 +126,16 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
         name='Name',
         fontSize=template_config['name_size'],
         textColor=HexColor(template_config['accent_color']),
-        spaceAfter=6,
-        alignment=1,  # Center
+        spaceAfter=4,
+        alignment=1,
         fontName=template_config['name_font']
     ))
     
     styles.add(ParagraphStyle(
         name='Contact',
         fontSize=template_config['contact_size'],
-        spaceAfter=12,
-        alignment=1,  # Center
+        spaceAfter=8,
+        alignment=1,
         fontName=template_config['body_font']
     ))
     
@@ -131,8 +143,8 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
         name='SectionHeader',
         fontSize=template_config['header_size'],
         textColor=HexColor(template_config['accent_color']),
-        spaceBefore=12,
-        spaceAfter=6,
+        spaceBefore=10,
+        spaceAfter=4,
         fontName=template_config['header_font']
     ))
     
@@ -147,7 +159,7 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
     styles.add(ParagraphStyle(
         name='Company',
         fontSize=template_config['body_size'],
-        spaceAfter=2,
+        spaceAfter=1,
         fontName=template_config['body_font'],
         textColor=HexColor('#666666'),
         alignment=TA_LEFT
@@ -156,7 +168,7 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
     styles.add(ParagraphStyle(
         name='Dates',
         fontSize=template_config['body_size'] - 0.5,
-        spaceAfter=2,
+        spaceAfter=1,
         fontName=template_config['body_font'],
         textColor=HexColor('#6b8b6f') if template == 'olive' else HexColor('#666666'),
         alignment=TA_LEFT
@@ -165,7 +177,7 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
     styles.add(ParagraphStyle(
         name='Body',
         fontSize=template_config['body_size'],
-        spaceAfter=3,
+        spaceAfter=2,
         fontName=template_config['body_font'],
         lineHeight=template_config['body_size'] * 1.3
     ))
@@ -174,7 +186,7 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
         name='CustomBullet',
         fontSize=template_config['body_size'],
         leftIndent=0,
-        spaceAfter=3,
+        spaceAfter=2,
         fontName=template_config['body_font'],
         lineHeight=template_config['body_size'] * 1.3
     ))
@@ -188,30 +200,26 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
     # Professional header with name and contact
     if parsed_sections.get('name'):
         story.append(Paragraph(parsed_sections['name'], styles['Name']))
-        story.append(Spacer(1, 4))
+        story.append(Spacer(1, 2))
     
     # Add contact info
     if parsed_sections.get('contact'):
         story.append(Paragraph(parsed_sections['contact'], styles['Contact']))
         story.append(Spacer(1, 6))
-        
-        # Add professional separator line
-        story.append(HRFlowable(width="100%", thickness=0.5, color=HexColor(template_config['accent_color'])))
-        story.append(Spacer(1, 12))
     
     # Add summary
     if parsed_sections.get('summary'):
         story.append(Paragraph('PROFESSIONAL SUMMARY', styles['SectionHeader']))
-        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 4))
         for para in parsed_sections['summary']:
             story.append(Paragraph(para, styles['Body']))
-            story.append(Spacer(1, 4))
-        story.append(Spacer(1, 8))
+            story.append(Spacer(1, 2))
+        story.append(Spacer(1, 6))
     
     # Add experience with professional two-column layout
     if parsed_sections.get('experience'):
         story.append(Paragraph('WORK EXPERIENCE', styles['SectionHeader']))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 6))
         
         for job in parsed_sections['experience']:
             # Extract job title, company, and dates
@@ -236,70 +244,35 @@ def generate_pdf_directly(resume_text: str, template: str = "modern") -> bytes:
             else:
                 job_title = title_company
             
-            # Create professional two-column layout using Table
+            # Compact single-column layout (ATS-safe, no tables)
             if job_title or company:
-                # Left column: Company and dates
-                left_content = []
-                if company:
-                    left_content.append(Paragraph(company, styles['Company']))
-                if dates:
-                    left_content.append(Paragraph(dates, styles['Dates']))
-                
-                # Right column: Title and bullets
-                right_content = []
                 if job_title:
-                    right_content.append(Paragraph(job_title, styles['JobTitle']))
-                
-                # Add bullet points
-                for bullet in bullets[:6]:  # Limit to 6 bullets per job
+                    story.append(Paragraph(job_title + (f" | {company}" if company else ""), styles['JobTitle']))
+                elif company:
+                    story.append(Paragraph(company, styles['JobTitle']))
+                if dates:
+                    story.append(Paragraph(dates, styles['Dates']))
+                for bullet in bullets[:5]:  # Limit to 5 bullets per job
                     if bullet.strip():
-                        right_content.append(Paragraph(f"• {bullet.strip()}", styles['CustomBullet']))
-                
-                # Create table with two columns
-                if left_content and right_content:
-                    # Convert to table data
-                    left_cell = []
-                    for item in left_content:
-                        left_cell.append(item)
-                    
-                    right_cell = []
-                    for item in right_content:
-                        right_cell.append(item)
-                    
-                    # Create table
-                    job_table = Table(
-                        [[left_cell, right_cell]], 
-                        colWidths=[2.2*inch, 4.3*inch],
-                        rowHeights=None
-                    )
-                    
-                    job_table.setStyle(TableStyle([
-                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                        ('TOPPADDING', (0, 0), (-1, -1), 0),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ]))
-                    
-                    story.append(job_table)
-                    story.append(Spacer(1, 12))
+                        story.append(Paragraph(f"• {bullet.strip()}", styles['CustomBullet']))
+                story.append(Spacer(1, 6))
     
     # Add education
     if parsed_sections.get('education'):
         story.append(Paragraph('EDUCATION', styles['SectionHeader']))
-        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 4))
         for edu in parsed_sections['education']:
             story.append(Paragraph(edu, styles['Body']))
-            story.append(Spacer(1, 4))
-        story.append(Spacer(1, 8))
+            story.append(Spacer(1, 2))
+        story.append(Spacer(1, 6))
     
     # Add skills
     if parsed_sections.get('skills'):
         story.append(Paragraph('SKILLS', styles['SectionHeader']))
-        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 4))
         for skill_line in parsed_sections['skills']:
             story.append(Paragraph(skill_line, styles['Body']))
-            story.append(Spacer(1, 4))
+            story.append(Spacer(1, 2))
     
     # If no structured content was found, add the text in a readable format
     if not any([parsed_sections.get('name'), parsed_sections.get('experience'), 

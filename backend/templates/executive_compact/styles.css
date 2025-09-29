@@ -1,0 +1,41 @@
+/* Executive Compact - ATS-safe, one-page */
+:root { --text: #111; --muted: #333; }
+@page { size: Letter; margin: 0.5in; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: var(--text);
+  margin: 0;
+}
+.page { padding: 0; }
+.header-line { display: flex; gap: 8px; align-items: baseline; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name { font-size: 18pt; font-weight: 800; }
+.header { margin-bottom: 6px; }
+.contact-line { color: var(--muted); font-size: 9.5pt; }
+.section-title {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-size: 10pt;
+  margin: 10px 0 6px;
+  color: var(--muted);
+}
+.skills-line, .meta-line, .edu-line, .project-desc { color: var(--muted); }
+.role-header, .project-name { font-weight: 700; }
+.bullets {
+  margin: 4px 0 0 0;
+  padding: 0 0 0 14px;
+}
+.bullets li { margin: 0; padding: 0; page-break-inside: avoid; break-inside: avoid; }
+.summary-text { margin: 0; }
+section { break-inside: avoid; page-break-inside: avoid; }
+.role, .project { break-inside: avoid; page-break-inside: avoid; }
+* { page-break-inside: avoid; }
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  section, .role, .project { break-inside: avoid; page-break-inside: avoid; }
+}
+
+

@@ -42,12 +42,12 @@ professional_service = ProfessionalOutputService() if SERVICE_AVAILABLE else Non
 class ProfessionalPDFRequest(BaseModel):
     resume_text: str
     job_description: Optional[str] = ""
-    template: Optional[str] = "modern"
+    template: Optional[str] = "executive_compact"
     ats_optimize: Optional[bool] = True
 
 class ProfessionalDOCXRequest(BaseModel):
     resume_text: str
-    template: Optional[str] = "modern"
+    template: Optional[str] = "executive_compact"
 
 class ATSScoreRequest(BaseModel):
     resume_text: str
@@ -64,29 +64,29 @@ async def generate_professional_pdf(
         if not SERVICE_AVAILABLE or not professional_service:
             raise HTTPException(status_code=503, detail="Professional output service not available")
         
-        # Check Pro access for premium templates
-        premium_templates = ['executive', 'creative']
-        if request.template in premium_templates:
-            if not hasattr(current_user, 'is_pro_active') or not current_user.is_pro_active():
-                raise HTTPException(status_code=403, detail="Premium templates require Pro subscription")
+        # Only one template supported
+        if request.template != 'executive_compact':
+            request.template = 'executive_compact'
         
         # Generate professional PDF
-        result = professional_service.generate_professional_pdf(
+        result, ats_score = professional_service.generate_professional_pdf(
             resume_text=request.resume_text,
             job_description=request.job_description,
             template=request.template,
             ats_optimize=request.ats_optimize
         )
-        
+
         if result['success']:
+            headers = {
+                "Content-Disposition": f"attachment; filename=professional_resume_{request.template}.pdf",
+                "X-Template-Used": result['template_used']
+            }
+            if ats_score:
+                headers["X-ATS-Score"] = str(ats_score.get('total_score', ''))
             return Response(
                 content=result['pdf_content'],
                 media_type="application/pdf",
-                headers={
-                    "Content-Disposition": f"attachment; filename=professional_resume_{request.template}.pdf",
-                    "X-ATS-Score": str(result['ats_score']['total_score']),
-                    "X-Template-Used": result['template_used']
-                }
+                headers=headers
             )
         else:
             raise HTTPException(status_code=500, detail=result.get('error', 'PDF generation failed'))
@@ -105,18 +105,16 @@ async def generate_professional_docx(
         if not SERVICE_AVAILABLE or not professional_service:
             raise HTTPException(status_code=503, detail="Professional output service not available")
         
-        # Check Pro access for premium templates
-        premium_templates = ['executive', 'creative']
-        if request.template in premium_templates:
-            if not hasattr(current_user, 'is_pro_active') or not current_user.is_pro_active():
-                raise HTTPException(status_code=403, detail="Premium templates require Pro subscription")
+        # Only one template supported
+        if request.template != 'executive_compact':
+            request.template = 'executive_compact'
         
         # Generate professional DOCX
         result = professional_service.generate_professional_docx(
             resume_text=request.resume_text,
             template=request.template
         )
-        
+
         if result['success']:
             return Response(
                 content=result['docx_content'],

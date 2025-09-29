@@ -39,17 +39,34 @@ class TemplateRegistry:
 
     @staticmethod
     def list_ids() -> List[str]:
-        if not TEMPLATES_ROOT.exists():
-            return []
-        ids: List[str] = []
-        for child in TEMPLATES_ROOT.iterdir():
-            if child.is_dir():
-                ids.append(child.name)
-        return sorted(ids)
+        # Restrict externally visible templates to only the compact executive bundle
+        return ["executive_compact"]
+
+    @staticmethod
+    def resolve_id(template_id: str) -> str:
+        """Resolve aliases and fallbacks for template IDs.
+
+        - executive_compact -> executive (if exists) else modern
+        - if requested template does not exist, fallback to modern when available
+        """
+        # Prefer an actual on-disk directory match
+        if (TEMPLATES_ROOT / template_id).exists():
+            return template_id
+        # Alias for new compact executive bundle
+        if template_id == "executive_compact":
+            if (TEMPLATES_ROOT / "executive").exists():
+                return "executive"
+            if (TEMPLATES_ROOT / "modern").exists():
+                return "modern"
+        # Generic fallback
+        if (TEMPLATES_ROOT / "modern").exists():
+            return "modern"
+        return template_id
 
     @staticmethod
     def get_dir(template_id: str) -> Path:
-        return TEMPLATES_ROOT / template_id
+        resolved = TemplateRegistry.resolve_id(template_id)
+        return TEMPLATES_ROOT / resolved
 
     @staticmethod
     def get_meta(template_id: str) -> Dict:
