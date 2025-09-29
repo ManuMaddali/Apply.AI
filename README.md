@@ -91,8 +91,6 @@ Ready to get more interviews? Start your free account today.
 - Join thousands of successful job seekers
 - Professional results in under 30 seconds
 
-[**Get Started Free**](https://applyai.com/signup) | [**View Live Demo**](https://applyai.com/demo) | [**Contact Sales**](https://applyai.com/contact)
-
 ---
 
 **ApplyAI Platform** - Intelligent resume optimization for the modern job market.
